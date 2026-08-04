@@ -40,3 +40,75 @@ export interface AuthUser {
   roleNames: string[]
   permissions: string[]
 }
+
+export interface UserResponse {
+  id: string
+  email: string
+  full_name: string
+  role_ids: string[]
+  is_active: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface CreateUserPayload {
+  email: string
+  full_name: string
+  password: string
+  role_ids: string[]
+}
+
+export interface UpdateUserPayload {
+  full_name: string
+  is_active: boolean
+}
+
+export interface ChangePasswordPayload {
+  new_password: string
+}
+
+export interface RoleResponse {
+  id: string
+  name: string
+  description: string
+  permission_ids: string[]
+  is_active: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface CreateRolePayload {
+  name: string
+  description: string
+}
+
+export interface UpdateRolePayload {
+  description: string
+  is_active: boolean
+}
+
+export interface PermissionResponse {
+  id: string
+  code: string
+  name: string
+  description: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreatePermissionPayload {
+  code: string
+  name: string
+  description: string
+}
+
+export interface UpdatePermissionPayload {
+  name: string
+  description: string
+  is_active: boolean
+}
+
+export interface IdResponse {
+  id: string
+}

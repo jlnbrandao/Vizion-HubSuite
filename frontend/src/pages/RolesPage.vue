@@ -1,114 +1,111 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { useQuasar, type QTableColumn } from 'quasar'
 import { usePermissions } from '@/composables/usePermissions'
 import { PermissionCode } from '@/constants/permissions'
 import {
   apiErrorMessage,
+  permissionsApi,
   rolesApi,
-  usersApi,
 } from '@/services/api'
-import type { RoleResponse, UserResponse } from '@/types/api'
+import type { PermissionResponse, RoleResponse } from '@/types/api'
 
 const $q = useQuasar()
-const route = useRoute()
-const router = useRouter()
 const { can } = usePermissions()
 
 const loading = ref(false)
 const saving = ref(false)
-const users = ref<UserResponse[]>([])
 const roles = ref<RoleResponse[]>([])
+const permissions = ref<PermissionResponse[]>([])
 
 const createOpen = ref(false)
 const editOpen = ref(false)
-const rolesOpen = ref(false)
-const selected = ref<UserResponse | null>(null)
+const permsOpen = ref(false)
+const selected = ref<RoleResponse | null>(null)
 
 const createForm = reactive({
-  email: '',
-  full_name: '',
-  password: '',
-  role_ids: [] as string[],
+  name: '',
+  description: '',
 })
 
 const editForm = reactive({
-  full_name: '',
+  description: '',
   is_active: true,
-  new_password: '',
 })
 
-const rolesForm = reactive({
-  role_ids: [] as string[],
+const permsForm = reactive({
+  permission_ids: [] as string[],
 })
 
-const roleOptions = computed(() =>
-  roles.value.map((role) => ({
-    label: role.name,
-    value: role.id,
-    description: role.description,
+const permissionOptions = computed(() =>
+  permissions.value.map((permission) => ({
+    label: `${permission.code} — ${permission.name}`,
+    value: permission.id,
   })),
 )
 
-const roleNameById = computed(() => {
-  const map = new Map<string, string>()
-  for (const role of roles.value) {
-    map.set(role.id, role.name)
-  }
-  return map
-})
+const filteredPermissionOptions = ref<Array<{ label: string; value: string }>>([])
+
+watch(
+  permissionOptions,
+  (opts) => {
+    filteredPermissionOptions.value = opts
+  },
+  { immediate: true },
+)
+
+function filterPermissions(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    const needle = val.toLowerCase()
+    filteredPermissionOptions.value = needle
+      ? permissionOptions.value.filter((opt) =>
+          opt.label.toLowerCase().includes(needle),
+        )
+      : permissionOptions.value
+  })
+}
 
 const columns: QTableColumn[] = [
-  { name: 'full_name', label: 'Nome', field: 'full_name', align: 'left', sortable: true },
-  { name: 'email', label: 'E-mail', field: 'email', align: 'left', sortable: true },
-  { name: 'roles', label: 'Roles', field: 'role_ids', align: 'left' },
+  { name: 'name', label: 'Nome', field: 'name', align: 'left', sortable: true },
+  { name: 'description', label: 'Descrição', field: 'description', align: 'left' },
+  { name: 'permissions', label: 'Permissões', field: 'permission_ids', align: 'center' },
   { name: 'is_active', label: 'Ativo', field: 'is_active', align: 'center' },
   { name: 'actions', label: 'Ações', field: 'id', align: 'right' },
 ]
 
-function roleLabels(roleIds: string[]): string {
-  if (!roleIds.length) return '—'
-  return roleIds.map((id) => roleNameById.value.get(id) ?? id.slice(0, 8)).join(', ')
-}
-
-function resetCreateForm() {
-  createForm.email = ''
-  createForm.full_name = ''
-  createForm.password = ''
-  createForm.role_ids = []
-}
+const roleNameRule = (v: string) =>
+  /^[A-Z][A-Z0-9_]{1,63}$/.test(v) || 'Use A-Z, números e _; comece com letra'
 
 function openCreate() {
-  resetCreateForm()
+  createForm.name = ''
+  createForm.description = ''
   createOpen.value = true
 }
 
-function openEdit(user: UserResponse) {
-  selected.value = user
-  editForm.full_name = user.full_name
-  editForm.is_active = user.is_active
-  editForm.new_password = ''
+function openEdit(role: RoleResponse) {
+  selected.value = role
+  editForm.description = role.description
+  editForm.is_active = role.is_active
   editOpen.value = true
 }
 
-function openRoles(user: UserResponse) {
-  selected.value = user
-  rolesForm.role_ids = [...user.role_ids]
-  rolesOpen.value = true
+function openPermissions(role: RoleResponse) {
+  selected.value = role
+  permsForm.permission_ids = [...role.permission_ids]
+  permsOpen.value = true
 }
 
 async function load() {
   loading.value = true
   try {
-    const [usersRes, rolesRes] = await Promise.all([
-      usersApi.list(),
+    const [rolesRes, permsRes] = await Promise.all([
       rolesApi.list(),
+      permissionsApi.list(),
     ])
-    users.value = usersRes.data
     roles.value = rolesRes.data
+    permissions.value = permsRes.data
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao carregar usuários') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao carregar roles') })
   } finally {
     loading.value = false
   }
@@ -117,17 +114,15 @@ async function load() {
 async function submitCreate() {
   saving.value = true
   try {
-    await usersApi.create({
-      email: createForm.email,
-      full_name: createForm.full_name,
-      password: createForm.password,
-      role_ids: createForm.role_ids,
+    await rolesApi.create({
+      name: createForm.name.trim().toUpperCase(),
+      description: createForm.description,
     })
     createOpen.value = false
-    $q.notify({ type: 'positive', message: 'Usuário criado' })
+    $q.notify({ type: 'positive', message: 'Role criada' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao criar usuário') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao criar role') })
   } finally {
     saving.value = false
   }
@@ -137,82 +132,62 @@ async function submitEdit() {
   if (!selected.value) return
   saving.value = true
   try {
-    await usersApi.update(selected.value.id, {
-      full_name: editForm.full_name,
+    await rolesApi.update(selected.value.id, {
+      description: editForm.description,
       is_active: editForm.is_active,
     })
-    if (editForm.new_password) {
-      await usersApi.changePassword(selected.value.id, {
-        new_password: editForm.new_password,
-      })
-    }
     editOpen.value = false
-    $q.notify({ type: 'positive', message: 'Usuário atualizado' })
+    $q.notify({ type: 'positive', message: 'Role atualizada' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao atualizar usuário') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao atualizar role') })
   } finally {
     saving.value = false
   }
 }
 
-async function submitRoles() {
+async function submitPermissions() {
   if (!selected.value) return
   saving.value = true
   try {
-    await usersApi.replaceRoles(selected.value.id, rolesForm.role_ids)
-    rolesOpen.value = false
-    $q.notify({ type: 'positive', message: 'Roles atualizadas' })
+    await rolesApi.replacePermissions(selected.value.id, permsForm.permission_ids)
+    permsOpen.value = false
+    $q.notify({ type: 'positive', message: 'Permissões atualizadas' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao atribuir roles') })
+    $q.notify({
+      type: 'negative',
+      message: apiErrorMessage(error, 'Falha ao atribuir permissões'),
+    })
   } finally {
     saving.value = false
   }
 }
 
-function confirmDelete(user: UserResponse) {
+function confirmDelete(role: RoleResponse) {
   $q.dialog({
-    title: 'Excluir usuário',
-    message: `Remover permanentemente ${user.full_name}?`,
+    title: 'Excluir role',
+    message: `Remover permanentemente a role ${role.name}?`,
     cancel: { flat: true, label: 'Cancelar', color: 'primary' },
     ok: { unelevated: true, label: 'Excluir', color: 'negative' },
     persistent: true,
   }).onOk(() => {
-    void deleteUser(user)
+    void deleteRole(role)
   })
 }
 
-async function deleteUser(user: UserResponse) {
+async function deleteRole(role: RoleResponse) {
   try {
-    await usersApi.remove(user.id)
-    $q.notify({ type: 'positive', message: 'Usuário excluído' })
+    await rolesApi.remove(role.id)
+    $q.notify({ type: 'positive', message: 'Role excluída' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao excluir usuário') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao excluir role') })
   }
 }
 
-async function consumeCreateQuery() {
-  if (route.query.create !== '1') return
-  if (!can(PermissionCode.USERS_CREATE)) {
-    await router.replace({ path: '/users', query: {} })
-    return
-  }
-  openCreate()
-  await router.replace({ path: '/users', query: {} })
-}
-
-watch(
-  () => route.query.create,
-  () => {
-    void consumeCreateQuery()
-  },
-)
-
-onMounted(async () => {
-  await load()
-  await consumeCreateQuery()
+onMounted(() => {
+  void load()
 })
 </script>
 
@@ -221,18 +196,18 @@ onMounted(async () => {
     <header class="admin-page__header">
       <div>
         <p class="admin-page__eyebrow">Administração</p>
-        <h1>Usuários</h1>
+        <h1>Roles</h1>
         <p class="admin-page__lead">
-          Crie contas, altere status e atribua roles do RBAC.
+          Defina papéis e associe o conjunto de permissões de cada um.
         </p>
       </div>
       <q-btn
-        v-if="can(PermissionCode.USERS_CREATE)"
+        v-if="can(PermissionCode.ROLES_CREATE)"
         color="primary"
         unelevated
         no-caps
-        icon="person_add"
-        label="Novo usuário"
+        icon="add"
+        label="Nova role"
         @click="openCreate"
       />
     </header>
@@ -242,14 +217,23 @@ onMounted(async () => {
       flat
       bordered
       row-key="id"
-      :rows="users"
+      :rows="roles"
       :columns="columns"
       :loading="loading"
       :rows-per-page-options="[10, 20, 50]"
     >
-      <template #body-cell-roles="props">
+      <template #body-cell-description="props">
         <q-td :props="props">
-          <span class="admin-table__muted">{{ roleLabels(props.row.role_ids) }}</span>
+          <span class="admin-table__muted">{{ props.row.description || '—' }}</span>
+        </q-td>
+      </template>
+
+      <template #body-cell-permissions="props">
+        <q-td :props="props">
+          <q-badge
+            color="teal"
+            :label="String(props.row.permission_ids.length)"
+          />
         </q-td>
       </template>
 
@@ -266,7 +250,7 @@ onMounted(async () => {
         <q-td :props="props">
           <div class="admin-table__actions">
             <q-btn
-              v-if="can(PermissionCode.USERS_UPDATE)"
+              v-if="can(PermissionCode.ROLES_UPDATE)"
               flat
               dense
               round
@@ -277,18 +261,18 @@ onMounted(async () => {
               <q-tooltip>Editar</q-tooltip>
             </q-btn>
             <q-btn
-              v-if="can(PermissionCode.USERS_ASSIGN_ROLES)"
+              v-if="can(PermissionCode.ROLES_ASSIGN_PERMISSIONS)"
               flat
               dense
               round
-              icon="shield"
+              icon="key"
               color="primary"
-              @click="openRoles(props.row)"
+              @click="openPermissions(props.row)"
             >
-              <q-tooltip>Roles</q-tooltip>
+              <q-tooltip>Permissões</q-tooltip>
             </q-btn>
             <q-btn
-              v-if="can(PermissionCode.USERS_DELETE)"
+              v-if="can(PermissionCode.ROLES_DELETE)"
               flat
               dense
               round
@@ -304,7 +288,7 @@ onMounted(async () => {
 
       <template #no-data>
         <div class="admin-table__empty">
-          Nenhum usuário encontrado.
+          Nenhuma role encontrada.
         </div>
       </template>
     </q-table>
@@ -315,46 +299,27 @@ onMounted(async () => {
     >
       <q-card class="admin-dialog">
         <q-card-section>
-          <div class="text-h6">Novo usuário</div>
+          <div class="text-h6">Nova role</div>
         </q-card-section>
         <q-form @submit.prevent="submitCreate">
           <q-card-section class="q-gutter-md">
             <q-input
-              v-model="createForm.full_name"
-              label="Nome completo"
+              v-model="createForm.name"
+              label="Nome"
               outlined
               dense
               required
-              :rules="[(v) => (v && v.length >= 2) || 'Mínimo 2 caracteres']"
+              hint="Ex.: ADMIN, MANAGER"
+              :rules="[roleNameRule]"
+              @update:model-value="(v) => { createForm.name = String(v ?? '').toUpperCase() }"
             />
             <q-input
-              v-model="createForm.email"
-              type="email"
-              label="E-mail"
+              v-model="createForm.description"
+              label="Descrição"
               outlined
               dense
-              required
-            />
-            <q-input
-              v-model="createForm.password"
-              type="password"
-              label="Senha"
-              outlined
-              dense
-              required
-              :rules="[(v) => (v && v.length >= 8) || 'Mínimo 8 caracteres']"
-            />
-            <q-select
-              v-model="createForm.role_ids"
-              :options="roleOptions"
-              label="Roles"
-              outlined
-              dense
-              multiple
-              emit-value
-              map-options
-              use-chips
-              clearable
+              type="textarea"
+              autogrow
             />
           </q-card-section>
           <q-card-actions align="right">
@@ -384,34 +349,23 @@ onMounted(async () => {
     >
       <q-card class="admin-dialog">
         <q-card-section>
-          <div class="text-h6">Editar usuário</div>
-          <div class="admin-dialog__sub">{{ selected?.email }}</div>
+          <div class="text-h6">Editar role</div>
+          <div class="admin-dialog__sub">{{ selected?.name }}</div>
         </q-card-section>
         <q-form @submit.prevent="submitEdit">
           <q-card-section class="q-gutter-md">
             <q-input
-              v-model="editForm.full_name"
-              label="Nome completo"
+              v-model="editForm.description"
+              label="Descrição"
               outlined
               dense
-              required
-              :rules="[(v) => (v && v.length >= 2) || 'Mínimo 2 caracteres']"
+              type="textarea"
+              autogrow
             />
             <q-toggle
               v-model="editForm.is_active"
-              label="Usuário ativo"
+              label="Role ativa"
               color="primary"
-            />
-            <q-input
-              v-model="editForm.new_password"
-              type="password"
-              label="Nova senha (opcional)"
-              outlined
-              dense
-              hint="Deixe em branco para manter a senha atual"
-              :rules="[
-                (v) => !v || v.length >= 8 || 'Mínimo 8 caracteres',
-              ]"
             />
           </q-card-section>
           <q-card-actions align="right">
@@ -436,20 +390,20 @@ onMounted(async () => {
     </q-dialog>
 
     <q-dialog
-      v-model="rolesOpen"
+      v-model="permsOpen"
       persistent
     >
-      <q-card class="admin-dialog">
+      <q-card class="admin-dialog admin-dialog--wide">
         <q-card-section>
-          <div class="text-h6">Atribuir roles</div>
-          <div class="admin-dialog__sub">{{ selected?.full_name }}</div>
+          <div class="text-h6">Atribuir permissões</div>
+          <div class="admin-dialog__sub">{{ selected?.name }}</div>
         </q-card-section>
-        <q-form @submit.prevent="submitRoles">
+        <q-form @submit.prevent="submitPermissions">
           <q-card-section>
             <q-select
-              v-model="rolesForm.role_ids"
-              :options="roleOptions"
-              label="Roles"
+              v-model="permsForm.permission_ids"
+              :options="filteredPermissionOptions"
+              label="Permissões"
               outlined
               dense
               multiple
@@ -457,6 +411,9 @@ onMounted(async () => {
               map-options
               use-chips
               clearable
+              use-input
+              input-debounce="0"
+              @filter="filterPermissions"
             />
           </q-card-section>
           <q-card-actions align="right">
@@ -465,7 +422,7 @@ onMounted(async () => {
               no-caps
               label="Cancelar"
               color="primary"
-              @click="rolesOpen = false"
+              @click="permsOpen = false"
             />
             <q-btn
               type="submit"
@@ -543,6 +500,10 @@ onMounted(async () => {
 
 .admin-dialog {
   min-width: min(440px, 92vw);
+}
+
+.admin-dialog--wide {
+  min-width: min(560px, 94vw);
 }
 
 .admin-dialog__sub {

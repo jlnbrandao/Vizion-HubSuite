@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 
+const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 const auth = useAuthStore()
@@ -15,12 +16,23 @@ const form = reactive({
   password: '',
 })
 
+function postLoginPath(): string {
+  const redirect = route.query.redirect
+  if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
+    if (redirect === '/login' || redirect.startsWith('/login?')) {
+      return '/dashboard'
+    }
+    return redirect
+  }
+  return '/dashboard'
+}
+
 async function submit() {
   try {
     await auth.login(form.email, form.password)
-    await dashboard.load()
     $q.notify({ type: 'positive', message: 'Bem-vindo ao Lanstar' })
-    await router.push({ name: 'dashboard' })
+    await router.replace(postLoginPath())
+    void dashboard.load()
   } catch {
     $q.notify({ type: 'negative', message: auth.error ?? 'Falha no login' })
   }

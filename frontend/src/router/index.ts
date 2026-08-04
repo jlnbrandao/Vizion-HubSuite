@@ -1,6 +1,7 @@
 import {
   createRouter,
   createWebHistory,
+  type RouteLocationRaw,
   type RouteRecordRaw,
 } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -41,11 +42,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/UsersPage.vue'),
         meta: { permissions: [PermissionCode.USERS_READ] },
       },
+      {
+        path: 'roles',
+        name: 'roles',
+        component: () => import('@/pages/RolesPage.vue'),
+        meta: { permissions: [PermissionCode.ROLES_READ] },
+      },
+      {
+        path: 'permissions',
+        name: 'permissions',
+        component: () => import('@/pages/PermissionsPage.vue'),
+        meta: { permissions: [PermissionCode.PERMISSIONS_READ] },
+      },
     ],
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: { name: 'dashboard' },
+    name: 'not-found',
+    redirect: () => ({ name: 'dashboard' }),
   },
 ]
 
@@ -54,21 +68,38 @@ const router = createRouter({
   routes,
 })
 
+function resolvePostLoginTarget(redirect: unknown): RouteLocationRaw {
+  if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
+    if (redirect === '/login' || redirect.startsWith('/login?')) {
+      return { name: 'dashboard' }
+    }
+    return redirect
+  }
+  return { name: 'dashboard' }
+}
+
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+
   if (!auth.bootstrapped) {
     await auth.bootstrap()
   }
 
-  if (to.meta.public) {
-    if (auth.isAuthenticated && to.name === 'login') {
-      return { name: 'dashboard' }
+  const isPublic = Boolean(to.meta.public) || to.name === 'login'
+
+  if (isPublic) {
+    if (auth.isAuthenticated) {
+      return resolvePostLoginTarget(to.query.redirect)
     }
     return true
   }
 
-  if (to.meta.requiresAuth !== false && !auth.isAuthenticated) {
-    return { name: 'login', query: { redirect: to.fullPath } }
+  const needsAuth = to.matched.some((record) => record.meta.requiresAuth === true)
+  if (needsAuth && !auth.isAuthenticated) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath },
+    }
   }
 
   const required = to.meta.permissions ?? []

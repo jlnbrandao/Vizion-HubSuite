@@ -1,5 +1,19 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
-import type { DashboardResponse, TokenResponse } from '@/types/api'
+import type {
+  ChangePasswordPayload,
+  CreatePermissionPayload,
+  CreateRolePayload,
+  CreateUserPayload,
+  DashboardResponse,
+  IdResponse,
+  PermissionResponse,
+  RoleResponse,
+  TokenResponse,
+  UpdatePermissionPayload,
+  UpdateRolePayload,
+  UpdateUserPayload,
+  UserResponse,
+} from '@/types/api'
 
 const ACCESS_KEY = 'lanstar.access_token'
 const REFRESH_KEY = 'lanstar.refresh_token'
@@ -68,6 +82,12 @@ api.interceptors.response.use(
       return api(original)
     } catch {
       tokenStorage.clear()
+      try {
+        const { useAuthStore } = await import('@/stores/auth')
+        useAuthStore().clearSession()
+      } catch {
+        // Pinia may be unavailable outside the app context.
+      }
       return Promise.reject(error)
     }
   },
@@ -88,5 +108,87 @@ export const dashboardApi = {
   },
   me() {
     return api.get<DashboardResponse>('/dashboard/me')
+  },
+}
+
+export function apiErrorMessage(error: unknown, fallback = 'Operação falhou'): string {
+  if (!axios.isAxiosError(error)) {
+    return error instanceof Error ? error.message : fallback
+  }
+  const detail = error.response?.data?.detail
+  if (typeof detail === 'string') {
+    return detail
+  }
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item: { msg?: string }) => item.msg)
+      .filter(Boolean)
+      .join('; ') || fallback
+  }
+  return fallback
+}
+
+export const usersApi = {
+  list(onlyActive = false) {
+    return api.get<UserResponse[]>('/users', { params: { only_active: onlyActive } })
+  },
+  get(userId: string) {
+    return api.get<UserResponse>(`/users/${userId}`)
+  },
+  create(payload: CreateUserPayload) {
+    return api.post<IdResponse>('/users', payload)
+  },
+  update(userId: string, payload: UpdateUserPayload) {
+    return api.put(`/users/${userId}`, payload)
+  },
+  changePassword(userId: string, payload: ChangePasswordPayload) {
+    return api.post(`/users/${userId}/change-password`, payload)
+  },
+  remove(userId: string) {
+    return api.delete(`/users/${userId}`)
+  },
+  replaceRoles(userId: string, roleIds: string[]) {
+    return api.put(`/users/${userId}/roles`, { role_ids: roleIds })
+  },
+}
+
+export const rolesApi = {
+  list(onlyActive = false) {
+    return api.get<RoleResponse[]>('/roles', { params: { only_active: onlyActive } })
+  },
+  get(roleId: string) {
+    return api.get<RoleResponse>(`/roles/${roleId}`)
+  },
+  create(payload: CreateRolePayload) {
+    return api.post<IdResponse>('/roles', payload)
+  },
+  update(roleId: string, payload: UpdateRolePayload) {
+    return api.put(`/roles/${roleId}`, payload)
+  },
+  remove(roleId: string) {
+    return api.delete(`/roles/${roleId}`)
+  },
+  replacePermissions(roleId: string, permissionIds: string[]) {
+    return api.put(`/roles/${roleId}/permissions`, { permission_ids: permissionIds })
+  },
+}
+
+export const permissionsApi = {
+  list(onlyActive = false) {
+    return api.get<PermissionResponse[]>('/permissions', {
+      params: { only_active: onlyActive },
+    })
+  },
+  get(permissionId: string) {
+    return api.get<PermissionResponse>(`/permissions/${permissionId}`)
+  },
+  create(payload: CreatePermissionPayload) {
+    return api.post<IdResponse>('/permissions', payload)
+  },
+  update(permissionId: string, payload: UpdatePermissionPayload) {
+    return api.put(`/permissions/${permissionId}`, payload)
+  },
+  remove(permissionId: string) {
+    return api.delete(`/permissions/${permissionId}`)
   },
 }

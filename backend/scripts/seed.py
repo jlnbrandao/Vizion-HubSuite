@@ -33,19 +33,50 @@ logger = logging.getLogger("seed")
 
 DEMO_EMAIL = "galileu@lanstar.com.br"
 DEMO_PASSWORD = "Demo@12345"
-DEMO_FULL_NAME = "Admin Demo"
+DEMO_FULL_NAME = "Galileu Admin"
 DEMO_ROLE = "ADMIN"
 
 ROLE_DESCRIPTIONS: dict[str, str] = {
-    "ADMIN": "Full system access",
+    "ADMIN": "CRUD de usuários, roles e permissões",
     "MANAGER": "Company indicators and user oversight",
     "OPERATOR": "Day-to-day operations",
     "CLIENT": "Own profile access only",
     "VIEWER": "Read-only system overview",
 }
 
+# ADMIN: only identity/RBAC administration — no manager/operator/client/viewer/settings.
+ADMIN_PERMISSIONS: frozenset[str] = frozenset(
+    {
+        PermissionCode.USERS_CREATE,
+        PermissionCode.USERS_READ,
+        PermissionCode.USERS_UPDATE,
+        PermissionCode.USERS_DELETE,
+        PermissionCode.USERS_ASSIGN_ROLES,
+        PermissionCode.ROLES_CREATE,
+        PermissionCode.ROLES_READ,
+        PermissionCode.ROLES_UPDATE,
+        PermissionCode.ROLES_DELETE,
+        PermissionCode.ROLES_ASSIGN_PERMISSIONS,
+        PermissionCode.PERMISSIONS_CREATE,
+        PermissionCode.PERMISSIONS_READ,
+        PermissionCode.PERMISSIONS_UPDATE,
+        PermissionCode.PERMISSIONS_DELETE,
+        PermissionCode.DASHBOARD_ADMIN,
+    }
+)
+
+FORBIDDEN_FOR_ADMIN: frozenset[str] = frozenset(
+    {
+        PermissionCode.DASHBOARD_MANAGER,
+        PermissionCode.DASHBOARD_OPERATOR,
+        PermissionCode.DASHBOARD_CLIENT,
+        PermissionCode.DASHBOARD_VIEWER,
+        PermissionCode.SYSTEM_SETTINGS,
+    }
+)
+
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
-    "ADMIN": frozenset(PermissionCode.all_codes()),
+    "ADMIN": ADMIN_PERMISSIONS,
     "MANAGER": frozenset(
         {
             PermissionCode.USERS_READ,
@@ -83,16 +114,23 @@ def _permission_label(code: str) -> str:
 
 
 def validate_role_permissions_map() -> None:
-    """Ensure ROLE_PERMISSIONS only references canonical codes and ADMIN has all."""
+    """Ensure ROLE_PERMISSIONS references canonical codes; ADMIN is RBAC-only."""
     all_codes = set(PermissionCode.all_codes())
     for role, codes in ROLE_PERMISSIONS.items():
         unknown = codes - all_codes
         if unknown:
             raise ValueError(f"Role {role} has unknown permission codes: {sorted(unknown)}")
+
     admin_codes = ROLE_PERMISSIONS["ADMIN"]
-    missing = all_codes - admin_codes
+    missing = ADMIN_PERMISSIONS - admin_codes
     if missing:
-        raise ValueError(f"ADMIN is missing permission codes: {sorted(missing)}")
+        raise ValueError(f"ADMIN is missing required permission codes: {sorted(missing)}")
+
+    forbidden = admin_codes & FORBIDDEN_FOR_ADMIN
+    if forbidden:
+        raise ValueError(
+            f"ADMIN must not have non-RBAC permission codes: {sorted(forbidden)}"
+        )
 
 
 async def _ensure_permissions(container: Container) -> dict[str, UUID]:

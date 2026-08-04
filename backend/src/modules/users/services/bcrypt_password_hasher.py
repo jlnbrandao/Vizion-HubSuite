@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
-from passlib.context import CryptContext
+import bcrypt
 
 from src.modules.users.services.password_hasher import PasswordHasher
 from src.modules.users.value_objects.hashed_password import HashedPassword
 from src.modules.users.value_objects.plain_password import PlainPassword
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 class BcryptPasswordHasher(PasswordHasher):
     def hash(self, plain: PlainPassword) -> HashedPassword:
-        return HashedPassword(value=_pwd_context.hash(plain.value))
+        hashed = bcrypt.hashpw(plain.value.encode("utf-8"), bcrypt.gensalt())
+        return HashedPassword(value=hashed.decode("utf-8"))
 
     def verify(self, plain: PlainPassword, hashed: HashedPassword) -> bool:
-        return _pwd_context.verify(plain.value, hashed.value)
+        return bcrypt.checkpw(
+            plain.value.encode("utf-8"),
+            hashed.value.encode("utf-8"),
+        )

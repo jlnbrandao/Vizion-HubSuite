@@ -72,7 +72,7 @@ def composer(query_bus: QueryBus) -> DashboardComposer:
 
 
 @pytest.mark.asyncio
-async def test_admin_dashboard_includes_system_stats(composer: DashboardComposer) -> None:
+async def test_admin_dashboard_includes_rbac_sections(composer: DashboardComposer) -> None:
     handler = GetDashboardHandler(composer)
     result = await handler.handle(
         GetDashboardQuery(
@@ -84,17 +84,22 @@ async def test_admin_dashboard_includes_system_stats(composer: DashboardComposer
                 {
                     PermissionCode.DASHBOARD_ADMIN,
                     PermissionCode.USERS_READ,
-                    PermissionCode.SYSTEM_SETTINGS,
+                    PermissionCode.ROLES_READ,
+                    PermissionCode.PERMISSIONS_READ,
                 }
             ),
         )
     )
 
     widget_ids = {w.id for w in result.widgets}
-    assert "admin-system-stats" in widget_ids
-    assert "admin-settings" in widget_ids
+    assert "admin-rbac-stats" in widget_ids
+    assert "admin-user-mgmt" in widget_ids
+    assert "admin-role-mgmt" in widget_ids
+    assert "admin-permission-mgmt" in widget_ids
     assert "manager-kpis" not in widget_ids
-    assert any(m.id == "admin-users" for m in result.menu)
+    assert "admin-settings" not in widget_ids
+    menu_ids = {m.id for m in result.menu}
+    assert menu_ids == {"admin-users", "admin-roles", "admin-permissions"}
 
 
 @pytest.mark.asyncio

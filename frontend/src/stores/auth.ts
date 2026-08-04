@@ -5,23 +5,52 @@ import type { AuthUser } from '@/types/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
+  const accessToken = ref<string | null>(tokenStorage.getAccess())
   const bootstrapped = ref(false)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const isAuthenticated = computed(() => Boolean(tokenStorage.getAccess() && user.value))
+  const isAuthenticated = computed(
+    () => Boolean(accessToken.value && user.value),
+  )
+
+  function persistTokens(access: string, refresh: string) {
+    tokenStorage.set(access, refresh)
+    accessToken.value = access
+  }
+
+  function clearSession() {
+    tokenStorage.clear()
+    accessToken.value = null
+    user.value = null
+  }
 
   async function login(email: string, password: string) {
     loading.value = true
     error.value = null
     try {
       const { data } = await authApi.login(email, password)
-      tokenStorage.set(data.access_token, data.refresh_token)
-      await hydrateFromDashboard()
+      persistTokens(data.access_token, data.refresh_token)
+
+      // Minimal identity from login response — ensures isAuthenticated before hydrate.
+      user.value = {
+        id: data.user_id,
+        email: data.email,
+        fullName: data.full_name,
+        roleNames: [],
+        permissions: [],
+      }
+
+      try {
+        await hydrateFromDashboard()
+      } catch {
+        // Token is valid; permissions can be loaded after navigation.
+      }
+
+      bootstrapped.value = true
     } catch {
       error.value = 'Credenciais inválidas'
-      tokenStorage.clear()
-      user.value = null
+      clearSession()
       throw new Error('login_failed')
     } finally {
       loading.value = false
@@ -40,15 +69,19 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function bootstrap() {
-    if (!tokenStorage.getAccess()) {
+    const existing = tokenStorage.getAccess()
+    if (!existing) {
+      accessToken.value = null
+      user.value = null
       bootstrapped.value = true
       return
     }
+
+    accessToken.value = existing
     try {
       await hydrateFromDashboard()
     } catch {
-      tokenStorage.clear()
-      user.value = null
+      clearSession()
     } finally {
       bootstrapped.value = true
     }
@@ -61,13 +94,13 @@ export const useAuthStore = defineStore('auth', () => {
         await authApi.logout(refresh)
       }
     } finally {
-      tokenStorage.clear()
-      user.value = null
+      clearSession()
     }
   }
 
   return {
     user,
+    accessToken,
     bootstrapped,
     loading,
     error,
@@ -76,5 +109,6 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     bootstrap,
     hydrateFromDashboard,
+    clearSession,
   }
 })

@@ -1,4 +1,4 @@
-"""ADMIN dashboard section — system stats, user management, settings."""
+"""ADMIN dashboard section — users, roles, permissions management only."""
 
 from __future__ import annotations
 
@@ -24,24 +24,24 @@ class AdminDashboardProvider(DashboardSectionProvider):
         return [
             DashboardMenuItem(
                 id="admin-users",
-                label="Gerenciamento de usuários",
+                label="Usuários",
                 route="/users",
                 icon="people",
                 required_permission=PermissionCode.USERS_READ,
             ),
             DashboardMenuItem(
                 id="admin-roles",
-                label="Roles e permissões",
+                label="Roles",
                 route="/roles",
                 icon="shield",
                 required_permission=PermissionCode.ROLES_READ,
             ),
             DashboardMenuItem(
-                id="admin-settings",
-                label="Configurações",
-                route="/settings",
-                icon="settings",
-                required_permission=PermissionCode.SYSTEM_SETTINGS,
+                id="admin-permissions",
+                label="Permissões",
+                route="/permissions",
+                icon="key",
+                required_permission=PermissionCode.PERMISSIONS_READ,
             ),
         ]
 
@@ -53,8 +53,8 @@ class AdminDashboardProvider(DashboardSectionProvider):
 
         return [
             DashboardWidget(
-                id="admin-system-stats",
-                title="Estatísticas do sistema",
+                id="admin-rbac-stats",
+                title="Administração RBAC",
                 widget_type="stats",
                 data={
                     "users_total": users_total,
@@ -65,22 +65,32 @@ class AdminDashboardProvider(DashboardSectionProvider):
             ),
             DashboardWidget(
                 id="admin-user-mgmt",
-                title="Gerenciamento de usuários",
+                title="Usuários",
                 widget_type="actions",
                 data={
                     "actions": [
-                        {"label": "Criar usuário", "route": "/users/new"},
+                        {"label": "Criar usuário", "route": "/users?create=1"},
                         {"label": "Listar usuários", "route": "/users"},
                     ]
                 },
             ),
             DashboardWidget(
-                id="admin-settings",
-                title="Configurações",
+                id="admin-role-mgmt",
+                title="Roles",
                 widget_type="actions",
                 data={
                     "actions": [
-                        {"label": "Abrir configurações", "route": "/settings"},
+                        {"label": "Gerenciar roles", "route": "/roles"},
+                    ]
+                },
+            ),
+            DashboardWidget(
+                id="admin-permission-mgmt",
+                title="Permissões",
+                widget_type="actions",
+                data={
+                    "actions": [
+                        {"label": "Gerenciar permissões", "route": "/permissions"},
                     ]
                 },
             ),

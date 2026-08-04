@@ -5,7 +5,6 @@ import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 import { usePermissions } from '@/composables/usePermissions'
-import { PermissionCode } from '@/constants/permissions'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -91,18 +90,6 @@ async function logout() {
             <q-icon :name="item.icon" />
           </q-item-section>
           <q-item-section>{{ item.label }}</q-item-section>
-        </q-item>
-
-        <q-item
-          v-if="can(PermissionCode.USERS_READ)"
-          clickable
-          v-ripple
-          to="/users"
-        >
-          <q-item-section avatar>
-            <q-icon name="group" />
-          </q-item-section>
-          <q-item-section>Usuários</q-item-section>
         </q-item>
       </q-list>
     </q-drawer>

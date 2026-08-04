@@ -37,8 +37,8 @@ docker compose up -d --build
 docker compose --profile seed run --rm seed
 ```
 
-- App: http://localhost:9000
-- API: http://localhost:8000
+- App: http://134.209.122.250:9000 (também http://localhost:9000)
+- API: http://134.209.122.250:8000 (também http://localhost:8000)
 - Login demo: `galileu@lanstar.com.br` / `Demo@12345`
 
 ## Infraestrutura apenas (Postgres + Redis)
@@ -68,15 +68,22 @@ npm install
 npm run dev
 ```
 
-App: http://localhost:9000 (proxy `/api` → backend `:8000`)
+App: http://134.209.122.250:9000 (proxy `/api` → backend `:8000`)
 
 ## Seed
 
 O seed é idempotente e cria:
 
 - todas as permissões canônicas
-- roles `ADMIN`, `MANAGER`, `OPERATOR`, `CLIENT`, `VIEWER` com matriz de permissões
-- usuário demo `galileu@lanstar.com.br` (role `ADMIN`)
+- roles `ADMIN`, `MANAGER`, `OPERATOR`, `CLIENT`, `VIEWER`
+- usuário `galileu@lanstar.com.br` / `Demo@12345` com role `ADMIN`
+
+O **ADMIN** (Galileu) tem apenas:
+
+- CRUD de usuários, roles e permissões
+- `dashboard.admin` (painel de administração RBAC)
+
+Não recebe: `dashboard.manager|operator|client|viewer` nem `system.settings`.
 
 ```bash
 cd backend
@@ -105,3 +112,5 @@ Cliente → FastAPI (Gateway)
 
 Módulos em `src/modules/*` são Vertical Slices independentes.
 Comunicação entre módulos: Commands, Queries, Domain Events e Interfaces — nunca imports internos.
+
+Para adicionar páginas, módulos, widgets ou ações protegidas pelo RBAC, siga o playbook em [HOWTODO.md](HOWTODO.md).
