@@ -1,0 +1,189 @@
+"""Handler tests for Authentication (login / refresh / logout)."""
+
+from __future__ import annotations
+
+import pytest
+
+from src.config.settings import Settings
+from src.modules.authentication.commands.auth_commands import (
+    LoginCommand,
+    LogoutCommand,
+    RefreshTokenCommand,
+)
+from src.modules.authentication.handlers.auth_handlers import (
+    LoginHandler,
+    LogoutHandler,
+    RefreshTokenHandler,
+)
+from src.modules.authentication.services.in_memory_refresh_token_store import (
+    InMemoryRefreshTokenStore,
+)
+from src.modules.authentication.services.jose_token_service import JoseTokenService
+from src.modules.users.commands.user_commands import CreateUserCommand
+from src.modules.users.handlers.user_handlers import CreateUserHandler, GetUserByEmailHandler
+from src.modules.users.queries.user_queries import GetUserByEmailQuery
+from src.modules.users.repositories.in_memory_user_repository import InMemoryUserRepository
+from src.modules.users.services.password_hasher import PasswordHasher
+from src.modules.users.value_objects.hashed_password import HashedPassword
+from src.modules.users.value_objects.plain_password import PlainPassword
+from src.shared.application.event_bus import EventBus
+from src.shared.application.query_bus import QueryBus
+from src.shared.infrastructure.exceptions import UnauthorizedError
+from tests.unit.shared.in_memory_unit_of_work import InMemoryUnitOfWork
+
+
+class FakePasswordHasher(PasswordHasher):
+    def hash(self, plain: PlainPassword) -> HashedPassword:
+        return HashedPassword(value=f"hashed::{plain.value}::{'x' * 40}")
+
+    def verify(self, plain: PlainPassword, hashed: HashedPassword) -> bool:
+        return hashed.value == f"hashed::{plain.value}::{'x' * 40}"
+
+
+@pytest.fixture
+def settings() -> Settings:
+    return Settings(
+        jwt_secret_key="auth-test-secret",
+        jwt_access_token_expire_minutes=15,
+        jwt_refresh_token_expire_days=7,
+    )
+
+
+@pytest.fixture
+def users_repo() -> InMemoryUserRepository:
+    return InMemoryUserRepository()
+
+
+@pytest.fixture
+def event_bus() -> EventBus:
+    return EventBus()
+
+
+@pytest.fixture
+def uow_factory(event_bus: EventBus):
+    def factory() -> InMemoryUnitOfWork:
+        return InMemoryUnitOfWork(event_bus)
+
+    return factory
+
+
+@pytest.fixture
+def password_hasher() -> FakePasswordHasher:
+    return FakePasswordHasher()
+
+
+@pytest.fixture
+def query_bus(uow_factory, users_repo) -> QueryBus:
+    bus = QueryBus()
+    bus.register(GetUserByEmailQuery, GetUserByEmailHandler(uow_factory, users_repo))
+    return bus
+
+
+@pytest.fixture
+def token_service(settings: Settings) -> JoseTokenService:
+    return JoseTokenService(settings)
+
+
+@pytest.fixture
+def refresh_store(settings: Settings) -> InMemoryRefreshTokenStore:
+    return InMemoryRefreshTokenStore(settings)
+
+
+@pytest.fixture
+async def seeded_user(users_repo, uow_factory, password_hasher, query_bus):
+    # query_bus unused for create — CreateUser needs CheckRolesExist only if roles set
+    from src.modules.roles.handlers.role_handlers import CheckRolesExistHandler
+    from src.modules.roles.queries.role_queries import CheckRolesExistQuery
+    from src.modules.roles.repositories.in_memory_role_repository import InMemoryRoleRepository
+
+    roles_repo = InMemoryRoleRepository()
+    query_bus.register(
+        CheckRolesExistQuery, CheckRolesExistHandler(uow_factory, roles_repo)
+    )
+    create = CreateUserHandler(uow_factory, users_repo, password_hasher, query_bus)
+    user_id = await create.handle(
+        CreateUserCommand(
+            email="admin@lanstar.io",
+            full_name="Admin User",
+            password="Secret123",
+        )
+    )
+    return user_id
+
+
+@pytest.fixture
+def login_handler(query_bus, password_hasher, token_service, refresh_store, event_bus):
+    return LoginHandler(query_bus, password_hasher, token_service, refresh_store, event_bus)
+
+
+@pytest.fixture
+def logout_handler(refresh_store, event_bus):
+    return LogoutHandler(refresh_store, event_bus)
+
+
+@pytest.fixture
+def refresh_handler(token_service, refresh_store, event_bus):
+    return RefreshTokenHandler(token_service, refresh_store, event_bus)
+
+
+@pytest.mark.asyncio
+async def test_login_success(seeded_user, login_handler, token_service) -> None:
+    pair = await login_handler.handle(
+        LoginCommand(email="admin@lanstar.io", password="Secret123")
+    )
+    assert pair.email == "admin@lanstar.io"
+    assert pair.user_id == seeded_user
+    claims = token_service.decode_access_token(pair.access_token)
+    assert claims.email == "admin@lanstar.io"
+    assert len(pair.refresh_token) >= 32
+
+
+@pytest.mark.asyncio
+async def test_login_wrong_password(seeded_user, login_handler) -> None:
+    with pytest.raises(UnauthorizedError, match="Invalid credentials"):
+        await login_handler.handle(
+            LoginCommand(email="admin@lanstar.io", password="WrongPass1")
+        )
+
+
+@pytest.mark.asyncio
+async def test_login_unknown_user(login_handler) -> None:
+    with pytest.raises(UnauthorizedError, match="Invalid credentials"):
+        await login_handler.handle(
+            LoginCommand(email="nobody@lanstar.io", password="Secret123")
+        )
+
+
+@pytest.mark.asyncio
+async def test_refresh_rotates_token(
+    seeded_user, login_handler, refresh_handler, refresh_store
+) -> None:
+    pair = await login_handler.handle(
+        LoginCommand(email="admin@lanstar.io", password="Secret123")
+    )
+    old_refresh = pair.refresh_token
+
+    new_pair = await refresh_handler.handle(
+        RefreshTokenCommand(refresh_token=old_refresh)
+    )
+    assert new_pair.refresh_token != old_refresh
+    assert new_pair.user_id == seeded_user
+
+    # Old token must be invalid after rotation
+    with pytest.raises(UnauthorizedError):
+        await refresh_handler.handle(RefreshTokenCommand(refresh_token=old_refresh))
+
+
+@pytest.mark.asyncio
+async def test_logout_invalidates_refresh(
+    seeded_user, login_handler, logout_handler, refresh_handler
+) -> None:
+    pair = await login_handler.handle(
+        LoginCommand(email="admin@lanstar.io", password="Secret123")
+    )
+    await logout_handler.handle(LogoutCommand(refresh_token=pair.refresh_token))
+
+    with pytest.raises(UnauthorizedError):
+        await refresh_handler.handle(
+            RefreshTokenCommand(refresh_token=pair.refresh_token)
+        )

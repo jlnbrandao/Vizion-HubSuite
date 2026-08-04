@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lanstar-postgres
+    environment:
+      POSTGRES_USER: lanstar
+      POSTGRES_PASSWORD: lanstar
+      POSTGRES_DB: lanstar
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lanstar -d lanstar"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: lanstar-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lanstar-api
+    environment:
+      APP_NAME: Lanstar
+      APP_ENV: development
+      APP_DEBUG: "true"
+      APP_HOST: 0.0.0.0
+      APP_PORT: "8000"
+      DATABASE_URL: postgresql+asyncpg://lanstar:lanstar@postgres:5432/lanstar
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: change-me-in-production-use-long-random-string
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: "7"
+      RATE_LIMIT_REQUESTS: "100"
+      RATE_LIMIT_WINDOW_SECONDS: "60"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: lanstar-frontend
+    ports:
+      - "9000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  seed:
+    profiles: ["seed"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lanstar-seed
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://lanstar:lanstar@postgres:5432/lanstar
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: change-me-in-production-use-long-random-string
+    entrypoint: ["python", "-m", "scripts.seed"]
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:

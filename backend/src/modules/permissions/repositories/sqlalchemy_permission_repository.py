@@ -1,0 +1,105 @@
+"""SQLAlchemy Permission repository — persistence only, no business rules."""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.modules.permissions.entities.permission import Permission
+from src.modules.permissions.repositories.permission_model import PermissionModel
+from src.modules.permissions.repositories.permission_repository import PermissionRepository
+from src.modules.permissions.value_objects.permission_code import PermissionCode
+from src.modules.permissions.value_objects.permission_name import PermissionName
+from src.shared.infrastructure.session_context import get_current_session
+
+
+def _to_entity(model: PermissionModel) -> Permission:
+    return Permission(
+        id=model.id,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+        code=PermissionCode(value=model.code),
+        name=PermissionName(value=model.name),
+        description=model.description,
+        is_active=model.is_active,
+    )
+
+
+def _apply_entity(model: PermissionModel, entity: Permission) -> None:
+    model.code = entity.code.value
+    model.name = entity.name.value
+    model.description = entity.description
+    model.is_active = entity.is_active
+    model.updated_at = entity.updated_at
+
+
+class SqlAlchemyPermissionRepository(PermissionRepository):
+    def _session(self) -> AsyncSession:
+        return get_current_session()
+
+    async def get_by_id(self, entity_id: UUID) -> Permission | None:
+        model = await self._session().get(PermissionModel, entity_id)
+        return _to_entity(model) if model else None
+
+    async def get_by_code(self, code: PermissionCode) -> Permission | None:
+        stmt = select(PermissionModel).where(PermissionModel.code == code.value)
+        result = await self._session().execute(stmt)
+        model = result.scalar_one_or_none()
+        return _to_entity(model) if model else None
+
+    async def add(self, entity: Permission) -> None:
+        model = PermissionModel(
+            id=entity.id,
+            code=entity.code.value,
+            name=entity.name.value,
+            description=entity.description,
+            is_active=entity.is_active,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+        )
+        self._session().add(model)
+
+    async def update(self, entity: Permission) -> None:
+        model = await self._session().get(PermissionModel, entity.id)
+        if model is None:
+            raise ValueError(f"PermissionModel not found: {entity.id}")
+        _apply_entity(model, entity)
+
+    async def delete(self, entity: Permission) -> None:
+        model = await self._session().get(PermissionModel, entity.id)
+        if model is not None:
+            await self._session().delete(model)
+
+    async def exists(self, entity_id: UUID) -> bool:
+        model = await self._session().get(PermissionModel, entity_id)
+        return model is not None
+
+    async def exists_by_code(self, code: PermissionCode) -> bool:
+        stmt = select(PermissionModel.id).where(PermissionModel.code == code.value)
+        result = await self._session().execute(stmt)
+        return result.scalar_one_or_none() is not None
+
+    async def list_all(self, *, only_active: bool = False) -> list[Permission]:
+        stmt = select(PermissionModel).order_by(PermissionModel.code)
+        if only_active:
+            stmt = stmt.where(PermissionModel.is_active.is_(True))
+        result = await self._session().execute(stmt)
+        return [_to_entity(m) for m in result.scalars().all()]
+
+    async def find_by_ids(self, ids: set[UUID]) -> list[Permission]:
+        if not ids:
+            return []
+        stmt = select(PermissionModel).where(PermissionModel.id.in_(ids))
+        result = await self._session().execute(stmt)
+        return [_to_entity(m) for m in result.scalars().all()]
+
+    async def count(self, *, only_active: bool = False) -> int:
+        from sqlalchemy import func
+
+        stmt = select(func.count()).select_from(PermissionModel)
+        if only_active:
+            stmt = stmt.where(PermissionModel.is_active.is_(True))
+        result = await self._session().execute(stmt)
+        return int(result.scalar_one())
