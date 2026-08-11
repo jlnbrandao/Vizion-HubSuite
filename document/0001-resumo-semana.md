@@ -25,7 +25,7 @@ http://134.209.122.250
 
 *Contas para testar* (senha igual em todas: 123Mudar.)
 
-1) Usuário: galileu
+1) Usuário: admin
    Perfil: ADMIN (administração)
 
 2) Usuário: manager

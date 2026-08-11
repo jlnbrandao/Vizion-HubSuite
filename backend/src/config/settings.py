@@ -46,8 +46,9 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
 
     # Comma-separated base domains for Host validation (empty = any suffix in development).
-    # Examples: "localhost,lanstar.com.br" → bigbang.localhost / acme.lanstar.com.br
-    allowed_tenant_base_domains: str = "localhost,lanstar.com.br"
+    # Examples: "localhost,lanstar.com.br,lanstar.local"
+    # IP form bigbang.134.x.x.x is always allowed (base is an IPv4).
+    allowed_tenant_base_domains: str = "localhost,lanstar.com.br,lanstar.local"
 
     @property
     def is_development(self) -> bool:

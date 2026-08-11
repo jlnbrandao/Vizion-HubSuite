@@ -12,7 +12,7 @@ class LoginRequest(BaseModel):
         ...,
         min_length=1,
         max_length=255,
-        examples=["galileu", "galileu@lanstar.com.br"],
+        examples=["admin", "admin@lanstar.com.br"],
         description="Email or username",
     )
     password: str = Field(..., min_length=1)

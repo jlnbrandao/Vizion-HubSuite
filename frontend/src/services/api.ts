@@ -3,11 +3,14 @@ import type {
   ChangePasswordPayload,
   CreatePermissionPayload,
   CreateRolePayload,
+  CreateTenantPayload,
   CreateUserPayload,
   DashboardResponse,
   IdResponse,
   PermissionResponse,
+  RenameTenantPayload,
   RoleResponse,
+  TenantResponse,
   TokenResponse,
   UpdatePermissionPayload,
   UpdateRolePayload,
@@ -201,5 +204,26 @@ export const permissionsApi = {
   },
   remove(permissionId: string) {
     return api.delete(`/permissions/${permissionId}`)
+  },
+}
+
+export const tenantsApi = {
+  list(onlyActive = false) {
+    return api.get<TenantResponse[]>('/tenants', { params: { only_active: onlyActive } })
+  },
+  get(tenantId: string) {
+    return api.get<TenantResponse>(`/tenants/${tenantId}`)
+  },
+  create(payload: CreateTenantPayload) {
+    return api.post<IdResponse>('/tenants', payload)
+  },
+  rename(tenantId: string, payload: RenameTenantPayload) {
+    return api.put(`/tenants/${tenantId}`, payload)
+  },
+  activate(tenantId: string) {
+    return api.post(`/tenants/${tenantId}/activate`)
+  },
+  deactivate(tenantId: string) {
+    return api.post(`/tenants/${tenantId}/deactivate`)
   },
 }

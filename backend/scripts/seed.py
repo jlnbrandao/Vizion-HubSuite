@@ -60,7 +60,7 @@ class SeedUser:
 
 
 SEED_USERS: tuple[SeedUser, ...] = (
-    SeedUser("galileu", "System Administrator", "galileu@lanstar.com.br", "ADMIN"),
+    SeedUser("admin", "System Administrator", "admin@lanstar.com.br", "ADMIN"),
     SeedUser("manager", "Default Manager", "manager@lanstar.com.br", "MANAGER"),
     SeedUser("operator", "Default Operator", "operator@lanstar.com.br", "OPERATOR"),
     SeedUser("user", "Default User", "user@lanstar.com.br", "CLIENT"),
@@ -70,6 +70,14 @@ SEED_USERS: tuple[SeedUser, ...] = (
 # Former emails remapped on refresh (e.g. teste@ → user@).
 LEGACY_EMAILS: dict[str, str] = {
     "teste@lanstar.com.br": "user@lanstar.com.br",
+    "galileu@lanstar.com.br": "admin@lanstar.com.br",
+    "platform@lanstar.com.br": "galileu@lanstar.com.br",
+}
+
+# Former usernames remapped on refresh (old → new).
+LEGACY_USERNAMES: dict[str, str] = {
+    "galileu": "admin",
+    "platform": "galileu",
 }
 
 # Old compound action codes retired in favor of bare PermissionAction.ASSIGN.
@@ -304,6 +312,11 @@ async def _find_existing_user(container: Container, seed_user: SeedUser):
         for old, new in LEGACY_EMAILS.items()
         if new == seed_user.email
     ]
+    legacy_usernames = [
+        Username.from_primitive(old)
+        for old, new in LEGACY_USERNAMES.items()
+        if new == seed_user.username
+    ]
 
     async with container.unit_of_work():
         by_email = await users.get_by_email(email)
@@ -313,7 +326,14 @@ async def _find_existing_user(container: Container, seed_user: SeedUser):
             by_legacy = await users.get_by_email(legacy)
             if by_legacy is not None:
                 return by_legacy
-        return await users.get_by_username(username)
+        by_username = await users.get_by_username(username)
+        if by_username is not None:
+            return by_username
+        for legacy_username in legacy_usernames:
+            by_legacy_username = await users.get_by_username(legacy_username)
+            if by_legacy_username is not None:
+                return by_legacy_username
+        return None
 
 
 async def _ensure_seed_users(
@@ -458,9 +478,9 @@ async def seed() -> None:
             role_permissions={"PLATFORM": PLATFORM_PERMISSIONS},
             seed_users=(
                 SeedUser(
-                    "platform",
+                    "galileu",
                     "Platform Operator",
-                    "platform@lanstar.com.br",
+                    "galileu@lanstar.com.br",
                     "PLATFORM",
                 ),
             ),

@@ -38,11 +38,12 @@ Event Bus e Dependency Injection.
 - Tabela `tenants`; seed cria **`bigbang`** (app) e **`platform`** (ops).
 - `users`, `roles`, `permissions`, `user_roles` e `role_permissions` são isolados por `tenant_id` com **FORCE ROW LEVEL SECURITY**.
 - `tenants` SELECT é restrito ao tenant atual (ou `rls_bypass`); resolução por Host usa a função **`resolve_tenant_by_slug`** (`SECURITY DEFINER`).
-- O slug do tenant vem do **subdomínio do Host** (primeiro label):
-  - `bigbang.lanstar.com.br`
-  - `bigbang.<ip>`
-  - `bigbang.localhost` (desenvolvimento)
-- Hosts são validados contra `ALLOWED_TENANT_BASE_DOMAINS` (default: `localhost,lanstar.com.br`).
+- O slug do tenant vem do **subdomínio do Host** (primeiro label) — igual para **qualquer** tenant (`bigbang`, `platform`, …):
+  - `bigbang.localhost` / `platform.localhost`
+  - `bigbang.<ip>` / `platform.<ip>` (ex.: `platform.134.209.122.250`)
+  - `bigbang.lanstar.com.br` / `platform.lanstar.com.br`
+  - `bigbang.lanstar.local` / `platform.lanstar.local`
+- Hosts são validados contra `ALLOWED_TENANT_BASE_DOMAINS` (default: `localhost,lanstar.com.br,lanstar.local`). Formas `*.<ipv4>` são sempre aceitas.
 - Login **não** tem campo de tenant: acesse a app pelo host do tenant.
 - JWT e refresh session carregam `tenant_id` / `tenant_slug`; token de um tenant é rejeitado se o Host for de outro.
 - Repositórios SQLAlchemy também filtram por `tenant_id` (defense-in-depth além do RLS).
@@ -62,7 +63,12 @@ Rotacione as senhas padrão (`lanstar_app` / `lanstar_migrate`) em produção.
 
 - Permissões `tenants.*` + `system.settings` existem só no tenant **`platform`** (não no RBAC comum).
 - API: `GET/POST /api/v1/tenants`, rename, activate/deactivate — exige permissões `tenants.*`.
-- Login: http://platform.localhost:9000 — usuário `platform` / `123Mudar.`
+- Login (mesmos padrões de Host do `bigbang`):
+  - http://platform.localhost:9000
+  - `http://platform.<servidor>:9000` (ex.: `http://platform.134.209.122.250:9000`)
+  - https://platform.lanstar.com.br (DNS)
+  - http://platform.lanstar.local:9000 (`/etc/hosts`)
+- Usuário: `galileu` / `123Mudar.`
 
 ## Autenticação e autorização
 
@@ -89,12 +95,21 @@ docker compose --profile seed run --rm seed
 ```
 
 - App (tenant bigbang): http://bigbang.localhost:9000  
-  (ou `http://bigbang.<servidor>:9000` / DNS `bigbang.lanstar.com.br`)
-- Platform: http://platform.localhost:9000
+  (ou `http://bigbang.<servidor>:9000` / DNS `bigbang.lanstar.com.br` / `bigbang.lanstar.local`)
+- Platform: http://platform.localhost:9000  
+  (ou `http://platform.<servidor>:9000` / DNS `platform.lanstar.com.br` / `platform.lanstar.local`)
 - API: mesma origem via proxy `/api` (Host preservado)
-- Login demo: `galileu` ou `galileu@lanstar.com.br` / `123Mudar.`
+- Login demo (bigbang): `admin` ou `admin@lanstar.com.br` / `123Mudar.`
 
 Não use `http://localhost:9000` sem subdomínio — a API exige slug no Host.
+
+Exemplo `/etc/hosts` (ajuste o IP do servidor):
+
+```
+127.0.0.1       bigbang.localhost platform.localhost
+134.209.122.250 bigbang.lanstar.local platform.lanstar.local
+134.209.122.250 bigbang.134.209.122.250 platform.134.209.122.250
+```
 
 ## Infraestrutura apenas (Postgres + Redis)
 
@@ -139,19 +154,19 @@ O seed é idempotente e cria:
 
 | username | email | role |
 |---|---|---|
-| `galileu` | `galileu@lanstar.com.br` | `ADMIN` |
+| `admin` | `admin@lanstar.com.br` | `ADMIN` |
 | `manager` | `manager@lanstar.com.br` | `MANAGER` |
 | `operator` | `operator@lanstar.com.br` | `OPERATOR` |
 | `user` | `user@lanstar.com.br` | `CLIENT` |
 | `viewer` | `viewer@lanstar.com.br` | `VIEWER` |
 
-O **ADMIN** (Galileu) tem apenas CRUD de usuários/roles/permissões e `dashboard.admin`.
+O **ADMIN** tem apenas CRUD de usuários/roles/permissões e `dashboard.admin`.
 
 ### Tenant `platform`
 
 | username | email | role |
 |---|---|---|
-| `platform` | `platform@lanstar.com.br` | `PLATFORM` |
+| `galileu` | `galileu@lanstar.com.br` | `PLATFORM` |
 
 Permissões: `tenants.create|read|update|activate|deactivate` e `system.settings`.
 

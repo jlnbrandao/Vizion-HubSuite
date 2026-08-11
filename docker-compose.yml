@@ -49,7 +49,7 @@ services:
       JWT_REFRESH_TOKEN_EXPIRE_DAYS: "7"
       RATE_LIMIT_REQUESTS: "100"
       RATE_LIMIT_WINDOW_SECONDS: "60"
-      ALLOWED_TENANT_BASE_DOMAINS: localhost,lanstar.com.br
+      ALLOWED_TENANT_BASE_DOMAINS: localhost,lanstar.com.br,lanstar.local
     ports:
       - "8000:8000"
     depends_on:
@@ -86,7 +86,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://lanstar:lanstar@postgres:5432/lanstar
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: change-me-in-production-use-long-random-string
-      ALLOWED_TENANT_BASE_DOMAINS: localhost,lanstar.com.br
+      ALLOWED_TENANT_BASE_DOMAINS: localhost,lanstar.com.br,lanstar.local
     entrypoint: ["python", "-m", "scripts.seed"]
     depends_on:
       api:

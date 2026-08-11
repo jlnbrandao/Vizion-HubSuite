@@ -84,6 +84,7 @@ class PermissionCode:
     DASHBOARD_OPERATOR = "dashboard.operator"
     DASHBOARD_CLIENT = "dashboard.client"
     DASHBOARD_VIEWER = "dashboard.viewer"
+    DASHBOARD_PLATFORM = "dashboard.platform"
 
     SYSTEM_SETTINGS = "system.settings"
 
@@ -98,6 +99,7 @@ class PermissionCode:
         """Codes that must not be granted inside ordinary tenant RBAC."""
         return frozenset(
             {
+                cls.DASHBOARD_PLATFORM,
                 cls.SYSTEM_SETTINGS,
                 cls.TENANTS_CREATE,
                 cls.TENANTS_READ,
@@ -219,6 +221,11 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         code=PermissionCode.DASHBOARD_VIEWER,
         name="Dashboard viewer",
         description="Access to the viewer dashboard section",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.DASHBOARD_PLATFORM,
+        name="Dashboard platform",
+        description="Access to the platform tenant administration section",
     ),
     PermissionDefinition(
         code=PermissionCode.SYSTEM_SETTINGS,

@@ -123,3 +123,19 @@ export interface IdResponse {
   id: string
 }
 
+export interface TenantResponse {
+  id: string
+  slug: string
+  name: string
+  is_active: boolean
+}
+
+export interface CreateTenantPayload {
+  slug: string
+  name: string
+}
+
+export interface RenameTenantPayload {
+  name: string
+}
+

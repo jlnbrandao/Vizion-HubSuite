@@ -46,6 +46,7 @@ export const PermissionCode = {
   DASHBOARD_OPERATOR: 'dashboard.operator',
   DASHBOARD_CLIENT: 'dashboard.client',
   DASHBOARD_VIEWER: 'dashboard.viewer',
+  DASHBOARD_PLATFORM: 'dashboard.platform',
 
   SYSTEM_SETTINGS: 'system.settings',
 

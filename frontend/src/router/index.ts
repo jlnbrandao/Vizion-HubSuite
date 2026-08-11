@@ -75,6 +75,18 @@ const routes: RouteRecordRaw[] = [
         meta: { permissions: [PermissionCode.PERMISSIONS_READ] },
       },
       {
+        path: 'platform',
+        name: 'platform-overview',
+        component: () => import('@/pages/stuff/PlatformOverviewPage.vue'),
+        meta: { permissions: [PermissionCode.DASHBOARD_PLATFORM] },
+      },
+      {
+        path: 'tenants',
+        name: 'tenants',
+        component: () => import('@/pages/TenantsPage.vue'),
+        meta: { permissions: [PermissionCode.TENANTS_READ] },
+      },
+      {
         path: 'reports/indicators',
         name: 'manager-indicators',
         component: () => import('@/pages/stuff/ManagerIndicatorsPage.vue'),

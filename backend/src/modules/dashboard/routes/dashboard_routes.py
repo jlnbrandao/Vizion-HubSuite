@@ -29,6 +29,7 @@ _DASHBOARD_ACCESS = require_any_permission(
     PermissionCode.DASHBOARD_OPERATOR,
     PermissionCode.DASHBOARD_CLIENT,
     PermissionCode.DASHBOARD_VIEWER,
+    PermissionCode.DASHBOARD_PLATFORM,
 )
 
 

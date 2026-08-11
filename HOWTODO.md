@@ -460,7 +460,7 @@ Demo users (password `123Mudar.`):
 
 | username | email | role |
 |---|---|---|
-| `galileu` | `galileu@lanstar.com.br` | `ADMIN` |
+| `admin` | `admin@lanstar.com.br` | `ADMIN` |
 | `manager` | `manager@lanstar.com.br` | `MANAGER` |
 | `operator` | `operator@lanstar.com.br` | `OPERATOR` |
 | `user` | `user@lanstar.com.br` | `CLIENT` |

@@ -10,7 +10,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 class CreateUserRequest(BaseModel):
     email: EmailStr
-    username: str = Field(..., min_length=3, max_length=32, examples=["galileu"])
+    username: str = Field(..., min_length=3, max_length=32, examples=["admin"])
     full_name: str = Field(..., min_length=2, max_length=150)
     password: str = Field(..., min_length=8, max_length=128)
     role_ids: list[UUID] = Field(default_factory=list)

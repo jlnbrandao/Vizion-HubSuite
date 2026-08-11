@@ -20,6 +20,10 @@ from src.shared.infrastructure.tenant_host import (
         ("bigbang.localhost", "bigbang"),
         ("bigbang.localhost:9000", "bigbang"),
         ("platform.localhost", "platform"),
+        ("platform.134.209.122.250", "platform"),
+        ("platform.lanstar.com.br", "platform"),
+        ("platform.lanstar.local", "platform"),
+        ("bigbang.lanstar.local", "bigbang"),
     ],
 )
 def test_extract_tenant_slug_ok(host: str, expected: str) -> None:
@@ -48,7 +52,12 @@ def test_extract_tenant_slug_rejects(host: str | None) -> None:
 def test_base_domain_allowlist() -> None:
     assert_host_base_domain_allowed(
         "acme.lanstar.com.br",
-        ("localhost", "lanstar.com.br"),
+        ("localhost", "lanstar.com.br", "lanstar.local"),
+        enforce=True,
+    )
+    assert_host_base_domain_allowed(
+        "platform.lanstar.local",
+        ("localhost", "lanstar.com.br", "lanstar.local"),
         enforce=True,
     )
     assert_host_base_domain_allowed(
@@ -59,7 +68,7 @@ def test_base_domain_allowlist() -> None:
     with pytest.raises(ValidationError, match="not allowed"):
         assert_host_base_domain_allowed(
             "acme.evil.example",
-            ("localhost", "lanstar.com.br"),
+            ("localhost", "lanstar.com.br", "lanstar.local"),
             enforce=True,
         )
 

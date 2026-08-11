@@ -23,6 +23,7 @@ from src.modules.dashboard.providers.admin_provider import AdminDashboardProvide
 from src.modules.dashboard.providers.client_provider import ClientDashboardProvider
 from src.modules.dashboard.providers.manager_provider import ManagerDashboardProvider
 from src.modules.dashboard.providers.operator_provider import OperatorDashboardProvider
+from src.modules.dashboard.providers.platform_provider import PlatformDashboardProvider
 from src.modules.dashboard.providers.viewer_provider import ViewerDashboardProvider
 from src.modules.dashboard.services.dashboard_composer import DashboardComposer
 from src.modules.permissions.handlers.permission_handlers import (
@@ -439,6 +440,9 @@ class Container(containers.DeclarativeContainer):
     viewer_dashboard_provider: providers.Singleton[ViewerDashboardProvider] = providers.Singleton(
         ViewerDashboardProvider
     )
+    platform_dashboard_provider: providers.Singleton[PlatformDashboardProvider] = (
+        providers.Singleton(PlatformDashboardProvider, query_bus=query_bus)
+    )
 
     dashboard_composer: providers.Singleton[DashboardComposer] = providers.Singleton(
         DashboardComposer,
@@ -448,6 +452,7 @@ class Container(containers.DeclarativeContainer):
             operator_dashboard_provider,
             client_dashboard_provider,
             viewer_dashboard_provider,
+            platform_dashboard_provider,
         ),
     )
 
