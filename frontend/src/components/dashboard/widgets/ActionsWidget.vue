@@ -41,18 +41,18 @@ function go(item: { label?: string; route?: string; id?: string }) {
 }
 
 .actions__btn {
-  border: 1px solid var(--ls-line);
+  border: 1px solid var(--q-primary, #1e40af);
   background: transparent;
-  color: var(--ls-accent-deep);
-  border-radius: 999px;
+  color: var(--q-primary, #1e40af);
+  border-radius: 0.5rem;
   padding: 0.45rem 0.95rem;
   font: inherit;
   cursor: pointer;
-  transition: background 160ms ease, transform 160ms ease;
+  transition: background 160ms ease, color 160ms ease;
 }
 
 .actions__btn:hover {
-  background: rgba(15, 118, 110, 0.08);
-  transform: translateY(-1px);
+  background: var(--q-primary, #1e40af);
+  color: #fff;
 }
 </style>

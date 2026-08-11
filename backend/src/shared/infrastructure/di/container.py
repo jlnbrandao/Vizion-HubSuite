@@ -52,6 +52,13 @@ from src.modules.roles.handlers.role_handlers import (
     UpdateRoleHandler,
 )
 from src.modules.roles.repositories.sqlalchemy_role_repository import SqlAlchemyRoleRepository
+from src.modules.tenants.handlers.tenant_handlers import (
+    GetTenantBySlugHandler,
+    UpsertTenantHandler,
+)
+from src.modules.tenants.repositories.sqlalchemy_tenant_repository import (
+    SqlAlchemyTenantRepository,
+)
 from src.modules.users.handlers.user_handlers import (
     AssignRolesToUserHandler,
     ChangeUserPasswordHandler,
@@ -60,6 +67,7 @@ from src.modules.users.handlers.user_handlers import (
     DeleteUserHandler,
     GetUserByEmailHandler,
     GetUserByIdHandler,
+    GetUserByUsernameHandler,
     ListUsersHandler,
     ReplaceUserRolesHandler,
     RevokeRolesFromUserHandler,
@@ -146,6 +154,9 @@ class Container(containers.DeclarativeContainer):
     )
     user_repository: providers.Singleton[SqlAlchemyUserRepository] = providers.Singleton(
         SqlAlchemyUserRepository
+    )
+    tenant_repository: providers.Singleton[SqlAlchemyTenantRepository] = providers.Singleton(
+        SqlAlchemyTenantRepository
     )
 
     # --- Permission handlers ---
@@ -312,6 +323,11 @@ class Container(containers.DeclarativeContainer):
         uow_factory=unit_of_work.provider,
         users=user_repository,
     )
+    get_user_by_username_handler: providers.Factory[GetUserByUsernameHandler] = providers.Factory(
+        GetUserByUsernameHandler,
+        uow_factory=unit_of_work.provider,
+        users=user_repository,
+    )
     list_users_handler: providers.Factory[ListUsersHandler] = providers.Factory(
         ListUsersHandler,
         uow_factory=unit_of_work.provider,
@@ -321,6 +337,18 @@ class Container(containers.DeclarativeContainer):
         CountUsersHandler,
         uow_factory=unit_of_work.provider,
         users=user_repository,
+    )
+
+    # --- Tenant handlers ---
+    get_tenant_by_slug_handler: providers.Factory[GetTenantBySlugHandler] = providers.Factory(
+        GetTenantBySlugHandler,
+        uow_factory=unit_of_work.provider,
+        tenants=tenant_repository,
+    )
+    upsert_tenant_handler: providers.Factory[UpsertTenantHandler] = providers.Factory(
+        UpsertTenantHandler,
+        uow_factory=unit_of_work.provider,
+        tenants=tenant_repository,
     )
 
     # --- Authentication handlers ---

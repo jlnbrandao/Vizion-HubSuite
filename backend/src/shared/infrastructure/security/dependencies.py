@@ -23,6 +23,11 @@ from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.di.container import Container
 from src.shared.infrastructure.exceptions import ForbiddenError, UnauthorizedError
 from src.shared.infrastructure.security.current_user import CurrentUser
+from src.shared.infrastructure.tenant_context import (
+    get_current_tenant_id,
+    get_current_tenant_name,
+    get_current_tenant_slug,
+)
 
 AuthDependency = Callable[..., Coroutine[Any, Any, CurrentUser]]
 
@@ -45,6 +50,14 @@ async def get_current_user(
     token = _extract_bearer(authorization)
     claims = token_service.decode_access_token(token)
 
+    host_tenant_id = get_current_tenant_id()
+    if host_tenant_id is None or claims.tenant_id != host_tenant_id:
+        raise UnauthorizedError("Token tenant does not match Host tenant")
+
+    host_slug = get_current_tenant_slug()
+    if host_slug is not None and claims.tenant_slug != host_slug:
+        raise UnauthorizedError("Token tenant does not match Host tenant")
+
     access: EffectiveAccessDto = await query_bus.ask(
         ResolveEffectiveAccessQuery(role_ids=frozenset(claims.role_ids))
     )
@@ -53,6 +66,9 @@ async def get_current_user(
         id=claims.user_id,
         email=claims.email,
         full_name=claims.full_name,
+        tenant_id=claims.tenant_id,
+        tenant_slug=claims.tenant_slug,
+        tenant_name=get_current_tenant_name() or claims.tenant_slug,
         role_ids=claims.role_ids,
         role_names=access.role_names,
         permissions=access.permission_codes,

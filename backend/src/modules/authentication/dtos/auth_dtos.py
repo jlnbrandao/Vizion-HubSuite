@@ -25,5 +25,7 @@ class RefreshSessionDto:
     user_id: UUID
     email: str
     full_name: str
+    tenant_id: UUID
+    tenant_slug: str
     role_ids: tuple[UUID, ...]
     created_at: datetime

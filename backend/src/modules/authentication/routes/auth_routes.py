@@ -43,7 +43,7 @@ async def login(
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
 ) -> TokenResponse:
     result: TokenPairDto = await command_bus.execute(
-        LoginCommand(email=body.email, password=body.password)
+        LoginCommand(login=body.login, password=body.password)
     )
     return _to_response(result)
 

@@ -27,6 +27,7 @@ from src.modules.users.queries.user_queries import (
     CountUsersQuery,
     GetUserByEmailQuery,
     GetUserByIdQuery,
+    GetUserByUsernameQuery,
     ListUsersQuery,
 )
 from src.modules.users.repositories.user_repository import UserRepository
@@ -34,6 +35,7 @@ from src.modules.users.services.password_hasher import PasswordHasher
 from src.modules.users.value_objects.email import Email
 from src.modules.users.value_objects.full_name import FullName
 from src.modules.users.value_objects.plain_password import PlainPassword
+from src.modules.users.value_objects.username import Username
 from src.shared.application.handler import CommandHandler, QueryHandler
 from src.shared.application.query_bus import QueryBus
 from src.shared.application.unit_of_work import UnitOfWork
@@ -46,6 +48,7 @@ def _to_dto(user: User) -> UserDto:
     return UserDto(
         id=user.id,
         email=user.email.value,
+        username=user.username.value,
         full_name=user.full_name.value,
         role_ids=tuple(sorted(user.role_ids, key=str)),
         is_active=user.is_active,
@@ -57,7 +60,9 @@ def _to_dto(user: User) -> UserDto:
 def _to_auth_dto(user: User) -> UserAuthDto:
     return UserAuthDto(
         id=user.id,
+        tenant_id=user.tenant_id,
         email=user.email.value,
+        username=user.username.value,
         full_name=user.full_name.value,
         hashed_password=user.hashed_password.value,
         role_ids=tuple(sorted(user.role_ids, key=str)),
@@ -81,6 +86,7 @@ class CreateUserHandler(CommandHandler[CreateUserCommand, UUID]):
     async def handle(self, command: CreateUserCommand) -> UUID:
         try:
             email = Email.from_primitive(command.email)
+            username = Username.from_primitive(command.username)
             full_name = FullName.from_primitive(command.full_name)
             plain = PlainPassword.from_primitive(command.password)
         except ValueError as exc:
@@ -94,8 +100,16 @@ class CreateUserHandler(CommandHandler[CreateUserCommand, UUID]):
         async with self._uow_factory() as uow:
             if await self._users.exists_by_email(email):
                 raise ConflictError(f"Email already registered: {email.value}")
+            if await self._users.exists_by_username(username):
+                raise ConflictError(f"Username already registered: {username.value}")
 
-            user = User.create(email=email, full_name=full_name, hashed_password=hashed)
+            user = User.create(
+                tenant_id=command.tenant_id,
+                email=email,
+                username=username,
+                full_name=full_name,
+                hashed_password=hashed,
+            )
             if command.role_ids:
                 user.assign_roles(set(command.role_ids))
 
@@ -120,6 +134,7 @@ class UpdateUserHandler(CommandHandler[UpdateUserCommand, None]):
 
     async def handle(self, command: UpdateUserCommand) -> None:
         try:
+            username = Username.from_primitive(command.username)
             full_name = FullName.from_primitive(command.full_name)
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
@@ -129,6 +144,12 @@ class UpdateUserHandler(CommandHandler[UpdateUserCommand, None]):
             if user is None:
                 raise NotFoundError(f"User not found: {command.user_id}")
 
+            if user.username != username:
+                existing = await self._users.get_by_username(username)
+                if existing is not None and existing.id != user.id:
+                    raise ConflictError(f"Username already registered: {username.value}")
+
+            user.change_username(username)
             user.change_full_name(full_name)
             if command.is_active:
                 user.activate()
@@ -279,7 +300,7 @@ class GetUserByIdHandler(QueryHandler[GetUserByIdQuery, UserDto]):
 
 
 class GetUserByEmailHandler(QueryHandler[GetUserByEmailQuery, UserAuthDto]):
-    """Returns auth-sensitive DTO — consumed by Authentication module later."""
+    """Returns auth-sensitive DTO — consumed by Authentication module."""
 
     def __init__(self, uow_factory: UowFactory, users: UserRepository) -> None:
         self._uow_factory = uow_factory
@@ -293,8 +314,28 @@ class GetUserByEmailHandler(QueryHandler[GetUserByEmailQuery, UserAuthDto]):
 
         async with self._uow_factory():
             user = await self._users.get_by_email(email)
-            if user is None:
+            if user is None or user.tenant_id != query.tenant_id:
                 raise NotFoundError(f"User not found: {query.email}")
+            return _to_auth_dto(user)
+
+
+class GetUserByUsernameHandler(QueryHandler[GetUserByUsernameQuery, UserAuthDto]):
+    """Returns auth-sensitive DTO — consumed by Authentication module."""
+
+    def __init__(self, uow_factory: UowFactory, users: UserRepository) -> None:
+        self._uow_factory = uow_factory
+        self._users = users
+
+    async def handle(self, query: GetUserByUsernameQuery) -> UserAuthDto:
+        try:
+            username = Username.from_primitive(query.username)
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+
+        async with self._uow_factory():
+            user = await self._users.get_by_username(username)
+            if user is None or user.tenant_id != query.tenant_id:
+                raise NotFoundError(f"User not found: {query.username}")
             return _to_auth_dto(user)
 
 

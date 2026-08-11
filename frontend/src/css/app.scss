@@ -1,15 +1,18 @@
 :root {
-  --ls-ink: #0b1f1c;
-  --ls-muted: #5b736e;
-  --ls-surface: #f3f7f5;
+  --ls-ink: #111827;
+  --ls-muted: #6b7280;
+  --ls-surface: #f9fafb;
   --ls-panel: #ffffff;
-  --ls-accent: #0f766e;
-  --ls-accent-deep: #115e59;
-  --ls-highlight: #f59e0b;
-  --ls-line: rgba(15, 118, 110, 0.14);
-  --ls-shadow: 0 18px 40px rgba(11, 31, 28, 0.08);
+  --ls-accent: #1e40af;
+  --ls-accent-deep: #1e3a8a;
+  --ls-highlight: #3b82f6;
+  --ls-line: #e5e7eb;
+  --ls-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   --ls-font-display: 'Fraunces', Georgia, serif;
   --ls-font-body: 'DM Sans', system-ui, sans-serif;
+  --app-navigation-background: #f9fafb;
+  --app-content-background: #ffffff;
+  --q-primary: #1e40af;
 }
 
 * {
@@ -26,7 +29,7 @@ body {
   margin: 0;
   color: var(--ls-ink);
   font-family: var(--ls-font-body);
-  background: var(--ls-surface);
+  background: var(--app-navigation-background, #f9fafb);
 }
 
 a {

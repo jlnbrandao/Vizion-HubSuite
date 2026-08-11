@@ -20,8 +20,12 @@ from src.modules.authentication.services.in_memory_refresh_token_store import (
 )
 from src.modules.authentication.services.jose_token_service import JoseTokenService
 from src.modules.users.commands.user_commands import CreateUserCommand
-from src.modules.users.handlers.user_handlers import CreateUserHandler, GetUserByEmailHandler
-from src.modules.users.queries.user_queries import GetUserByEmailQuery
+from src.modules.users.handlers.user_handlers import (
+    CreateUserHandler,
+    GetUserByEmailHandler,
+    GetUserByUsernameHandler,
+)
+from src.modules.users.queries.user_queries import GetUserByEmailQuery, GetUserByUsernameQuery
 from src.modules.users.repositories.in_memory_user_repository import InMemoryUserRepository
 from src.modules.users.services.password_hasher import PasswordHasher
 from src.modules.users.value_objects.hashed_password import HashedPassword
@@ -29,6 +33,7 @@ from src.modules.users.value_objects.plain_password import PlainPassword
 from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.exceptions import UnauthorizedError
+from tests.unit.conftest import BIGBANG_TENANT_ID
 from tests.unit.shared.in_memory_unit_of_work import InMemoryUnitOfWork
 
 
@@ -76,6 +81,7 @@ def password_hasher() -> FakePasswordHasher:
 def query_bus(uow_factory, users_repo) -> QueryBus:
     bus = QueryBus()
     bus.register(GetUserByEmailQuery, GetUserByEmailHandler(uow_factory, users_repo))
+    bus.register(GetUserByUsernameQuery, GetUserByUsernameHandler(uow_factory, users_repo))
     return bus
 
 
@@ -91,7 +97,6 @@ def refresh_store(settings: Settings) -> InMemoryRefreshTokenStore:
 
 @pytest.fixture
 async def seeded_user(users_repo, uow_factory, password_hasher, query_bus):
-    # query_bus unused for create — CreateUser needs CheckRolesExist only if roles set
     from src.modules.roles.handlers.role_handlers import CheckRolesExistHandler
     from src.modules.roles.queries.role_queries import CheckRolesExistQuery
     from src.modules.roles.repositories.in_memory_role_repository import InMemoryRoleRepository
@@ -102,8 +107,9 @@ async def seeded_user(users_repo, uow_factory, password_hasher, query_bus):
     )
     create = CreateUserHandler(uow_factory, users_repo, password_hasher, query_bus)
     user_id = await create.handle(
-        CreateUserCommand(
+        CreateUserCommand(tenant_id=BIGBANG_TENANT_ID,
             email="admin@lanstar.io",
+            username="admin",
             full_name="Admin User",
             password="Secret123",
         )
@@ -127,9 +133,9 @@ def refresh_handler(token_service, refresh_store, event_bus):
 
 
 @pytest.mark.asyncio
-async def test_login_success(seeded_user, login_handler, token_service) -> None:
+async def test_login_success_with_email(seeded_user, login_handler, token_service) -> None:
     pair = await login_handler.handle(
-        LoginCommand(email="admin@lanstar.io", password="Secret123")
+        LoginCommand(login="admin@lanstar.io", password="Secret123")
     )
     assert pair.email == "admin@lanstar.io"
     assert pair.user_id == seeded_user
@@ -139,10 +145,23 @@ async def test_login_success(seeded_user, login_handler, token_service) -> None:
 
 
 @pytest.mark.asyncio
+async def test_login_success_with_username(seeded_user, login_handler) -> None:
+    pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123"))
+    assert pair.email == "admin@lanstar.io"
+    assert pair.user_id == seeded_user
+
+
+@pytest.mark.asyncio
+async def test_login_username_is_case_insensitive(seeded_user, login_handler) -> None:
+    pair = await login_handler.handle(LoginCommand(login="Admin", password="Secret123"))
+    assert pair.user_id == seeded_user
+
+
+@pytest.mark.asyncio
 async def test_login_wrong_password(seeded_user, login_handler) -> None:
     with pytest.raises(UnauthorizedError, match="Invalid credentials"):
         await login_handler.handle(
-            LoginCommand(email="admin@lanstar.io", password="WrongPass1")
+            LoginCommand(login="admin@lanstar.io", password="WrongPass1")
         )
 
 
@@ -150,7 +169,7 @@ async def test_login_wrong_password(seeded_user, login_handler) -> None:
 async def test_login_unknown_user(login_handler) -> None:
     with pytest.raises(UnauthorizedError, match="Invalid credentials"):
         await login_handler.handle(
-            LoginCommand(email="nobody@lanstar.io", password="Secret123")
+            LoginCommand(login="nobody@lanstar.io", password="Secret123")
         )
 
 
@@ -159,7 +178,7 @@ async def test_refresh_rotates_token(
     seeded_user, login_handler, refresh_handler, refresh_store
 ) -> None:
     pair = await login_handler.handle(
-        LoginCommand(email="admin@lanstar.io", password="Secret123")
+        LoginCommand(login="admin", password="Secret123")
     )
     old_refresh = pair.refresh_token
 
@@ -169,7 +188,6 @@ async def test_refresh_rotates_token(
     assert new_pair.refresh_token != old_refresh
     assert new_pair.user_id == seeded_user
 
-    # Old token must be invalid after rotation
     with pytest.raises(UnauthorizedError):
         await refresh_handler.handle(RefreshTokenCommand(refresh_token=old_refresh))
 
@@ -179,7 +197,7 @@ async def test_logout_invalidates_refresh(
     seeded_user, login_handler, logout_handler, refresh_handler
 ) -> None:
     pair = await login_handler.handle(
-        LoginCommand(email="admin@lanstar.io", password="Secret123")
+        LoginCommand(login="admin@lanstar.io", password="Secret123")
     )
     await logout_handler.handle(LogoutCommand(refresh_token=pair.refresh_token))
 

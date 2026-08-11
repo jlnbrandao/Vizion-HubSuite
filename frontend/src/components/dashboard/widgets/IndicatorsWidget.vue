@@ -4,16 +4,16 @@ import { computed } from 'vue'
 const props = defineProps<{ data: Record<string, unknown> }>()
 
 const metrics = computed(() => [
-  { label: 'Receita no mês', value: formatMoney(props.data.revenue_mtd) },
-  { label: 'Pedidos no mês', value: String(props.data.orders_mtd ?? '—') },
-  { label: 'Conversão', value: formatPercent(props.data.conversion_rate) },
+  { label: 'Revenue MTD', value: formatMoney(props.data.revenue_mtd) },
+  { label: 'Orders MTD', value: String(props.data.orders_mtd ?? '—') },
+  { label: 'Conversion', value: formatPercent(props.data.conversion_rate) },
   { label: 'NPS', value: String(props.data.nps ?? '—') },
 ])
 
 function formatMoney(value: unknown): string {
   const n = Number(value)
   if (Number.isNaN(n)) return '—'
-  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 }
 
 function formatPercent(value: unknown): string {
@@ -44,18 +44,19 @@ function formatPercent(value: unknown): string {
 }
 
 .indicators__metric {
-  border-left: 3px solid var(--ls-accent);
+  border-left: 3px solid var(--q-primary, #1e40af);
   padding: 0.55rem 0.85rem;
 }
 
 .indicators__metric span {
   display: block;
-  color: var(--ls-muted);
+  color: #9ca3af;
   font-size: 0.8rem;
 }
 
 .indicators__metric strong {
-  font-family: var(--ls-font-display);
   font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--q-primary, #1e40af);
 }
 </style>

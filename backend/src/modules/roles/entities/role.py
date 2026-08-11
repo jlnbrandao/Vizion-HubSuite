@@ -23,6 +23,7 @@ from src.shared.domain.aggregate_root import AggregateRoot
 
 @dataclass(eq=False, kw_only=True)
 class Role(AggregateRoot):
+    tenant_id: UUID
     name: RoleName
     description: RoleDescription = field(default_factory=lambda: RoleDescription(value=""))
     permission_ids: set[UUID] = field(default_factory=set)
@@ -32,10 +33,12 @@ class Role(AggregateRoot):
     def create(
         cls,
         *,
+        tenant_id: UUID,
         name: RoleName,
         description: RoleDescription | None = None,
     ) -> Role:
         role = cls(
+            tenant_id=tenant_id,
             name=name,
             description=description or RoleDescription(value=""),
         )

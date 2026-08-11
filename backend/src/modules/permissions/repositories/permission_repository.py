@@ -16,7 +16,13 @@ class PermissionRepository(Repository[Permission], ABC):
         ...
 
     @abstractmethod
-    async def list_all(self, *, only_active: bool = False) -> list[Permission]:
+    async def list_all(
+        self,
+        *,
+        only_active: bool = False,
+        resource: str | None = None,
+        action: str | None = None,
+    ) -> list[Permission]:
         ...
 
     @abstractmethod

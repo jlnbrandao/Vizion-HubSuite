@@ -27,6 +27,9 @@ class DashboardResponse(BaseModel):
     user_id: UUID
     email: str
     full_name: str
+    tenant_id: UUID | None = None
+    tenant_slug: str = ""
+    tenant_name: str = ""
     role_names: list[str]
     permissions: list[str]
     menu: list[DashboardMenuItemResponse]

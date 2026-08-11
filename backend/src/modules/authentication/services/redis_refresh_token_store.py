@@ -36,6 +36,8 @@ class RedisRefreshTokenStore(RefreshTokenStore):
                 "user_id": str(session.user_id),
                 "email": session.email,
                 "full_name": session.full_name,
+                "tenant_id": str(session.tenant_id),
+                "tenant_slug": session.tenant_slug,
                 "role_ids": [str(rid) for rid in session.role_ids],
                 "created_at": session.created_at.isoformat(),
             }
@@ -57,6 +59,8 @@ class RedisRefreshTokenStore(RefreshTokenStore):
             user_id=UUID(data["user_id"]),
             email=data["email"],
             full_name=data["full_name"],
+            tenant_id=UUID(data["tenant_id"]),
+            tenant_slug=str(data["tenant_slug"]),
             role_ids=tuple(UUID(rid) for rid in data["role_ids"]),
             created_at=datetime.fromisoformat(data["created_at"]),
         )

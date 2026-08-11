@@ -13,6 +13,9 @@ def test_current_user_permission_checks() -> None:
         id=uuid4(),
         email="a@b.com",
         full_name="Ada",
+        tenant_id=uuid4(),
+        tenant_slug="bigbang",
+        tenant_name="Bigbang",
         role_names=frozenset({"ADMIN"}),
         permissions=frozenset(
             {PermissionCode.USERS_READ, PermissionCode.USERS_CREATE}

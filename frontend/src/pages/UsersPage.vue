@@ -28,12 +28,14 @@ const selected = ref<UserResponse | null>(null)
 
 const createForm = reactive({
   email: '',
+  username: '',
   full_name: '',
   password: '',
   role_ids: [] as string[],
 })
 
 const editForm = reactive({
+  username: '',
   full_name: '',
   is_active: true,
   new_password: '',
@@ -60,12 +62,17 @@ const roleNameById = computed(() => {
 })
 
 const columns: QTableColumn[] = [
-  { name: 'full_name', label: 'Nome', field: 'full_name', align: 'left', sortable: true },
-  { name: 'email', label: 'E-mail', field: 'email', align: 'left', sortable: true },
+  { name: 'username', label: 'Username', field: 'username', align: 'left', sortable: true },
+  { name: 'full_name', label: 'Name', field: 'full_name', align: 'left', sortable: true },
+  { name: 'email', label: 'Email', field: 'email', align: 'left', sortable: true },
   { name: 'roles', label: 'Roles', field: 'role_ids', align: 'left' },
-  { name: 'is_active', label: 'Ativo', field: 'is_active', align: 'center' },
-  { name: 'actions', label: 'Ações', field: 'id', align: 'right' },
+  { name: 'is_active', label: 'Active', field: 'is_active', align: 'center' },
+  { name: 'actions', label: 'Actions', field: 'id', align: 'right' },
 ]
+
+const usernameRule = (v: string) =>
+  /^[a-z0-9][a-z0-9._-]{2,31}$/.test(v) ||
+  '3–32 lowercase chars: letters, numbers, and only . - _'
 
 function roleLabels(roleIds: string[]): string {
   if (!roleIds.length) return '—'
@@ -74,6 +81,7 @@ function roleLabels(roleIds: string[]): string {
 
 function resetCreateForm() {
   createForm.email = ''
+  createForm.username = ''
   createForm.full_name = ''
   createForm.password = ''
   createForm.role_ids = []
@@ -86,6 +94,7 @@ function openCreate() {
 
 function openEdit(user: UserResponse) {
   selected.value = user
+  editForm.username = user.username
   editForm.full_name = user.full_name
   editForm.is_active = user.is_active
   editForm.new_password = ''
@@ -108,7 +117,7 @@ async function load() {
     users.value = usersRes.data
     roles.value = rolesRes.data
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao carregar usuários') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to load users') })
   } finally {
     loading.value = false
   }
@@ -119,15 +128,16 @@ async function submitCreate() {
   try {
     await usersApi.create({
       email: createForm.email,
+      username: createForm.username.trim().toLowerCase(),
       full_name: createForm.full_name,
       password: createForm.password,
       role_ids: createForm.role_ids,
     })
     createOpen.value = false
-    $q.notify({ type: 'positive', message: 'Usuário criado' })
+    $q.notify({ type: 'positive', message: 'User created' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao criar usuário') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to create user') })
   } finally {
     saving.value = false
   }
@@ -138,6 +148,7 @@ async function submitEdit() {
   saving.value = true
   try {
     await usersApi.update(selected.value.id, {
+      username: editForm.username.trim().toLowerCase(),
       full_name: editForm.full_name,
       is_active: editForm.is_active,
     })
@@ -147,10 +158,10 @@ async function submitEdit() {
       })
     }
     editOpen.value = false
-    $q.notify({ type: 'positive', message: 'Usuário atualizado' })
+    $q.notify({ type: 'positive', message: 'User updated' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao atualizar usuário') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to update user') })
   } finally {
     saving.value = false
   }
@@ -162,10 +173,10 @@ async function submitRoles() {
   try {
     await usersApi.replaceRoles(selected.value.id, rolesForm.role_ids)
     rolesOpen.value = false
-    $q.notify({ type: 'positive', message: 'Roles atualizadas' })
+    $q.notify({ type: 'positive', message: 'Roles updated' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao atribuir roles') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to assign roles') })
   } finally {
     saving.value = false
   }
@@ -173,10 +184,10 @@ async function submitRoles() {
 
 function confirmDelete(user: UserResponse) {
   $q.dialog({
-    title: 'Excluir usuário',
-    message: `Remover permanentemente ${user.full_name}?`,
-    cancel: { flat: true, label: 'Cancelar', color: 'primary' },
-    ok: { unelevated: true, label: 'Excluir', color: 'negative' },
+    title: 'Delete user',
+    message: `Permanently remove ${user.full_name}?`,
+    cancel: { flat: true, label: 'Cancel', color: 'primary' },
+    ok: { unelevated: true, label: 'Delete', color: 'negative' },
     persistent: true,
   }).onOk(() => {
     void deleteUser(user)
@@ -186,10 +197,10 @@ function confirmDelete(user: UserResponse) {
 async function deleteUser(user: UserResponse) {
   try {
     await usersApi.remove(user.id)
-    $q.notify({ type: 'positive', message: 'Usuário excluído' })
+    $q.notify({ type: 'positive', message: 'User deleted' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao excluir usuário') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to delete user') })
   }
 }
 
@@ -217,120 +228,147 @@ onMounted(async () => {
 </script>
 
 <template>
-  <q-page class="admin-page">
-    <header class="admin-page__header">
-      <div>
-        <p class="admin-page__eyebrow">Administração</p>
-        <h1>Usuários</h1>
-        <p class="admin-page__lead">
-          Crie contas, altere status e atribua roles do RBAC.
-        </p>
-      </div>
-      <q-btn
-        v-if="can(PermissionCode.USERS_CREATE)"
-        color="primary"
-        unelevated
-        no-caps
-        icon="person_add"
-        label="Novo usuário"
-        @click="openCreate"
-      />
-    </header>
-
-    <q-table
-      class="admin-table"
+  <q-page class="app-page">
+    <q-card
+      class="app-page__card"
       flat
-      bordered
-      row-key="id"
-      :rows="users"
-      :columns="columns"
-      :loading="loading"
-      :rows-per-page-options="[10, 20, 50]"
     >
-      <template #body-cell-roles="props">
-        <q-td :props="props">
-          <span class="admin-table__muted">{{ roleLabels(props.row.role_ids) }}</span>
-        </q-td>
-      </template>
-
-      <template #body-cell-is_active="props">
-        <q-td :props="props">
-          <q-badge
-            :color="props.row.is_active ? 'teal' : 'grey'"
-            :label="props.row.is_active ? 'Sim' : 'Não'"
-          />
-        </q-td>
-      </template>
-
-      <template #body-cell-actions="props">
-        <q-td :props="props">
-          <div class="admin-table__actions">
-            <q-btn
-              v-if="can(PermissionCode.USERS_UPDATE)"
-              flat
-              dense
-              round
-              icon="edit"
-              color="primary"
-              @click="openEdit(props.row)"
-            >
-              <q-tooltip>Editar</q-tooltip>
-            </q-btn>
-            <q-btn
-              v-if="can(PermissionCode.USERS_ASSIGN_ROLES)"
-              flat
-              dense
-              round
-              icon="shield"
-              color="primary"
-              @click="openRoles(props.row)"
-            >
-              <q-tooltip>Roles</q-tooltip>
-            </q-btn>
-            <q-btn
-              v-if="can(PermissionCode.USERS_DELETE)"
-              flat
-              dense
-              round
-              icon="delete"
-              color="negative"
-              @click="confirmDelete(props.row)"
-            >
-              <q-tooltip>Excluir</q-tooltip>
-            </q-btn>
+      <q-card-section class="app-page__section">
+        <header class="app-page__header">
+          <div>
+            <h1 class="app-page__title">Users</h1>
+            <p class="app-page__lead">
+              Create accounts, change status, and assign RBAC roles.
+            </p>
           </div>
-        </q-td>
-      </template>
+          <q-btn
+            v-if="can(PermissionCode.USERS_CREATE)"
+            unelevated
+            no-caps
+            icon="person_add"
+            label="New user"
+            class="app-page__btn-primary"
+            @click="openCreate"
+          />
+        </header>
 
-      <template #no-data>
-        <div class="admin-table__empty">
-          Nenhum usuário encontrado.
-        </div>
-      </template>
-    </q-table>
+        <q-table
+          class="app-page__table"
+          flat
+          bordered
+          row-key="id"
+          :rows="users"
+          :columns="columns"
+          :loading="loading"
+          :rows-per-page-options="[10, 20, 50]"
+        >
+          <template #body-cell-username="props">
+            <q-td :props="props">
+              <code class="app-page__code">{{ props.row.username }}</code>
+            </q-td>
+          </template>
+
+          <template #body-cell-roles="props">
+            <q-td :props="props">
+              <span class="app-page__muted">{{ roleLabels(props.row.role_ids) }}</span>
+            </q-td>
+          </template>
+
+          <template #body-cell-is_active="props">
+            <q-td :props="props">
+              <q-badge
+                :color="props.row.is_active ? 'primary' : 'grey'"
+                :label="props.row.is_active ? 'Yes' : 'No'"
+              />
+            </q-td>
+          </template>
+
+          <template #body-cell-actions="props">
+            <q-td :props="props">
+              <div class="app-page__table-actions">
+                <q-btn
+                  v-if="can(PermissionCode.USERS_UPDATE)"
+                  flat
+                  dense
+                  round
+                  icon="edit"
+                  color="primary"
+                  @click="openEdit(props.row)"
+                >
+                  <q-tooltip>Edit</q-tooltip>
+                </q-btn>
+                <q-btn
+                  v-if="can(PermissionCode.USERS_ASSIGN)"
+                  flat
+                  dense
+                  round
+                  icon="shield"
+                  color="primary"
+                  @click="openRoles(props.row)"
+                >
+                  <q-tooltip>Roles</q-tooltip>
+                </q-btn>
+                <q-btn
+                  v-if="can(PermissionCode.USERS_DELETE)"
+                  flat
+                  dense
+                  round
+                  icon="delete"
+                  color="negative"
+                  @click="confirmDelete(props.row)"
+                >
+                  <q-tooltip>Delete</q-tooltip>
+                </q-btn>
+              </div>
+            </q-td>
+          </template>
+
+          <template #no-data>
+            <div class="app-page__empty">
+              No users found.
+            </div>
+          </template>
+        </q-table>
+      </q-card-section>
+    </q-card>
 
     <q-dialog
       v-model="createOpen"
       persistent
     >
-      <q-card class="admin-dialog">
+      <q-card class="app-page__dialog">
         <q-card-section>
-          <div class="text-h6">Novo usuário</div>
+          <div
+            class="text-h6"
+            style="color: #111827"
+          >
+            New user
+          </div>
         </q-card-section>
         <q-form @submit.prevent="submitCreate">
           <q-card-section class="q-gutter-md">
             <q-input
               v-model="createForm.full_name"
-              label="Nome completo"
+              label="Full name"
               outlined
               dense
               required
-              :rules="[(v) => (v && v.length >= 2) || 'Mínimo 2 caracteres']"
+              :rules="[(v) => (v && v.length >= 2) || 'Minimum 2 characters']"
+            />
+            <q-input
+              v-model="createForm.username"
+              label="Username"
+              outlined
+              dense
+              required
+              hint="Lowercase; numbers; special: . - _"
+              :rules="[usernameRule]"
+              @update:model-value="(v) => { createForm.username = String(v ?? '').toLowerCase() }"
             />
             <q-input
               v-model="createForm.email"
               type="email"
-              label="E-mail"
+              label="Email"
               outlined
               dense
               required
@@ -338,11 +376,11 @@ onMounted(async () => {
             <q-input
               v-model="createForm.password"
               type="password"
-              label="Senha"
+              label="Password"
               outlined
               dense
               required
-              :rules="[(v) => (v && v.length >= 8) || 'Mínimo 8 caracteres']"
+              :rules="[(v) => (v && v.length >= 8) || 'Minimum 8 characters']"
             />
             <q-select
               v-model="createForm.role_ids"
@@ -361,7 +399,7 @@ onMounted(async () => {
             <q-btn
               flat
               no-caps
-              label="Cancelar"
+              label="Cancel"
               color="primary"
               @click="createOpen = false"
             />
@@ -370,7 +408,7 @@ onMounted(async () => {
               unelevated
               no-caps
               color="primary"
-              label="Criar"
+              label="Create"
               :loading="saving"
             />
           </q-card-actions>
@@ -382,35 +420,51 @@ onMounted(async () => {
       v-model="editOpen"
       persistent
     >
-      <q-card class="admin-dialog">
+      <q-card class="app-page__dialog">
         <q-card-section>
-          <div class="text-h6">Editar usuário</div>
-          <div class="admin-dialog__sub">{{ selected?.email }}</div>
+          <div
+            class="text-h6"
+            style="color: #111827"
+          >
+            Edit user
+          </div>
+          <div class="app-page__dialog-sub">
+            <code>{{ selected?.username }}</code> · {{ selected?.email }}
+          </div>
         </q-card-section>
         <q-form @submit.prevent="submitEdit">
           <q-card-section class="q-gutter-md">
             <q-input
-              v-model="editForm.full_name"
-              label="Nome completo"
+              v-model="editForm.username"
+              label="Username"
               outlined
               dense
               required
-              :rules="[(v) => (v && v.length >= 2) || 'Mínimo 2 caracteres']"
+              :rules="[usernameRule]"
+              @update:model-value="(v) => { editForm.username = String(v ?? '').toLowerCase() }"
+            />
+            <q-input
+              v-model="editForm.full_name"
+              label="Full name"
+              outlined
+              dense
+              required
+              :rules="[(v) => (v && v.length >= 2) || 'Minimum 2 characters']"
             />
             <q-toggle
               v-model="editForm.is_active"
-              label="Usuário ativo"
+              label="User active"
               color="primary"
             />
             <q-input
               v-model="editForm.new_password"
               type="password"
-              label="Nova senha (opcional)"
+              label="New password (optional)"
               outlined
               dense
-              hint="Deixe em branco para manter a senha atual"
+              hint="Leave blank to keep the current password"
               :rules="[
-                (v) => !v || v.length >= 8 || 'Mínimo 8 caracteres',
+                (v) => !v || v.length >= 8 || 'Minimum 8 characters',
               ]"
             />
           </q-card-section>
@@ -418,7 +472,7 @@ onMounted(async () => {
             <q-btn
               flat
               no-caps
-              label="Cancelar"
+              label="Cancel"
               color="primary"
               @click="editOpen = false"
             />
@@ -427,7 +481,7 @@ onMounted(async () => {
               unelevated
               no-caps
               color="primary"
-              label="Salvar"
+              label="Save"
               :loading="saving"
             />
           </q-card-actions>
@@ -439,10 +493,15 @@ onMounted(async () => {
       v-model="rolesOpen"
       persistent
     >
-      <q-card class="admin-dialog">
+      <q-card class="app-page__dialog">
         <q-card-section>
-          <div class="text-h6">Atribuir roles</div>
-          <div class="admin-dialog__sub">{{ selected?.full_name }}</div>
+          <div
+            class="text-h6"
+            style="color: #111827"
+          >
+            Assign roles
+          </div>
+          <div class="app-page__dialog-sub">{{ selected?.full_name }}</div>
         </q-card-section>
         <q-form @submit.prevent="submitRoles">
           <q-card-section>
@@ -463,7 +522,7 @@ onMounted(async () => {
             <q-btn
               flat
               no-caps
-              label="Cancelar"
+              label="Cancel"
               color="primary"
               @click="rolesOpen = false"
             />
@@ -472,7 +531,7 @@ onMounted(async () => {
               unelevated
               no-caps
               color="primary"
-              label="Salvar"
+              label="Save"
               :loading="saving"
             />
           </q-card-actions>
@@ -482,72 +541,3 @@ onMounted(async () => {
   </q-page>
 </template>
 
-<style scoped lang="scss">
-.admin-page {
-  padding: 1.5rem 1.5rem 2.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.admin-page__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.admin-page__eyebrow {
-  margin: 0 0 0.25rem;
-  color: var(--ls-accent);
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.admin-page__header h1 {
-  margin: 0 0 0.35rem;
-  font-family: var(--ls-font-display);
-  font-size: 1.85rem;
-  font-weight: 600;
-}
-
-.admin-page__lead {
-  margin: 0;
-  color: var(--ls-muted);
-  max-width: 36rem;
-}
-
-.admin-table {
-  background: var(--ls-panel);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.admin-table__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.15rem;
-}
-
-.admin-table__muted {
-  color: var(--ls-muted);
-  font-size: 0.9rem;
-}
-
-.admin-table__empty {
-  padding: 2rem;
-  text-align: center;
-  color: var(--ls-muted);
-}
-
-.admin-dialog {
-  min-width: min(440px, 92vw);
-}
-
-.admin-dialog__sub {
-  margin-top: 0.2rem;
-  color: var(--ls-muted);
-  font-size: 0.9rem;
-}
-</style>

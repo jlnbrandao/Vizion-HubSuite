@@ -28,6 +28,7 @@ def _to_entity(model: RoleModel, permission_ids: set[UUID]) -> Role:
         id=model.id,
         created_at=model.created_at,
         updated_at=model.updated_at,
+        tenant_id=model.tenant_id,
         name=RoleName(value=model.name),
         description=RoleDescription(value=model.description),
         permission_ids=permission_ids,
@@ -59,6 +60,7 @@ class SqlAlchemyRoleRepository(RoleRepository):
         session = self._session()
         model = RoleModel(
             id=entity.id,
+            tenant_id=entity.tenant_id,
             name=entity.name.value,
             description=entity.description.value,
             is_active=entity.is_active,
@@ -135,5 +137,9 @@ class SqlAlchemyRoleRepository(RoleRepository):
         )
         for permission_id in entity.permission_ids:
             session.add(
-                RolePermissionModel(role_id=entity.id, permission_id=permission_id)
+                RolePermissionModel(
+                    role_id=entity.id,
+                    permission_id=permission_id,
+                    tenant_id=entity.tenant_id,
+                )
             )

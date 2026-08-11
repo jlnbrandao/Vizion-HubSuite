@@ -10,6 +10,7 @@ from src.shared.application.command import Command
 
 @dataclass(frozen=True, kw_only=True)
 class CreatePermissionCommand(Command):
+    tenant_id: UUID
     code: str
     name: str
     description: str = ""

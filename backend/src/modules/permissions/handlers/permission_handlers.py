@@ -37,6 +37,8 @@ def _to_dto(permission: Permission) -> PermissionDto:
     return PermissionDto(
         id=permission.id,
         code=permission.code.value,
+        resource=permission.code.resource,
+        action=permission.code.action,
         name=permission.name.value,
         description=permission.description,
         is_active=permission.is_active,
@@ -62,6 +64,7 @@ class CreatePermissionHandler(CommandHandler[CreatePermissionCommand, UUID]):
                 raise ConflictError(f"Permission code already exists: {code.value}")
 
             permission = Permission.create(
+                tenant_id=command.tenant_id,
                 code=code,
                 name=name,
                 description=command.description,
@@ -137,7 +140,11 @@ class ListPermissionsHandler(QueryHandler[ListPermissionsQuery, list[PermissionD
 
     async def handle(self, query: ListPermissionsQuery) -> list[PermissionDto]:
         async with self._uow_factory():
-            items = await self._permissions.list_all(only_active=query.only_active)
+            items = await self._permissions.list_all(
+                only_active=query.only_active,
+                resource=query.resource,
+                action=query.action,
+            )
             return [_to_dto(item) for item in items]
 
 

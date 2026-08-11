@@ -29,6 +29,7 @@ from src.shared.infrastructure.di.container import Container
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.security.dependencies import require_permission
 from src.shared.infrastructure.security.permission_codes import PermissionCode
+from src.shared.infrastructure.tenant_context import require_current_tenant_id
 
 router = APIRouter(prefix="/permissions", tags=["permissions"])
 
@@ -37,6 +38,8 @@ def _to_response(dto: PermissionDto) -> PermissionResponse:
     return PermissionResponse(
         id=dto.id,
         code=dto.code,
+        resource=dto.resource,
+        action=dto.action,
         name=dto.name,
         description=dto.description,
         is_active=dto.is_active,
@@ -54,6 +57,7 @@ async def create_permission(
 ) -> PermissionIdResponse:
     permission_id = await command_bus.execute(
         CreatePermissionCommand(
+            tenant_id=require_current_tenant_id(),
             code=body.code,
             name=body.name,
             description=body.description,
@@ -66,11 +70,17 @@ async def create_permission(
 @inject
 async def list_permissions(
     only_active: bool = False,
+    resource: str | None = None,
+    action: str | None = None,
     query_bus: QueryBus = Depends(Provide[Container.query_bus]),
     _: CurrentUser = Depends(require_permission(PermissionCode.PERMISSIONS_READ)),
 ) -> list[PermissionResponse]:
     items: list[PermissionDto] = await query_bus.ask(
-        ListPermissionsQuery(only_active=only_active)
+        ListPermissionsQuery(
+            only_active=only_active,
+            resource=resource.strip().lower() if resource else None,
+            action=action.strip().lower() if action else None,
+        )
     )
     return [_to_response(item) for item in items]
 

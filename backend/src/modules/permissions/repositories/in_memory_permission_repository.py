@@ -7,6 +7,7 @@ from uuid import UUID
 from src.modules.permissions.entities.permission import Permission
 from src.modules.permissions.repositories.permission_repository import PermissionRepository
 from src.modules.permissions.value_objects.permission_code import PermissionCode
+from src.shared.infrastructure.tenant_scope import matches_tenant_scope
 
 
 class InMemoryPermissionRepository(PermissionRepository):
@@ -17,7 +18,14 @@ class InMemoryPermissionRepository(PermissionRepository):
         return self._items.get(entity_id)
 
     async def get_by_code(self, code: PermissionCode) -> Permission | None:
-        return next((p for p in self._items.values() if p.code == code), None)
+        return next(
+            (
+                p
+                for p in self._items.values()
+                if p.code == code and matches_tenant_scope(p.tenant_id)
+            ),
+            None,
+        )
 
     async def add(self, entity: Permission) -> None:
         self._items[entity.id] = entity
@@ -32,12 +40,25 @@ class InMemoryPermissionRepository(PermissionRepository):
         return entity_id in self._items
 
     async def exists_by_code(self, code: PermissionCode) -> bool:
-        return any(p.code == code for p in self._items.values())
+        return any(
+            p.code == code and matches_tenant_scope(p.tenant_id) for p in self._items.values()
+        )
 
-    async def list_all(self, *, only_active: bool = False) -> list[Permission]:
+    async def list_all(
+        self,
+        *,
+        only_active: bool = False,
+        resource: str | None = None,
+        action: str | None = None,
+    ) -> list[Permission]:
         items = list(self._items.values())
+        items = [p for p in items if matches_tenant_scope(p.tenant_id)]
         if only_active:
             items = [p for p in items if p.is_active]
+        if resource:
+            items = [p for p in items if p.code.resource == resource]
+        if action:
+            items = [p for p in items if p.code.action == action]
         return sorted(items, key=lambda p: p.code.value)
 
     async def find_by_ids(self, ids: set[UUID]) -> list[Permission]:

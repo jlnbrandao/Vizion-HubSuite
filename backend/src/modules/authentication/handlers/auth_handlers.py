@@ -1,7 +1,7 @@
 """Authentication command handlers.
 
 Cross-module:
-  - GetUserByEmailQuery (Users) via QueryBus
+  - GetUserByEmailQuery / GetUserByUsernameQuery (Users) via QueryBus
   - PasswordHasher (Users) via DI
 Never imports Users domain entities.
 """
@@ -26,7 +26,7 @@ from src.modules.authentication.services.token_service import TokenService
 from src.modules.authentication.value_objects.access_token_claims import AccessTokenClaims
 from src.modules.authentication.value_objects.refresh_token import RefreshToken
 from src.modules.users.dtos.user_dtos import UserAuthDto
-from src.modules.users.queries.user_queries import GetUserByEmailQuery
+from src.modules.users.queries.user_queries import GetUserByEmailQuery, GetUserByUsernameQuery
 from src.modules.users.services.password_hasher import PasswordHasher
 from src.modules.users.value_objects.hashed_password import HashedPassword
 from src.modules.users.value_objects.plain_password import PlainPassword
@@ -34,6 +34,10 @@ from src.shared.application.event_bus import EventBus
 from src.shared.application.handler import CommandHandler
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.exceptions import NotFoundError, UnauthorizedError, ValidationError
+from src.shared.infrastructure.tenant_context import (
+    get_current_tenant_slug,
+    require_current_tenant_id,
+)
 
 
 class LoginHandler(CommandHandler[LoginCommand, TokenPairDto]):
@@ -52,7 +56,7 @@ class LoginHandler(CommandHandler[LoginCommand, TokenPairDto]):
         self._event_bus = event_bus
 
     async def handle(self, command: LoginCommand) -> TokenPairDto:
-        user = await self._load_user(command.email)
+        user = await self._load_user(command.login)
         self._assert_credentials(command.password, user)
 
         pair = await self._issue_tokens(user)
@@ -65,9 +69,20 @@ class LoginHandler(CommandHandler[LoginCommand, TokenPairDto]):
         )
         return pair
 
-    async def _load_user(self, email: str) -> UserAuthDto:
+    async def _load_user(self, login: str) -> UserAuthDto:
+        identifier = login.strip()
+        if not identifier:
+            raise UnauthorizedError("Invalid credentials")
+
+        tenant_id = require_current_tenant_id()
         try:
-            return await self._query_bus.ask(GetUserByEmailQuery(email=email))
+            if "@" in identifier:
+                return await self._query_bus.ask(
+                    GetUserByEmailQuery(tenant_id=tenant_id, email=identifier)
+                )
+            return await self._query_bus.ask(
+                GetUserByUsernameQuery(tenant_id=tenant_id, username=identifier)
+            )
         except (NotFoundError, ValidationError) as exc:
             raise UnauthorizedError("Invalid credentials") from exc
 
@@ -84,10 +99,17 @@ class LoginHandler(CommandHandler[LoginCommand, TokenPairDto]):
             raise UnauthorizedError("Invalid credentials")
 
     async def _issue_tokens(self, user: UserAuthDto) -> TokenPairDto:
+        tenant_id = require_current_tenant_id()
+        tenant_slug = get_current_tenant_slug() or ""
+        if user.tenant_id != tenant_id:
+            raise UnauthorizedError("Invalid credentials")
+
         claims = AccessTokenClaims(
             user_id=user.id,
             email=user.email,
             full_name=user.full_name,
+            tenant_id=tenant_id,
+            tenant_slug=tenant_slug,
             role_ids=user.role_ids,
         )
         access = self._token_service.create_access_token(claims)
@@ -96,6 +118,8 @@ class LoginHandler(CommandHandler[LoginCommand, TokenPairDto]):
             user_id=user.id,
             email=user.email,
             full_name=user.full_name,
+            tenant_id=tenant_id,
+            tenant_slug=tenant_slug,
             role_ids=user.role_ids,
             created_at=datetime.now(UTC),
         )
@@ -159,13 +183,18 @@ class RefreshTokenHandler(CommandHandler[RefreshTokenCommand, TokenPairDto]):
         if session is None:
             raise UnauthorizedError("Invalid or expired refresh token")
 
-        # Rotation: invalidate old, issue new pair
+        host_tenant_id = require_current_tenant_id()
+        if session.tenant_id != host_tenant_id:
+            raise UnauthorizedError("Invalid or expired refresh token")
+
         await self._refresh_store.delete(old_token)
 
         claims = AccessTokenClaims(
             user_id=session.user_id,
             email=session.email,
             full_name=session.full_name,
+            tenant_id=session.tenant_id,
+            tenant_slug=session.tenant_slug,
             role_ids=session.role_ids,
         )
         access = self._token_service.create_access_token(claims)
@@ -174,6 +203,8 @@ class RefreshTokenHandler(CommandHandler[RefreshTokenCommand, TokenPairDto]):
             user_id=session.user_id,
             email=session.email,
             full_name=session.full_name,
+            tenant_id=session.tenant_id,
+            tenant_slug=session.tenant_slug,
             role_ids=session.role_ids,
             created_at=datetime.now(UTC),
         )

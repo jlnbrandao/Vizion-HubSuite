@@ -12,9 +12,9 @@ const queue = computed(() => {
 <template>
   <div class="ops">
     <div class="ops__meta">
-      <span>Data: {{ data.date }}</span>
-      <span>Pendentes: {{ data.pending_tasks }}</span>
-      <span>Concluídas: {{ data.completed_tasks }}</span>
+      <span>Date: {{ data.date }}</span>
+      <span>Pending: {{ data.pending_tasks }}</span>
+      <span>Completed: {{ data.completed_tasks }}</span>
     </div>
     <ul class="ops__queue">
       <li
@@ -32,7 +32,7 @@ const queue = computed(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem 1.25rem;
-  color: var(--ls-muted);
+  color: #6b7280;
   font-size: 0.9rem;
   margin-bottom: 1rem;
 }
@@ -47,7 +47,9 @@ const queue = computed(() => {
 
 .ops__queue li {
   padding: 0.7rem 0.85rem;
-  border-radius: 12px;
-  background: rgba(15, 118, 110, 0.06);
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111827;
 }
 </style>

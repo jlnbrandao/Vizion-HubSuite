@@ -39,7 +39,7 @@ const permsForm = reactive({
 
 const permissionOptions = computed(() =>
   permissions.value.map((permission) => ({
-    label: `${permission.code} — ${permission.name}`,
+    label: `${permission.resource}.${permission.action} — ${permission.name}`,
     value: permission.id,
   })),
 )
@@ -66,15 +66,15 @@ function filterPermissions(val: string, update: (fn: () => void) => void) {
 }
 
 const columns: QTableColumn[] = [
-  { name: 'name', label: 'Nome', field: 'name', align: 'left', sortable: true },
-  { name: 'description', label: 'Descrição', field: 'description', align: 'left' },
-  { name: 'permissions', label: 'Permissões', field: 'permission_ids', align: 'center' },
-  { name: 'is_active', label: 'Ativo', field: 'is_active', align: 'center' },
-  { name: 'actions', label: 'Ações', field: 'id', align: 'right' },
+  { name: 'name', label: 'Name', field: 'name', align: 'left', sortable: true },
+  { name: 'description', label: 'Description', field: 'description', align: 'left' },
+  { name: 'permissions', label: 'Permissions', field: 'permission_ids', align: 'center' },
+  { name: 'is_active', label: 'Active', field: 'is_active', align: 'center' },
+  { name: 'actions', label: 'Actions', field: 'id', align: 'right' },
 ]
 
 const roleNameRule = (v: string) =>
-  /^[A-Z][A-Z0-9_]{1,63}$/.test(v) || 'Use A-Z, números e _; comece com letra'
+  /^[A-Z][A-Z0-9_]{1,63}$/.test(v) || 'Use A–Z, numbers, and _; start with a letter'
 
 function openCreate() {
   createForm.name = ''
@@ -105,7 +105,7 @@ async function load() {
     roles.value = rolesRes.data
     permissions.value = permsRes.data
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao carregar roles') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to load roles') })
   } finally {
     loading.value = false
   }
@@ -119,10 +119,10 @@ async function submitCreate() {
       description: createForm.description,
     })
     createOpen.value = false
-    $q.notify({ type: 'positive', message: 'Role criada' })
+    $q.notify({ type: 'positive', message: 'Role created' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao criar role') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to create role') })
   } finally {
     saving.value = false
   }
@@ -137,10 +137,10 @@ async function submitEdit() {
       is_active: editForm.is_active,
     })
     editOpen.value = false
-    $q.notify({ type: 'positive', message: 'Role atualizada' })
+    $q.notify({ type: 'positive', message: 'Role updated' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao atualizar role') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to update role') })
   } finally {
     saving.value = false
   }
@@ -152,12 +152,12 @@ async function submitPermissions() {
   try {
     await rolesApi.replacePermissions(selected.value.id, permsForm.permission_ids)
     permsOpen.value = false
-    $q.notify({ type: 'positive', message: 'Permissões atualizadas' })
+    $q.notify({ type: 'positive', message: 'Permissions updated' })
     await load()
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: apiErrorMessage(error, 'Falha ao atribuir permissões'),
+      message: apiErrorMessage(error, 'Failed to assign permissions'),
     })
   } finally {
     saving.value = false
@@ -166,10 +166,10 @@ async function submitPermissions() {
 
 function confirmDelete(role: RoleResponse) {
   $q.dialog({
-    title: 'Excluir role',
-    message: `Remover permanentemente a role ${role.name}?`,
-    cancel: { flat: true, label: 'Cancelar', color: 'primary' },
-    ok: { unelevated: true, label: 'Excluir', color: 'negative' },
+    title: 'Delete role',
+    message: `Permanently remove role ${role.name}?`,
+    cancel: { flat: true, label: 'Cancel', color: 'primary' },
+    ok: { unelevated: true, label: 'Delete', color: 'negative' },
     persistent: true,
   }).onOk(() => {
     void deleteRole(role)
@@ -179,10 +179,10 @@ function confirmDelete(role: RoleResponse) {
 async function deleteRole(role: RoleResponse) {
   try {
     await rolesApi.remove(role.id)
-    $q.notify({ type: 'positive', message: 'Role excluída' })
+    $q.notify({ type: 'positive', message: 'Role deleted' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao excluir role') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to delete role') })
   }
 }
 
@@ -192,130 +192,141 @@ onMounted(() => {
 </script>
 
 <template>
-  <q-page class="admin-page">
-    <header class="admin-page__header">
-      <div>
-        <p class="admin-page__eyebrow">Administração</p>
-        <h1>Roles</h1>
-        <p class="admin-page__lead">
-          Defina papéis e associe o conjunto de permissões de cada um.
-        </p>
-      </div>
-      <q-btn
-        v-if="can(PermissionCode.ROLES_CREATE)"
-        color="primary"
-        unelevated
-        no-caps
-        icon="add"
-        label="Nova role"
-        @click="openCreate"
-      />
-    </header>
-
-    <q-table
-      class="admin-table"
+  <q-page class="app-page">
+    <q-card
+      class="app-page__card"
       flat
-      bordered
-      row-key="id"
-      :rows="roles"
-      :columns="columns"
-      :loading="loading"
-      :rows-per-page-options="[10, 20, 50]"
     >
-      <template #body-cell-description="props">
-        <q-td :props="props">
-          <span class="admin-table__muted">{{ props.row.description || '—' }}</span>
-        </q-td>
-      </template>
-
-      <template #body-cell-permissions="props">
-        <q-td :props="props">
-          <q-badge
-            color="teal"
-            :label="String(props.row.permission_ids.length)"
-          />
-        </q-td>
-      </template>
-
-      <template #body-cell-is_active="props">
-        <q-td :props="props">
-          <q-badge
-            :color="props.row.is_active ? 'teal' : 'grey'"
-            :label="props.row.is_active ? 'Sim' : 'Não'"
-          />
-        </q-td>
-      </template>
-
-      <template #body-cell-actions="props">
-        <q-td :props="props">
-          <div class="admin-table__actions">
-            <q-btn
-              v-if="can(PermissionCode.ROLES_UPDATE)"
-              flat
-              dense
-              round
-              icon="edit"
-              color="primary"
-              @click="openEdit(props.row)"
-            >
-              <q-tooltip>Editar</q-tooltip>
-            </q-btn>
-            <q-btn
-              v-if="can(PermissionCode.ROLES_ASSIGN_PERMISSIONS)"
-              flat
-              dense
-              round
-              icon="key"
-              color="primary"
-              @click="openPermissions(props.row)"
-            >
-              <q-tooltip>Permissões</q-tooltip>
-            </q-btn>
-            <q-btn
-              v-if="can(PermissionCode.ROLES_DELETE)"
-              flat
-              dense
-              round
-              icon="delete"
-              color="negative"
-              @click="confirmDelete(props.row)"
-            >
-              <q-tooltip>Excluir</q-tooltip>
-            </q-btn>
+      <q-card-section class="app-page__section">
+        <header class="app-page__header">
+          <div>
+            <h1 class="app-page__title">Roles</h1>
+            <p class="app-page__lead">
+              Define roles and associate each one's permission set.
+            </p>
           </div>
-        </q-td>
-      </template>
+          <q-btn
+            v-if="can(PermissionCode.ROLES_CREATE)"
+            unelevated
+            no-caps
+            icon="add"
+            label="New role"
+            class="app-page__btn-primary"
+            @click="openCreate"
+          />
+        </header>
 
-      <template #no-data>
-        <div class="admin-table__empty">
-          Nenhuma role encontrada.
-        </div>
-      </template>
-    </q-table>
+        <q-table
+          class="app-page__table"
+          flat
+          bordered
+          row-key="id"
+          :rows="roles"
+          :columns="columns"
+          :loading="loading"
+          :rows-per-page-options="[10, 20, 50]"
+        >
+          <template #body-cell-description="props">
+            <q-td :props="props">
+              <span class="app-page__muted">{{ props.row.description || '—' }}</span>
+            </q-td>
+          </template>
+
+          <template #body-cell-permissions="props">
+            <q-td :props="props">
+              <q-badge
+                color="primary"
+                :label="String(props.row.permission_ids.length)"
+              />
+            </q-td>
+          </template>
+
+          <template #body-cell-is_active="props">
+            <q-td :props="props">
+              <q-badge
+                :color="props.row.is_active ? 'primary' : 'grey'"
+                :label="props.row.is_active ? 'Yes' : 'No'"
+              />
+            </q-td>
+          </template>
+
+          <template #body-cell-actions="props">
+            <q-td :props="props">
+              <div class="app-page__table-actions">
+                <q-btn
+                  v-if="can(PermissionCode.ROLES_UPDATE)"
+                  flat
+                  dense
+                  round
+                  icon="edit"
+                  color="primary"
+                  @click="openEdit(props.row)"
+                >
+                  <q-tooltip>Edit</q-tooltip>
+                </q-btn>
+                <q-btn
+                  v-if="can(PermissionCode.ROLES_ASSIGN)"
+                  flat
+                  dense
+                  round
+                  icon="key"
+                  color="primary"
+                  @click="openPermissions(props.row)"
+                >
+                  <q-tooltip>Permissions</q-tooltip>
+                </q-btn>
+                <q-btn
+                  v-if="can(PermissionCode.ROLES_DELETE)"
+                  flat
+                  dense
+                  round
+                  icon="delete"
+                  color="negative"
+                  @click="confirmDelete(props.row)"
+                >
+                  <q-tooltip>Delete</q-tooltip>
+                </q-btn>
+              </div>
+            </q-td>
+          </template>
+
+          <template #no-data>
+            <div class="app-page__empty">
+              No roles found.
+            </div>
+          </template>
+        </q-table>
+      </q-card-section>
+    </q-card>
 
     <q-dialog
       v-model="createOpen"
       persistent
     >
-      <q-card class="admin-dialog">
+      <q-card class="app-page__dialog">
         <q-card-section>
-          <div class="text-h6">Nova role</div>
+          <div
+            class="text-h6"
+            style="color: #111827"
+          >
+            New role
+          </div>
         </q-card-section>
         <q-form @submit.prevent="submitCreate">
           <q-card-section class="q-gutter-md">
             <q-input
               v-model="createForm.name"
-              label="Nome"
+              label="Name"
               outlined
               dense
               required
-              hint="Ex.: ADMIN, MANAGER"
+              hint="e.g. ADMIN, MANAGER"
               :rules="[roleNameRule]"
               @update:model-value="(v) => { createForm.name = String(v ?? '').toUpperCase() }"
             />
             <q-input
               v-model="createForm.description"
-              label="Descrição"
+              label="Description"
               outlined
               dense
               type="textarea"
@@ -326,7 +337,7 @@ onMounted(() => {
             <q-btn
               flat
               no-caps
-              label="Cancelar"
+              label="Cancel"
               color="primary"
               @click="createOpen = false"
             />
@@ -335,7 +346,7 @@ onMounted(() => {
               unelevated
               no-caps
               color="primary"
-              label="Criar"
+              label="Create"
               :loading="saving"
             />
           </q-card-actions>
@@ -347,16 +358,21 @@ onMounted(() => {
       v-model="editOpen"
       persistent
     >
-      <q-card class="admin-dialog">
+      <q-card class="app-page__dialog">
         <q-card-section>
-          <div class="text-h6">Editar role</div>
-          <div class="admin-dialog__sub">{{ selected?.name }}</div>
+          <div
+            class="text-h6"
+            style="color: #111827"
+          >
+            Edit role
+          </div>
+          <div class="app-page__dialog-sub">{{ selected?.name }}</div>
         </q-card-section>
         <q-form @submit.prevent="submitEdit">
           <q-card-section class="q-gutter-md">
             <q-input
               v-model="editForm.description"
-              label="Descrição"
+              label="Description"
               outlined
               dense
               type="textarea"
@@ -364,7 +380,7 @@ onMounted(() => {
             />
             <q-toggle
               v-model="editForm.is_active"
-              label="Role ativa"
+              label="Role active"
               color="primary"
             />
           </q-card-section>
@@ -372,7 +388,7 @@ onMounted(() => {
             <q-btn
               flat
               no-caps
-              label="Cancelar"
+              label="Cancel"
               color="primary"
               @click="editOpen = false"
             />
@@ -381,7 +397,7 @@ onMounted(() => {
               unelevated
               no-caps
               color="primary"
-              label="Salvar"
+              label="Save"
               :loading="saving"
             />
           </q-card-actions>
@@ -393,17 +409,22 @@ onMounted(() => {
       v-model="permsOpen"
       persistent
     >
-      <q-card class="admin-dialog admin-dialog--wide">
+      <q-card class="app-page__dialog app-page__dialog--wide">
         <q-card-section>
-          <div class="text-h6">Atribuir permissões</div>
-          <div class="admin-dialog__sub">{{ selected?.name }}</div>
+          <div
+            class="text-h6"
+            style="color: #111827"
+          >
+            Assign permissions
+          </div>
+          <div class="app-page__dialog-sub">{{ selected?.name }}</div>
         </q-card-section>
         <q-form @submit.prevent="submitPermissions">
           <q-card-section>
             <q-select
               v-model="permsForm.permission_ids"
               :options="filteredPermissionOptions"
-              label="Permissões"
+              label="Permissions"
               outlined
               dense
               multiple
@@ -420,7 +441,7 @@ onMounted(() => {
             <q-btn
               flat
               no-caps
-              label="Cancelar"
+              label="Cancel"
               color="primary"
               @click="permsOpen = false"
             />
@@ -429,7 +450,7 @@ onMounted(() => {
               unelevated
               no-caps
               color="primary"
-              label="Salvar"
+              label="Save"
               :loading="saving"
             />
           </q-card-actions>
@@ -439,76 +460,3 @@ onMounted(() => {
   </q-page>
 </template>
 
-<style scoped lang="scss">
-.admin-page {
-  padding: 1.5rem 1.5rem 2.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.admin-page__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.admin-page__eyebrow {
-  margin: 0 0 0.25rem;
-  color: var(--ls-accent);
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.admin-page__header h1 {
-  margin: 0 0 0.35rem;
-  font-family: var(--ls-font-display);
-  font-size: 1.85rem;
-  font-weight: 600;
-}
-
-.admin-page__lead {
-  margin: 0;
-  color: var(--ls-muted);
-  max-width: 36rem;
-}
-
-.admin-table {
-  background: var(--ls-panel);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.admin-table__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.15rem;
-}
-
-.admin-table__muted {
-  color: var(--ls-muted);
-  font-size: 0.9rem;
-}
-
-.admin-table__empty {
-  padding: 2rem;
-  text-align: center;
-  color: var(--ls-muted);
-}
-
-.admin-dialog {
-  min-width: min(440px, 92vw);
-}
-
-.admin-dialog--wide {
-  min-width: min(560px, 94vw);
-}
-
-.admin-dialog__sub {
-  margin-top: 0.2rem;
-  color: var(--ls-muted);
-  font-size: 0.9rem;
-}
-</style>

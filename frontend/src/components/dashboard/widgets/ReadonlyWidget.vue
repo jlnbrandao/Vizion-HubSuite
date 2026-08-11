@@ -35,7 +35,7 @@ const denied = computed(() => {
 <style scoped lang="scss">
 .readonly p {
   margin: 0 0 1rem;
-  color: var(--ls-muted);
+  color: #6b7280;
 }
 
 .readonly__tags {

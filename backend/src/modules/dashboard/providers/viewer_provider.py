@@ -17,7 +17,7 @@ class ViewerDashboardProvider(DashboardSectionProvider):
         return [
             DashboardMenuItem(
                 id="viewer-overview",
-                label="Visão somente leitura",
+                label="Read-only view",
                 route="/dashboard/readonly",
                 icon="visibility",
                 required_permission=PermissionCode.DASHBOARD_VIEWER,
@@ -28,12 +28,12 @@ class ViewerDashboardProvider(DashboardSectionProvider):
         return [
             DashboardWidget(
                 id="viewer-readonly",
-                title="Somente leitura",
+                title="Read only",
                 widget_type="readonly",
                 data={
-                    "message": "Você possui acesso somente leitura ao sistema.",
-                    "allowed_actions": ["visualizar"],
-                    "denied_actions": ["criar", "editar", "excluir"],
+                    "message": "You have read-only access to the system.",
+                    "allowed_actions": ["view"],
+                    "denied_actions": ["create", "edit", "delete"],
                 },
             ),
         ]

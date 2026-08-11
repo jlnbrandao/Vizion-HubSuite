@@ -13,6 +13,7 @@ from src.modules.users.repositories.user_repository import UserRepository
 from src.modules.users.value_objects.email import Email
 from src.modules.users.value_objects.full_name import FullName
 from src.modules.users.value_objects.hashed_password import HashedPassword
+from src.modules.users.value_objects.username import Username
 from src.shared.infrastructure.session_context import get_current_session
 
 
@@ -27,7 +28,9 @@ def _to_entity(model: UserModel, role_ids: set[UUID]) -> User:
         id=model.id,
         created_at=model.created_at,
         updated_at=model.updated_at,
+        tenant_id=model.tenant_id,
         email=Email(value=model.email),
+        username=Username(value=model.username),
         full_name=FullName(value=model.full_name),
         hashed_password=HashedPassword(value=model.hashed_password),
         role_ids=role_ids,
@@ -55,11 +58,22 @@ class SqlAlchemyUserRepository(UserRepository):
         role_ids = await _load_role_ids(self._session(), model.id)
         return _to_entity(model, role_ids)
 
+    async def get_by_username(self, username: Username) -> User | None:
+        stmt = select(UserModel).where(UserModel.username == username.value)
+        result = await self._session().execute(stmt)
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        role_ids = await _load_role_ids(self._session(), model.id)
+        return _to_entity(model, role_ids)
+
     async def add(self, entity: User) -> None:
         session = self._session()
         model = UserModel(
             id=entity.id,
+            tenant_id=entity.tenant_id,
             email=entity.email.value,
+            username=entity.username.value,
             full_name=entity.full_name.value,
             hashed_password=entity.hashed_password.value,
             is_active=entity.is_active,
@@ -75,6 +89,7 @@ class SqlAlchemyUserRepository(UserRepository):
         if model is None:
             raise ValueError(f"UserModel not found: {entity.id}")
         model.email = entity.email.value
+        model.username = entity.username.value
         model.full_name = entity.full_name.value
         model.hashed_password = entity.hashed_password.value
         model.is_active = entity.is_active
@@ -97,8 +112,13 @@ class SqlAlchemyUserRepository(UserRepository):
         result = await self._session().execute(stmt)
         return result.scalar_one_or_none() is not None
 
+    async def exists_by_username(self, username: Username) -> bool:
+        stmt = select(UserModel.id).where(UserModel.username == username.value)
+        result = await self._session().execute(stmt)
+        return result.scalar_one_or_none() is not None
+
     async def list_all(self, *, only_active: bool = False) -> list[User]:
-        stmt = select(UserModel).order_by(UserModel.email)
+        stmt = select(UserModel).order_by(UserModel.username)
         if only_active:
             stmt = stmt.where(UserModel.is_active.is_(True))
         result = await self._session().execute(stmt)
@@ -121,4 +141,10 @@ class SqlAlchemyUserRepository(UserRepository):
         session = self._session()
         await session.execute(delete(UserRoleModel).where(UserRoleModel.user_id == entity.id))
         for role_id in entity.role_ids:
-            session.add(UserRoleModel(user_id=entity.id, role_id=role_id))
+            session.add(
+                UserRoleModel(
+                    user_id=entity.id,
+                    role_id=role_id,
+                    tenant_id=entity.tenant_id,
+                )
+            )

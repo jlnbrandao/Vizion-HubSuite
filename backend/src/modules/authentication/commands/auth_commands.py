@@ -9,7 +9,7 @@ from src.shared.application.command import Command
 
 @dataclass(frozen=True, kw_only=True)
 class LoginCommand(Command):
-    email: str
+    login: str
     password: str
 
 

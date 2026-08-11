@@ -1,0 +1,1028 @@
+.main-page-shell--status-banner-visible {
+  --main-page-status-banner-height: 64px;
+  --main-page-floating-top: calc(
+    var(--main-page-safe-top, 0px) + var(--main-page-status-banner-height) + 10px
+  );
+}
+
+.main-page-status-banner-wrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1002;
+  padding: 0;
+  pointer-events: none;
+}
+
+.main-page-status-banner-wrap .account-status-banner {
+  pointer-events: auto;
+}
+
+.account-status-banner {
+  border-radius: 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.account-status-banner__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: 720px;
+}
+
+.account-status-banner__notice {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.account-status-banner--trial {
+  background: #fef9c3;
+  color: #854d0e;
+  border-color: #fde047;
+}
+
+.account-status-banner--waiting {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.account-status-banner__action {
+  margin-left: 12px;
+  padding: 4px 14px;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.account-status-banner__action:hover {
+  background: rgba(29, 78, 216, 0.1);
+}
+
+.account-status-banner__action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.account-status-banner--suspended {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+  font-weight: 600;
+}
+
+.main-page-shell--blocked {
+  pointer-events: none;
+  user-select: none;
+}
+
+.master-contact-modal-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  color: #374151;
+}
+
+.master-contact-modal-row a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.main-page-shell--blocked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 6000;
+  background: rgba(255, 255, 255, 0.35);
+  pointer-events: auto;
+  cursor: not-allowed;
+}
+
+/* Leaflet map styles - only what's necessary */
+:deep(.leaflet-container) {
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+
+:deep(.leaflet-popup-content-wrapper) {
+  border-radius: 8px;
+}
+
+:deep(.leaflet-popup-tip) {
+  background: white;
+}
+
+/* Smoother zoom animation: hint GPU compositing for markers and map pane */
+:deep(.leaflet-zoom-anim .leaflet-zoom-animated) {
+  will-change: transform;
+}
+
+/* Cluster group/ungroup transition: fade + position for a smooth UX */
+:deep(.leaflet-cluster-anim .leaflet-marker-icon),
+:deep(.leaflet-cluster-anim .leaflet-marker-shadow) {
+  transition:
+    transform 0.28s cubic-bezier(0.25, 0.1, 0.25, 1),
+    opacity 0.28s ease-out;
+}
+:deep(.leaflet-cluster-anim .marker-cluster-custom) {
+  transition:
+    transform 0.28s cubic-bezier(0.25, 0.1, 0.25, 1),
+    opacity 0.28s ease-out;
+}
+
+/* Campo de busca flutuante - estilo do my-vizio.html */
+.floating-search {
+  position: absolute;
+  top: var(--main-page-floating-top, 15px);
+  left: 15px;
+  z-index: 1001;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Container do campo de busca */
+.search-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 400px;
+  max-width: 90vw;
+  box-sizing: border-box;
+}
+
+.floating-search .areas-search {
+  width: 400px;
+  max-width: 90vw;
+  padding-right: 120px; /* Space for icons */
+}
+
+/* Estilo do campo de busca de dispositivos */
+.areas-search {
+  flex: 1;
+  height: 48px !important;
+  border: 1px solid #dadce0;
+  border-radius: 24px;
+  padding: 0 16px;
+  font-size: 16px;
+  background-color: #ffffff;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+  transition:
+    box-shadow 0.2s ease,
+    border-radius 0.2s ease,
+    border-bottom 0.2s ease;
+  outline: none;
+  line-height: 48px;
+  color: #212529;
+}
+
+.areas-search:focus {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+  border-color: #dadce0;
+}
+
+.areas-search::placeholder {
+  color: #5f6368;
+  font-size: 16px;
+}
+
+/* When list is visible, adjust input - remove bottom shadow */
+.floating-search:has(.area-list.show) .areas-search,
+.floating-search:has(.area-list[style*='block']) .areas-search {
+  border-radius: 15px 15px 0 0;
+  border-bottom: none;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 rgba(0, 0, 0, 0);
+}
+
+/* Ícones dentro do campo de busca */
+.search-icons {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.search-icon {
+  color: #5f6368;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.search-icon:hover {
+  color: #4285f4;
+}
+
+/* Search icon button */
+.search-icon-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #5f6368;
+}
+
+.search-icon-btn:hover {
+  color: #4285f4;
+}
+
+.search-icon-btn:disabled {
+  color: #6c757d !important;
+  cursor: not-allowed !important;
+  opacity: 0.5 !important;
+}
+
+.search-icon-btn:disabled:hover {
+  color: #6c757d !important;
+  transform: none !important;
+}
+
+/* Muted state for bi-view-list when pin is active */
+.search-icon.muted {
+  color: #6c757d !important;
+  cursor: not-allowed !important;
+  opacity: 0.5 !important;
+}
+
+.search-icon.muted:hover {
+  color: #6c757d !important;
+  transform: none !important;
+}
+
+/* Asset List */
+.area-list {
+  background-color: #ffffff;
+  border: 1px solid #dadce0;
+  border-top: none;
+  border-radius: 0 0 15px 15px;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+  max-height: calc(100vh - 15px - 48px - 15px);
+  overflow: hidden;
+  padding: 0;
+  display: none;
+  width: 400px;
+  max-width: 90vw;
+  z-index: 1001;
+  position: relative;
+  box-sizing: border-box;
+  flex-direction: column;
+}
+
+.main-page-shell--status-banner-visible .area-list,
+.main-page--status-banner-visible .area-list {
+  max-height: calc(100vh - var(--main-page-floating-top, 15px) - 48px - 15px);
+}
+
+/* Remove top shadow from area-list when visible - only side and bottom shadow */
+.area-list.show {
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.15),
+    0 2px 3px rgba(0, 0, 0, 0.2);
+}
+
+.area-list.show {
+  display: flex;
+}
+
+/* Container da lista de devices com scroll */
+.area-list-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  /* Estilizar scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+/* Estilizar scrollbar para WebKit browsers (Chrome, Safari, Edge) */
+.area-list-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.area-list-content::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 4px;
+}
+
+.area-list-content::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.area-list-content::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Garantir que o ul dentro do area-list não tenha margin-bottom */
+.area-list ul {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.list-unstyled {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+
+/* Device item styles */
+.area-list .area-item {
+  cursor: pointer;
+  padding: 12px 16px;
+  transition: background-color 0.2s ease;
+  border: none;
+  border-top: none;
+  border-bottom: none;
+}
+
+.area-list .area-item:hover {
+  background-color: #f0f0f0;
+}
+
+.area-list .area-item.selected {
+  background-color: #fafbfc;
+  color: #000;
+  position: relative;
+  box-shadow: none;
+  border-top: none;
+  border-bottom: none;
+}
+
+.area-list .area-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 4px;
+  background-color: #1976d2;
+  border-radius: 0 2px 2px 0;
+}
+
+/* Style for colored area icons using CSS mask / filter */
+/* Style for area status text */
+.area-icon-colored {
+  display: inline-block;
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+/* Style for area status text */
+.area-status {
+  font-size: 0.8rem;
+  margin-top: 2px;
+  margin-left: 0;
+}
+
+/* Pin icon container in area-list */
+.pin-icon-container {
+  position: relative;
+  z-index: 1002;
+}
+
+.pin-icon {
+  color: #5f6368;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  transition: all 0.2s ease;
+}
+
+.pin-icon:hover {
+  color: #4285f4;
+}
+
+.pin-icon-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #5f6368;
+}
+
+.pin-icon-btn:hover {
+  color: #4285f4;
+}
+
+.pin-icon-btn .q-icon {
+  color: inherit;
+}
+
+/* Pin icon diagonal rotation when not pinned (like the image) */
+.pin-icon-diagonal {
+  transform: rotate(45deg);
+  display: inline-block;
+}
+
+/* Asset List Footer */
+.area-list-footer {
+  border-top: 1px solid #e9ecef;
+  padding: 8px 16px;
+  background-color: #f8f9fa;
+  border-radius: 0 0 15px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Keep Pin button on the right when Devices Manage link is hidden */
+.area-list-footer .pin-icon-container {
+  margin-left: auto;
+}
+
+.areas-manage-link {
+  display: flex;
+  align-items: center;
+  color: #495057;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: normal;
+  transition: color 0.2s ease;
+}
+
+.areas-manage-link:hover {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.areas-manage-link i,
+.areas-manage-link .q-icon {
+  font-size: 16px;
+}
+
+/* Filter Drawer Styles */
+.filter-item {
+  margin-bottom: 18px;
+}
+
+.filter-item:nth-last-child(2) {
+  margin-bottom: 8px;
+}
+
+.filter-item:last-child {
+  margin-bottom: 0;
+}
+
+/* q-select styles in filter drawer - matching AddDeviceModal.vue */
+.filter-drawer .filter-q-select :deep(.q-field--outlined .q-field__control) {
+  background-color: #f8f9fa;
+}
+
+.filter-drawer .filter-q-select :deep(.q-field--outlined.q-field--focused .q-field__control) {
+  background-color: #f8f9fa;
+}
+
+.filter-drawer .filter-q-select :deep(.q-field--outlined .q-field__control:before) {
+  border-color: #cbd5e1;
+}
+
+.filter-drawer
+  .filter-q-select
+  :deep(.q-field--outlined.q-field--focused .q-field__control:before) {
+  border-color: #3b82f6;
+  border-width: 2px;
+}
+
+/* Filter drawer: ensure scroll area shrinks so footer stays visible on mobile */
+.filter-drawer .drawer-container :deep(.q-scrollarea) {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+}
+
+/* Filter drawer footer - ensure visible on mobile (safe area, no shrink) */
+.filter-drawer .filter-drawer-footer {
+  flex-shrink: 0;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Filter drawer on mobile: use dynamic viewport height so footer isn't cut off */
+@media (max-width: 768px) {
+  .filter-drawer.drawer-card {
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+  }
+}
+
+.search-icon-btn.muted {
+  color: #6c757d !important;
+  cursor: not-allowed !important;
+  opacity: 0.5 !important;
+}
+
+.search-icon-btn.muted:hover {
+  color: #6c757d !important;
+  transform: none !important;
+}
+
+/* Avatar button inside input (small viewports) */
+.search-icon-btn-avatar {
+  background: #f9fafb !important;
+  border-radius: 50% !important;
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  border: 4px solid white !important;
+}
+
+.search-icon-btn-avatar:hover {
+  background: #f3f4f6 !important;
+  color: #374151 !important;
+}
+
+/* Avatar when impersonating - same yellow as System notification */
+.search-icon-btn-avatar-impersonate {
+  background: #facc15 !important; /* yellow-400, matches System impersonate icon */
+}
+.search-icon-btn-avatar-impersonate:hover {
+  background: #eab308 !important; /* yellow-500, slightly darker on hover */
+}
+
+.main-page-profile-btn {
+  top: calc(var(--main-page-floating-top, 15px) + 24px - 28px);
+}
+
+.main-page-profile-section {
+  top: var(--main-page-floating-top, 15px);
+}
+
+/* Floating Buttons Shell - Aligned with Search Input */
+.floating-buttons-shell {
+  position: absolute;
+  top: calc(var(--main-page-floating-top, 15px) + 24px - 28px);
+  /* X = input box width: left (15px) + width (400px) + gap (24px) = 439px */
+  left: 439px; /* End of input box (15px + 400px) + gap (24px) */
+  /* Y = avatar width: right margin (20px) + width (56px) = 76px from right */
+  right: 76px; /* Start of avatar area (20px right-5 + 56px w-14) */
+  /* Z = W - (X + Y) = W - (439px + 76px) = W - 515px */
+  z-index: 1000;
+  pointer-events: auto;
+  height: 56px; /* Button height (32px) + shadow space (24px top/bottom) */
+  padding: 12px 0; /* Increased vertical padding for cleaner shadow space */
+}
+
+.floating-buttons-container {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  display: flex;
+  align-items: center; /* Center buttons vertically within container */
+}
+
+.floating-buttons-container:active {
+  cursor: grabbing;
+}
+
+.floating-buttons-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Navigation buttons — fixed on shell, outside scroll area */
+.floating-nav-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.floating-nav-button:hover {
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.floating-nav-button:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.floating-nav-button-left {
+  left: 4px;
+}
+
+.floating-nav-button-right {
+  right: 4px;
+}
+
+.floating-buttons-wrapper {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  height: 100%;
+  min-width: max-content;
+  padding: 0 8px; /* Side space for shadows */
+  box-sizing: border-box;
+}
+
+.floating-btn-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  gap: 6px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+  touch-action: manipulation;
+}
+
+.floating-btn-item:hover {
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.floating-btn-item:active {
+  transform: scale(0.98);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    0 1px 1px rgba(0, 0, 0, 0.06);
+}
+
+.floating-btn-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.floating-btn-item .q-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.floating-btn-item span {
+  font-size: 14px;
+  font-weight: normal;
+  color: #212529;
+}
+
+.floating-btn-item-danger {
+  color: #dc3545;
+  border: 1px solid #dc3545;
+  box-shadow:
+    0 2px 4px rgba(220, 53, 69, 0.2),
+    0 1px 2px rgba(220, 53, 69, 0.15);
+}
+
+.floating-btn-item-danger .q-icon,
+.floating-btn-item-danger span {
+  color: #dc3545;
+}
+
+.floating-btn-item-danger:hover {
+  background-color: #fff5f5;
+  border-color: #c82333;
+  box-shadow:
+    0 4px 6px rgba(220, 53, 69, 0.25),
+    0 2px 4px rgba(220, 53, 69, 0.2);
+}
+
+.floating-btn-item-danger .q-icon:hover,
+.floating-btn-item-danger:hover span {
+  color: #c82333;
+}
+
+.floating-btn-item-danger:active {
+  box-shadow:
+    0 1px 2px rgba(220, 53, 69, 0.2),
+    0 1px 1px rgba(220, 53, 69, 0.15);
+}
+
+/* Map Control Buttons - Same effects as floating-btn-item */
+.map-control-btn {
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  position: relative;
+  z-index: 1;
+  border: 1px solid #dadce0;
+}
+
+.map-control-btn:hover {
+  background-color: #f8f9fa !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.map-control-btn:active {
+  transform: scale(0.98);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    0 1px 1px rgba(0, 0, 0, 0.06);
+}
+
+.map-control-zoom-container {
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  position: relative;
+  z-index: 1;
+  border: 1px solid #dadce0;
+}
+
+.map-control-zoom-container:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.map-control-zoom-btn {
+  transition: all 0.2s ease;
+}
+
+.map-control-zoom-btn:hover {
+  background-color: #f8f9fa !important;
+}
+
+.map-control-zoom-btn:active {
+  transform: scale(0.98);
+}
+
+/* Options Floating Button - No border in normal state */
+.options-floating-btn {
+  border: none;
+}
+
+/* Options Floating Button - Invert colors on hover */
+.options-floating-btn:hover {
+  background-color: #f8f9fa !important;
+  border: 1px solid #dadce0 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.options-floating-btn:hover .options-floating-btn-icon {
+  color: #000000 !important;
+}
+
+/* Contato fornecedor - ícones circulares (WhatsApp e Email) ao hover */
+.contact-option-icon-whatsapp {
+  background-color: #25d366;
+}
+.contact-option-icon-email {
+  background-color: #ea4335;
+}
+
+/* Responsive adjustments - Tablets e telas médias (641px - 1200px) */
+@media (max-width: 1200px) and (min-width: 641px) {
+  .floating-search {
+    left: 15px;
+    right: auto;
+    width: auto;
+    max-width: min(400px, 35vw);
+  }
+
+  .search-input-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .floating-search .areas-search {
+    width: 100%;
+    max-width: 100%;
+    padding-right: 120px;
+    height: 46px !important;
+    min-height: 46px;
+    line-height: 46px;
+    border-radius: 23px;
+  }
+
+  .floating-search .area-list {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .search-container {
+    width: 100%;
+  }
+
+  .floating-buttons-shell {
+    top: calc(var(--main-page-floating-top, 15px) + 50.5px);
+    left: 15px;
+    right: auto;
+    width: auto;
+    max-width: min(400px, 35vw);
+  }
+}
+
+/* Telas pequenas (mobile landscape e tablets pequenos) */
+@media (max-width: 1024px) {
+  .floating-search {
+    left: 10px;
+    right: 10px;
+    width: auto;
+  }
+
+  .search-input-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .floating-search .areas-search {
+    width: 100%;
+    max-width: 100%;
+    padding-right: 100px; /* Adjust icon space on small screens */
+    height: 46px !important;
+    min-height: 46px;
+    line-height: 46px;
+    border-radius: 23px;
+  }
+
+  .floating-search .area-list {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .search-container {
+    width: 100%;
+  }
+
+  .floating-buttons-shell {
+    top: calc(var(--main-page-floating-top, 15px) + 50.5px);
+    left: 10px;
+    right: 10px;
+    height: 42px;
+    padding: 6px 0;
+  }
+
+  .floating-btn-item {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 19px;
+    gap: 8px;
+  }
+
+  .floating-btn-item .q-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .floating-btn-item span {
+    font-size: 15px;
+  }
+}
+
+/* Mobile - telas muito pequenas */
+@media (max-width: 640px) {
+  .floating-search {
+    left: 8px;
+    right: 8px;
+    top: var(--main-page-floating-top, 8px);
+  }
+
+  .search-input-wrapper {
+    width: 100%;
+  }
+
+  .floating-search .areas-search {
+    width: 100%;
+    padding-right: 120px; /* Space for icons including avatar button */
+    font-size: 16px;
+  }
+
+  .floating-search .areas-search::placeholder {
+    font-size: 16px;
+  }
+
+  .floating-buttons-shell {
+    top: calc(var(--main-page-floating-top, 8px) + 50.5px);
+  }
+
+  .floating-search .area-list {
+    width: 100%;
+  }
+
+  .search-icons {
+    gap: 4px; /* Reduzir gap entre ícones */
+  }
+
+  .search-icon-btn {
+    padding: 2px;
+  }
+
+  .floating-buttons-wrapper {
+    padding: 0 4px; /* Side space for shadows */
+    padding-right: 16px; /* Add padding for last button */
+  }
+}
+
+@media (min-width: 1025px) {
+  .floating-buttons-shell {
+    /* Z = W - (X + Y): Space between input box end (415px + 24px gap) and avatar start (76px from right) */
+    width: auto;
+    max-width: none;
+    left: 439px; /* End of input box (15px + 400px) + gap (24px) */
+    right: 76px; /* Start of avatar area (20px right-5 + 56px w-14) */
+  }
+}
+
+/* Logo upload hover styles using CSS variables */
+.logo-upload-container:hover {
+  border-color: var(--q-primary, #1e40af) !important;
+}
+
+.logo-upload-container:hover .logo-upload-icon {
+  color: var(--q-primary, #1e40af) !important;
+}
+
+.logo-upload-container:hover .logo-upload-text {
+  color: var(--q-primary, #1e40af) !important;
+}
+
+/* Filter selection display - borda tracejada única no container; azul por item no hover; borda azul no hover do container */
+.filter-selection-display:hover {
+  border-color: var(--q-primary, #1e40af) !important;
+}
+.filter-selection-row:hover .filter-selection-icon,
+.filter-selection-row:hover .filter-selection-value {
+  color: var(--q-primary, #1e40af) !important;
+}

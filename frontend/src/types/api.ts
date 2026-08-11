@@ -27,6 +27,9 @@ export interface DashboardResponse {
   user_id: string
   email: string
   full_name: string
+  tenant_id?: string | null
+  tenant_slug?: string
+  tenant_name?: string
   role_names: string[]
   permissions: string[]
   menu: DashboardMenuItem[]
@@ -37,6 +40,9 @@ export interface AuthUser {
   id: string
   email: string
   fullName: string
+  tenantId?: string | null
+  tenantSlug?: string
+  tenantName?: string
   roleNames: string[]
   permissions: string[]
 }
@@ -44,6 +50,7 @@ export interface AuthUser {
 export interface UserResponse {
   id: string
   email: string
+  username: string
   full_name: string
   role_ids: string[]
   is_active: boolean
@@ -53,12 +60,14 @@ export interface UserResponse {
 
 export interface CreateUserPayload {
   email: string
+  username: string
   full_name: string
   password: string
   role_ids: string[]
 }
 
 export interface UpdateUserPayload {
+  username: string
   full_name: string
   is_active: boolean
 }
@@ -90,6 +99,8 @@ export interface UpdateRolePayload {
 export interface PermissionResponse {
   id: string
   code: string
+  resource: string
+  action: string
   name: string
   description: string
   is_active: boolean
@@ -112,3 +123,4 @@ export interface UpdatePermissionPayload {
 export interface IdResponse {
   id: string
 }
+

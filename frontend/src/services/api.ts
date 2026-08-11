@@ -94,8 +94,8 @@ api.interceptors.response.use(
 )
 
 export const authApi = {
-  login(email: string, password: string) {
-    return api.post<TokenResponse>('/auth/login', { email, password })
+  login(login: string, password: string) {
+    return api.post<TokenResponse>('/auth/login', { login, password })
   },
   logout(refreshToken: string) {
     return api.post('/auth/logout', { refresh_token: refreshToken })
@@ -111,7 +111,7 @@ export const dashboardApi = {
   },
 }
 
-export function apiErrorMessage(error: unknown, fallback = 'Operação falhou'): string {
+export function apiErrorMessage(error: unknown, fallback = 'Operation failed'): string {
   if (!axios.isAxiosError(error)) {
     return error instanceof Error ? error.message : fallback
   }
@@ -174,9 +174,14 @@ export const rolesApi = {
 }
 
 export const permissionsApi = {
-  list(onlyActive = false) {
+  list(options: { onlyActive?: boolean; resource?: string; action?: string } = {}) {
+    const { onlyActive = false, resource, action } = options
     return api.get<PermissionResponse[]>('/permissions', {
-      params: { only_active: onlyActive },
+      params: {
+        only_active: onlyActive,
+        ...(resource ? { resource } : {}),
+        ...(action ? { action } : {}),
+      },
     })
   },
   get(permissionId: string) {

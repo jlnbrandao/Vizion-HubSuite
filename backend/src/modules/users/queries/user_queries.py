@@ -15,9 +15,18 @@ class GetUserByIdQuery(Query):
 
 @dataclass(frozen=True, kw_only=True)
 class GetUserByEmailQuery(Query):
-    """Used by Authentication module in later stages via QueryBus."""
+    """Used by Authentication module via QueryBus."""
 
+    tenant_id: UUID
     email: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class GetUserByUsernameQuery(Query):
+    """Used by Authentication module via QueryBus (login by username)."""
+
+    tenant_id: UUID
+    username: str
 
 
 @dataclass(frozen=True, kw_only=True)

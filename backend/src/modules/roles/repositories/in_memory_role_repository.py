@@ -7,6 +7,7 @@ from uuid import UUID
 from src.modules.roles.entities.role import Role
 from src.modules.roles.repositories.role_repository import RoleRepository
 from src.modules.roles.value_objects.role_name import RoleName
+from src.shared.infrastructure.tenant_scope import matches_tenant_scope
 
 
 class InMemoryRoleRepository(RoleRepository):
@@ -17,7 +18,14 @@ class InMemoryRoleRepository(RoleRepository):
         return self._items.get(entity_id)
 
     async def get_by_name(self, name: RoleName) -> Role | None:
-        return next((r for r in self._items.values() if r.name == name), None)
+        return next(
+            (
+                r
+                for r in self._items.values()
+                if r.name == name and matches_tenant_scope(r.tenant_id)
+            ),
+            None,
+        )
 
     async def add(self, entity: Role) -> None:
         self._items[entity.id] = entity
@@ -32,10 +40,13 @@ class InMemoryRoleRepository(RoleRepository):
         return entity_id in self._items
 
     async def exists_by_name(self, name: RoleName) -> bool:
-        return any(r.name == name for r in self._items.values())
+        return any(
+            r.name == name and matches_tenant_scope(r.tenant_id) for r in self._items.values()
+        )
 
     async def list_all(self, *, only_active: bool = False) -> list[Role]:
         items = list(self._items.values())
+        items = [r for r in items if matches_tenant_scope(r.tenant_id)]
         if only_active:
             items = [r for r in items if r.is_active]
         return sorted(items, key=lambda r: r.name.value)

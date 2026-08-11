@@ -33,6 +33,7 @@ from src.modules.roles.repositories.in_memory_role_repository import InMemoryRol
 from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.exceptions import ValidationError
+from tests.unit.conftest import BIGBANG_TENANT_ID
 from tests.unit.shared.in_memory_unit_of_work import InMemoryUnitOfWork
 
 
@@ -78,9 +79,9 @@ async def test_create_role_and_assign_valid_permissions(
     assign = AssignPermissionsToRoleHandler(uow_factory, roles_repo, query_bus)
     get_role = GetRoleByIdHandler(uow_factory, roles_repo)
 
-    p1 = await create_perm.handle(CreatePermissionCommand(code="users.read", name="Read"))
-    p2 = await create_perm.handle(CreatePermissionCommand(code="users.write", name="Write"))
-    role_id = await create_role.handle(CreateRoleCommand(name="ADMIN", description="Full"))
+    p1 = await create_perm.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="users.read", name="Read"))
+    p2 = await create_perm.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="users.write", name="Write"))
+    role_id = await create_role.handle(CreateRoleCommand(tenant_id=BIGBANG_TENANT_ID,name="ADMIN", description="Full"))
 
     await assign.handle(
         AssignPermissionsToRoleCommand(role_id=role_id, permission_ids=frozenset({p1, p2}))
@@ -98,7 +99,7 @@ async def test_assign_rejects_unknown_permission_ids(
     create_role = CreateRoleHandler(uow_factory, roles_repo)
     assign = AssignPermissionsToRoleHandler(uow_factory, roles_repo, query_bus)
 
-    role_id = await create_role.handle(CreateRoleCommand(name="VIEWER"))
+    role_id = await create_role.handle(CreateRoleCommand(tenant_id=BIGBANG_TENANT_ID,name="VIEWER"))
 
     with pytest.raises(ValidationError, match="Unknown permission"):
         await assign.handle(
@@ -119,10 +120,10 @@ async def test_replace_and_revoke_permissions(
     revoke = RevokePermissionsFromRoleHandler(uow_factory, roles_repo)
     get_role = GetRoleByIdHandler(uow_factory, roles_repo)
 
-    a = await create_perm.handle(CreatePermissionCommand(code="a.read", name="A"))
-    b = await create_perm.handle(CreatePermissionCommand(code="b.read", name="B"))
-    c = await create_perm.handle(CreatePermissionCommand(code="c.read", name="C"))
-    role_id = await create_role.handle(CreateRoleCommand(name="MANAGER"))
+    a = await create_perm.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="a.read", name="A"))
+    b = await create_perm.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="b.read", name="B"))
+    c = await create_perm.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="c.read", name="C"))
+    role_id = await create_role.handle(CreateRoleCommand(tenant_id=BIGBANG_TENANT_ID,name="MANAGER"))
 
     await replace.handle(
         ReplaceRolePermissionsCommand(role_id=role_id, permission_ids=frozenset({a, b}))

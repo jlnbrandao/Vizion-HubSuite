@@ -27,7 +27,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         menu.value = data.menu
         widgets.value = data.widgets
       } catch {
-        error.value = 'Não foi possível carregar o dashboard'
+        error.value = 'Could not load the dashboard'
         menu.value = []
         widgets.value = []
       }

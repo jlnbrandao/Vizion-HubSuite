@@ -24,20 +24,22 @@ defineProps<{ data: Record<string, unknown> }>()
 
 .stats__item {
   padding: 0.85rem 1rem;
-  border-radius: 14px;
-  background: linear-gradient(160deg, rgba(15, 118, 110, 0.08), rgba(245, 158, 11, 0.08));
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: var(--app-content-background, #ffffff);
 }
 
 .stats__label {
   display: block;
   text-transform: capitalize;
-  color: var(--ls-muted);
+  color: #9ca3af;
   font-size: 0.78rem;
   margin-bottom: 0.35rem;
 }
 
 .stats__value {
   font-size: 1.35rem;
-  font-family: var(--ls-font-display);
+  font-weight: 700;
+  color: var(--q-primary, #1e40af);
 }
 </style>

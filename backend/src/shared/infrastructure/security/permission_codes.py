@@ -1,9 +1,64 @@
 """Canonical permission codes used by RBAC (resource.action).
 
 Routes and frontend should reference these constants — never hardcode strings ad hoc.
+
+Besides the code string, each catalog entry carries metadata (resource, action, name,
+description) so UIs can list by resource, filter by action, and render labels.
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+class PermissionAction:
+    """Standardized action verbs for `resource.action` codes.
+
+    Prefer these bare verbs. The resource already scopes meaning
+    (e.g. `users.assign` vs `roles.assign`).
+    """
+
+    CREATE = "create"
+    READ = "read"
+    UPDATE = "update"
+    DELETE = "delete"
+    LIST = "list"
+    MANAGE = "manage"
+    EXPORT = "export"
+    IMPORT = "import"
+    APPROVE = "approve"
+    CANCEL = "cancel"
+    EXECUTE = "execute"
+    ASSIGN = "assign"
+    LINK = "link"
+    UNLINK = "unlink"
+    ACTIVATE = "activate"
+    DEACTIVATE = "deactivate"
+
+    @classmethod
+    def all(cls) -> frozenset[str]:
+        return frozenset(
+            value
+            for key, value in vars(cls).items()
+            if key.isupper() and isinstance(value, str)
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PermissionDefinition:
+    """Catalog metadata for a permission code."""
+
+    code: str
+    name: str
+    description: str
+
+    @property
+    def resource(self) -> str:
+        return self.code.split(".", 1)[0]
+
+    @property
+    def action(self) -> str:
+        return self.code.split(".", 1)[1]
 
 
 class PermissionCode:
@@ -11,13 +66,13 @@ class PermissionCode:
     USERS_READ = "users.read"
     USERS_UPDATE = "users.update"
     USERS_DELETE = "users.delete"
-    USERS_ASSIGN_ROLES = "users.assign_roles"
+    USERS_ASSIGN = "users.assign"
 
     ROLES_CREATE = "roles.create"
     ROLES_READ = "roles.read"
     ROLES_UPDATE = "roles.update"
     ROLES_DELETE = "roles.delete"
-    ROLES_ASSIGN_PERMISSIONS = "roles.assign_permissions"
+    ROLES_ASSIGN = "roles.assign"
 
     PERMISSIONS_CREATE = "permissions.create"
     PERMISSIONS_READ = "permissions.read"
@@ -39,3 +94,119 @@ class PermissionCode:
             for key, value in vars(cls).items()
             if key.isupper() and isinstance(value, str)
         )
+
+    @classmethod
+    def catalog(cls) -> tuple[PermissionDefinition, ...]:
+        return PERMISSION_CATALOG
+
+    @classmethod
+    def definition_for(cls, code: str) -> PermissionDefinition | None:
+        return _CATALOG_BY_CODE.get(code)
+
+
+PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
+    PermissionDefinition(
+        code=PermissionCode.USERS_CREATE,
+        name="Create users",
+        description="Allows creating users",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.USERS_READ,
+        name="Read users",
+        description="Allows viewing users",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.USERS_UPDATE,
+        name="Update users",
+        description="Allows editing users",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.USERS_DELETE,
+        name="Delete users",
+        description="Allows deleting users",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.USERS_ASSIGN,
+        name="Assign user roles",
+        description="Allows assigning and removing user roles",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.ROLES_CREATE,
+        name="Create roles",
+        description="Allows creating roles",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.ROLES_READ,
+        name="Read roles",
+        description="Allows viewing roles",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.ROLES_UPDATE,
+        name="Update roles",
+        description="Allows editing roles",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.ROLES_DELETE,
+        name="Delete roles",
+        description="Allows deleting roles",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.ROLES_ASSIGN,
+        name="Assign role permissions",
+        description="Allows assigning and removing role permissions",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.PERMISSIONS_CREATE,
+        name="Create permissions",
+        description="Allows creating permissions",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.PERMISSIONS_READ,
+        name="Read permissions",
+        description="Allows viewing permissions",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.PERMISSIONS_UPDATE,
+        name="Update permissions",
+        description="Allows editing permissions",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.PERMISSIONS_DELETE,
+        name="Delete permissions",
+        description="Allows deleting permissions",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.DASHBOARD_ADMIN,
+        name="Dashboard admin",
+        description="Access to the admin dashboard section",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.DASHBOARD_MANAGER,
+        name="Dashboard manager",
+        description="Access to the manager dashboard section",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.DASHBOARD_OPERATOR,
+        name="Dashboard operator",
+        description="Access to the operator dashboard section",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.DASHBOARD_CLIENT,
+        name="Dashboard client",
+        description="Access to the client dashboard section",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.DASHBOARD_VIEWER,
+        name="Dashboard viewer",
+        description="Access to the viewer dashboard section",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.SYSTEM_SETTINGS,
+        name="System settings",
+        description="Allows managing system settings",
+    ),
+)
+
+_CATALOG_BY_CODE: dict[str, PermissionDefinition] = {
+    item.code: item for item in PERMISSION_CATALOG
+}

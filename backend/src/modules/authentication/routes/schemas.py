@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    login: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        examples=["galileu", "galileu@lanstar.com.br"],
+        description="Email or username",
+    )
     password: str = Field(..., min_length=1)
 
 

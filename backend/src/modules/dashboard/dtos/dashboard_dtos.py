@@ -29,6 +29,9 @@ class DashboardDto:
     user_id: UUID
     email: str
     full_name: str
+    tenant_id: UUID | None = None
+    tenant_slug: str = ""
+    tenant_name: str = ""
     role_names: tuple[str, ...] = field(default_factory=tuple)
     permissions: tuple[str, ...] = field(default_factory=tuple)
     menu: tuple[DashboardMenuItem, ...] = field(default_factory=tuple)

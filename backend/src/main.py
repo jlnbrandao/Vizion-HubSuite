@@ -30,6 +30,7 @@ from src.shared.infrastructure.exceptions import (
     ValidationError,
 )
 from src.shared.infrastructure.security.rate_limit_middleware import RateLimitMiddleware
+from src.shared.infrastructure.security.tenant_middleware import TenantMiddleware
 
 
 def _error_response(status_code: int, exc: ApplicationError) -> JSONResponse:
@@ -81,7 +82,9 @@ def create_app(container: Container | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Last added runs first: Tenant → RateLimit → CORS → routes
     app.add_middleware(RateLimitMiddleware, rate_limiter=container.rate_limiter())
+    app.add_middleware(TenantMiddleware, query_bus=container.query_bus())
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_: Request, exc: NotFoundError) -> JSONResponse:

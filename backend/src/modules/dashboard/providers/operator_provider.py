@@ -19,7 +19,7 @@ class OperatorDashboardProvider(DashboardSectionProvider):
         return [
             DashboardMenuItem(
                 id="operator-ops",
-                label="Operações do dia",
+                label="Today's operations",
                 route="/operations/today",
                 icon="task_alt",
                 required_permission=PermissionCode.DASHBOARD_OPERATOR,
@@ -31,16 +31,16 @@ class OperatorDashboardProvider(DashboardSectionProvider):
         return [
             DashboardWidget(
                 id="operator-today",
-                title="Operações do dia",
+                title="Today's operations",
                 widget_type="operations",
                 data={
                     "date": today,
                     "pending_tasks": 14,
                     "completed_tasks": 9,
                     "queue": [
-                        {"id": "op-1", "label": "Conferir remessa #4412"},
-                        {"id": "op-2", "label": "Atualizar status pedido #8891"},
-                        {"id": "op-3", "label": "Registrar ocorrência #120"},
+                        {"id": "op-1", "label": "Check shipment #4412"},
+                        {"id": "op-2", "label": "Update order status #8891"},
+                        {"id": "op-3", "label": "Log incident #120"},
                     ],
                 },
             ),

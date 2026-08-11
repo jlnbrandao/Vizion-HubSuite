@@ -30,6 +30,7 @@ from src.shared.infrastructure.di.container import Container
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.security.dependencies import require_permission
 from src.shared.infrastructure.security.permission_codes import PermissionCode
+from src.shared.infrastructure.tenant_context import require_current_tenant_id
 
 router = APIRouter(prefix="/roles", tags=["roles"])
 
@@ -54,7 +55,11 @@ async def create_role(
     _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_CREATE)),
 ) -> RoleIdResponse:
     role_id = await command_bus.execute(
-        CreateRoleCommand(name=body.name, description=body.description)
+        CreateRoleCommand(
+            tenant_id=require_current_tenant_id(),
+            name=body.name,
+            description=body.description,
+        )
     )
     return RoleIdResponse(id=role_id)
 
@@ -114,7 +119,7 @@ async def assign_permissions(
     role_id: UUID,
     body: PermissionIdsRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN_PERMISSIONS)),
+    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN)),
 ) -> None:
     await command_bus.execute(
         AssignPermissionsToRoleCommand(
@@ -130,7 +135,7 @@ async def revoke_permissions(
     role_id: UUID,
     body: PermissionIdsRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN_PERMISSIONS)),
+    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN)),
 ) -> None:
     await command_bus.execute(
         RevokePermissionsFromRoleCommand(
@@ -146,7 +151,7 @@ async def replace_permissions(
     role_id: UUID,
     body: PermissionIdsRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN_PERMISSIONS)),
+    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN)),
 ) -> None:
     await command_bus.execute(
         ReplaceRolePermissionsCommand(

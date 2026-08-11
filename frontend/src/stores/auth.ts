@@ -25,11 +25,11 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
   }
 
-  async function login(email: string, password: string) {
+  async function login(loginId: string, password: string) {
     loading.value = true
     error.value = null
     try {
-      const { data } = await authApi.login(email, password)
+      const { data } = await authApi.login(loginId, password)
       persistTokens(data.access_token, data.refresh_token)
 
       // Minimal identity from login response — ensures isAuthenticated before hydrate.
@@ -37,6 +37,9 @@ export const useAuthStore = defineStore('auth', () => {
         id: data.user_id,
         email: data.email,
         fullName: data.full_name,
+        tenantId: null,
+        tenantSlug: '',
+        tenantName: '',
         roleNames: [],
         permissions: [],
       }
@@ -49,7 +52,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       bootstrapped.value = true
     } catch {
-      error.value = 'Credenciais inválidas'
+      error.value = 'Invalid credentials'
       clearSession()
       throw new Error('login_failed')
     } finally {
@@ -63,6 +66,9 @@ export const useAuthStore = defineStore('auth', () => {
       id: data.user_id,
       email: data.email,
       fullName: data.full_name,
+      tenantId: data.tenant_id ?? null,
+      tenantSlug: data.tenant_slug ?? '',
+      tenantName: data.tenant_name ?? '',
       roleNames: data.role_names,
       permissions: data.permissions,
     }

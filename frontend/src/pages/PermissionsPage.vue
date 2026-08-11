@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useQuasar, type QTableColumn } from 'quasar'
 import { usePermissions } from '@/composables/usePermissions'
-import { PermissionCode } from '@/constants/permissions'
+import { PermissionAction, PermissionCode } from '@/constants/permissions'
 import { apiErrorMessage, permissionsApi } from '@/services/api'
 import type { PermissionResponse } from '@/types/api'
 
@@ -13,12 +13,16 @@ const loading = ref(false)
 const saving = ref(false)
 const permissions = ref<PermissionResponse[]>([])
 
+const filterResource = ref<string | null>(null)
+const filterAction = ref<string | null>(null)
+
 const createOpen = ref(false)
 const editOpen = ref(false)
 const selected = ref<PermissionResponse | null>(null)
 
 const createForm = reactive({
-  code: '',
+  resource: '',
+  action: '' as string | null,
   name: '',
   description: '',
 })
@@ -30,18 +34,59 @@ const editForm = reactive({
 })
 
 const columns: QTableColumn[] = [
-  { name: 'code', label: 'Código', field: 'code', align: 'left', sortable: true },
-  { name: 'name', label: 'Nome', field: 'name', align: 'left', sortable: true },
-  { name: 'description', label: 'Descrição', field: 'description', align: 'left' },
-  { name: 'is_active', label: 'Ativo', field: 'is_active', align: 'center' },
-  { name: 'actions', label: 'Ações', field: 'id', align: 'right' },
+  { name: 'code', label: 'Code', field: 'code', align: 'left', sortable: true },
+  { name: 'resource', label: 'Resource', field: 'resource', align: 'left', sortable: true },
+  { name: 'action', label: 'Action', field: 'action', align: 'left', sortable: true },
+  { name: 'name', label: 'Name', field: 'name', align: 'left', sortable: true },
+  { name: 'description', label: 'Description', field: 'description', align: 'left' },
+  { name: 'is_active', label: 'Active', field: 'is_active', align: 'center' },
+  { name: 'actions', label: 'Actions', field: 'id', align: 'right' },
 ]
 
-const codeRule = (v: string) =>
-  /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/.test(v) || 'Formato: resource.action (minúsculas)'
+const predefinedActions = Object.values(PermissionAction).slice().sort()
+
+const resourceOptions = computed(() => {
+  const values = new Set(permissions.value.map((p) => p.resource))
+  return [...values].sort()
+})
+
+const filterActionOptions = computed(() => {
+  const values = new Set<string>([
+    ...predefinedActions,
+    ...permissions.value.map((p) => p.action),
+  ])
+  return [...values].sort()
+})
+
+const generatedCode = computed(() => {
+  const resource = createForm.resource.trim().toLowerCase()
+  const action = (createForm.action ?? '').trim().toLowerCase()
+  if (!resource || !action) return ''
+  return `${resource}.${action}`
+})
+
+const filteredPermissions = computed(() => {
+  return permissions.value.filter((permission) => {
+    if (filterResource.value && permission.resource !== filterResource.value) {
+      return false
+    }
+    if (filterAction.value && permission.action !== filterAction.value) {
+      return false
+    }
+    return true
+  })
+})
+
+const resourceRule = (v: string) =>
+  /^[a-z][a-z0-9_]*$/.test(v) || 'Lowercase; start with a letter; only a-z, 0-9, _'
+
+const actionRule = (v: string | null) =>
+  Boolean(v && predefinedActions.includes(v as (typeof predefinedActions)[number])) ||
+  'Select a standard action'
 
 function openCreate() {
-  createForm.code = ''
+  createForm.resource = ''
+  createForm.action = null
   createForm.name = ''
   createForm.description = ''
   createOpen.value = true
@@ -63,7 +108,7 @@ async function load() {
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: apiErrorMessage(error, 'Falha ao carregar permissões'),
+      message: apiErrorMessage(error, 'Failed to load permissions'),
     })
   } finally {
     loading.value = false
@@ -71,18 +116,19 @@ async function load() {
 }
 
 async function submitCreate() {
+  if (!generatedCode.value) return
   saving.value = true
   try {
     await permissionsApi.create({
-      code: createForm.code.trim().toLowerCase(),
+      code: generatedCode.value,
       name: createForm.name,
       description: createForm.description,
     })
     createOpen.value = false
-    $q.notify({ type: 'positive', message: 'Permissão criada' })
+    $q.notify({ type: 'positive', message: 'Permission created' })
     await load()
   } catch (error) {
-    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Falha ao criar permissão') })
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to create permission') })
   } finally {
     saving.value = false
   }
@@ -98,12 +144,12 @@ async function submitEdit() {
       is_active: editForm.is_active,
     })
     editOpen.value = false
-    $q.notify({ type: 'positive', message: 'Permissão atualizada' })
+    $q.notify({ type: 'positive', message: 'Permission updated' })
     await load()
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: apiErrorMessage(error, 'Falha ao atualizar permissão'),
+      message: apiErrorMessage(error, 'Failed to update permission'),
     })
   } finally {
     saving.value = false
@@ -112,10 +158,10 @@ async function submitEdit() {
 
 function confirmDelete(permission: PermissionResponse) {
   $q.dialog({
-    title: 'Excluir permissão',
-    message: `Remover permanentemente ${permission.code}?`,
-    cancel: { flat: true, label: 'Cancelar', color: 'primary' },
-    ok: { unelevated: true, label: 'Excluir', color: 'negative' },
+    title: 'Delete permission',
+    message: `Permanently remove ${permission.code}?`,
+    cancel: { flat: true, label: 'Cancel', color: 'primary' },
+    ok: { unelevated: true, label: 'Delete', color: 'negative' },
     persistent: true,
   }).onOk(() => {
     void deletePermission(permission)
@@ -125,14 +171,19 @@ function confirmDelete(permission: PermissionResponse) {
 async function deletePermission(permission: PermissionResponse) {
   try {
     await permissionsApi.remove(permission.id)
-    $q.notify({ type: 'positive', message: 'Permissão excluída' })
+    $q.notify({ type: 'positive', message: 'Permission deleted' })
     await load()
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: apiErrorMessage(error, 'Falha ao excluir permissão'),
+      message: apiErrorMessage(error, 'Failed to delete permission'),
     })
   }
+}
+
+function clearFilters() {
+  filterResource.value = null
+  filterAction.value = null
 }
 
 onMounted(() => {
@@ -141,123 +192,198 @@ onMounted(() => {
 </script>
 
 <template>
-  <q-page class="admin-page">
-    <header class="admin-page__header">
-      <div>
-        <p class="admin-page__eyebrow">Administração</p>
-        <h1>Permissões</h1>
-        <p class="admin-page__lead">
-          Cadastre códigos canônicos no formato resource.action.
-        </p>
-      </div>
-      <q-btn
-        v-if="can(PermissionCode.PERMISSIONS_CREATE)"
-        color="primary"
-        unelevated
-        no-caps
-        icon="add"
-        label="Nova permissão"
-        @click="openCreate"
-      />
-    </header>
-
-    <q-table
-      class="admin-table"
+  <q-page class="app-page">
+    <q-card
+      class="app-page__card"
       flat
-      bordered
-      row-key="id"
-      :rows="permissions"
-      :columns="columns"
-      :loading="loading"
-      :rows-per-page-options="[10, 20, 50]"
     >
-      <template #body-cell-code="props">
-        <q-td :props="props">
-          <code class="admin-table__code">{{ props.row.code }}</code>
-        </q-td>
-      </template>
-
-      <template #body-cell-description="props">
-        <q-td :props="props">
-          <span class="admin-table__muted">{{ props.row.description || '—' }}</span>
-        </q-td>
-      </template>
-
-      <template #body-cell-is_active="props">
-        <q-td :props="props">
-          <q-badge
-            :color="props.row.is_active ? 'teal' : 'grey'"
-            :label="props.row.is_active ? 'Sim' : 'Não'"
-          />
-        </q-td>
-      </template>
-
-      <template #body-cell-actions="props">
-        <q-td :props="props">
-          <div class="admin-table__actions">
-            <q-btn
-              v-if="can(PermissionCode.PERMISSIONS_UPDATE)"
-              flat
-              dense
-              round
-              icon="edit"
-              color="primary"
-              @click="openEdit(props.row)"
-            >
-              <q-tooltip>Editar</q-tooltip>
-            </q-btn>
-            <q-btn
-              v-if="can(PermissionCode.PERMISSIONS_DELETE)"
-              flat
-              dense
-              round
-              icon="delete"
-              color="negative"
-              @click="confirmDelete(props.row)"
-            >
-              <q-tooltip>Excluir</q-tooltip>
-            </q-btn>
+      <q-card-section class="app-page__section">
+        <header class="app-page__header">
+          <div>
+            <h1 class="app-page__title">Permissions</h1>
+            <p class="app-page__lead">
+              Register canonical codes in resource.action format, with metadata for filtering and UI.
+            </p>
           </div>
-        </q-td>
-      </template>
+          <q-btn
+            v-if="can(PermissionCode.PERMISSIONS_CREATE)"
+            unelevated
+            no-caps
+            icon="add"
+            label="New permission"
+            class="app-page__btn-primary"
+            @click="openCreate"
+          />
+        </header>
 
-      <template #no-data>
-        <div class="admin-table__empty">
-          Nenhuma permissão encontrada.
+        <div class="app-page__filters">
+          <q-select
+            v-model="filterResource"
+            :options="resourceOptions"
+            label="Resource"
+            outlined
+            dense
+            clearable
+            class="app-page__filters-field"
+          />
+          <q-select
+            v-model="filterAction"
+            :options="filterActionOptions"
+            label="Action"
+            outlined
+            dense
+            clearable
+            use-input
+            fill-input
+            hide-selected
+            input-debounce="0"
+            class="app-page__filters-field"
+          />
+          <q-btn
+            flat
+            no-caps
+            color="primary"
+            label="Clear"
+            :disable="!filterResource && !filterAction"
+            @click="clearFilters"
+          />
         </div>
-      </template>
-    </q-table>
+
+        <q-table
+          class="app-page__table"
+          flat
+          bordered
+          row-key="id"
+          :rows="filteredPermissions"
+          :columns="columns"
+          :loading="loading"
+          :rows-per-page-options="[10, 20, 50]"
+        >
+          <template #body-cell-code="props">
+            <q-td :props="props">
+              <code class="app-page__code">{{ props.row.code }}</code>
+            </q-td>
+          </template>
+
+          <template #body-cell-resource="props">
+            <q-td :props="props">
+              <span class="app-page__chip">{{ props.row.resource }}</span>
+            </q-td>
+          </template>
+
+          <template #body-cell-action="props">
+            <q-td :props="props">
+              <span class="app-page__chip app-page__chip--muted">{{ props.row.action }}</span>
+            </q-td>
+          </template>
+
+          <template #body-cell-description="props">
+            <q-td :props="props">
+              <span class="app-page__muted">{{ props.row.description || '—' }}</span>
+            </q-td>
+          </template>
+
+          <template #body-cell-is_active="props">
+            <q-td :props="props">
+              <q-badge
+                :color="props.row.is_active ? 'primary' : 'grey'"
+                :label="props.row.is_active ? 'Yes' : 'No'"
+              />
+            </q-td>
+          </template>
+
+          <template #body-cell-actions="props">
+            <q-td :props="props">
+              <div class="app-page__table-actions">
+                <q-btn
+                  v-if="can(PermissionCode.PERMISSIONS_UPDATE)"
+                  flat
+                  dense
+                  round
+                  icon="edit"
+                  color="primary"
+                  @click="openEdit(props.row)"
+                >
+                  <q-tooltip>Edit</q-tooltip>
+                </q-btn>
+                <q-btn
+                  v-if="can(PermissionCode.PERMISSIONS_DELETE)"
+                  flat
+                  dense
+                  round
+                  icon="delete"
+                  color="negative"
+                  @click="confirmDelete(props.row)"
+                >
+                  <q-tooltip>Delete</q-tooltip>
+                </q-btn>
+              </div>
+            </q-td>
+          </template>
+
+          <template #no-data>
+            <div class="app-page__empty">
+              No permissions found.
+            </div>
+          </template>
+        </q-table>
+      </q-card-section>
+    </q-card>
 
     <q-dialog
       v-model="createOpen"
       persistent
     >
-      <q-card class="admin-dialog">
+      <q-card class="app-page__dialog">
         <q-card-section>
-          <div class="text-h6">Nova permissão</div>
+          <div
+            class="text-h6"
+            style="color: #111827"
+          >
+            New permission
+          </div>
         </q-card-section>
         <q-form @submit.prevent="submitCreate">
           <q-card-section class="q-gutter-md">
             <q-input
-              v-model="createForm.code"
-              label="Código"
+              v-model="createForm.resource"
+              label="Resource"
               outlined
               dense
               required
-              hint="Ex.: users.export"
-              :rules="[codeRule]"
-              @update:model-value="(v) => { createForm.code = String(v ?? '').toLowerCase() }"
+              hint="e.g. users, reports"
+              :rules="[resourceRule]"
+              @update:model-value="(v) => { createForm.resource = String(v ?? '').toLowerCase() }"
+            />
+            <q-select
+              v-model="createForm.action"
+              :options="predefinedActions"
+              label="Action"
+              outlined
+              dense
+              required
+              emit-value
+              map-options
+              :rules="[actionRule]"
+            />
+            <q-input
+              :model-value="generatedCode"
+              label="Code"
+              outlined
+              dense
+              readonly
+              hint="Generated as resource.action"
             />
             <q-input
               v-model="createForm.name"
-              label="Nome"
+              label="Name"
               outlined
               dense
               required
             />
             <q-input
               v-model="createForm.description"
-              label="Descrição"
+              label="Description"
               outlined
               dense
               type="textarea"
@@ -268,7 +394,7 @@ onMounted(() => {
             <q-btn
               flat
               no-caps
-              label="Cancelar"
+              label="Cancel"
               color="primary"
               @click="createOpen = false"
             />
@@ -277,7 +403,7 @@ onMounted(() => {
               unelevated
               no-caps
               color="primary"
-              label="Criar"
+              label="Create"
               :loading="saving"
             />
           </q-card-actions>
@@ -289,25 +415,31 @@ onMounted(() => {
       v-model="editOpen"
       persistent
     >
-      <q-card class="admin-dialog">
+      <q-card class="app-page__dialog">
         <q-card-section>
-          <div class="text-h6">Editar permissão</div>
-          <div class="admin-dialog__sub">
+          <div
+            class="text-h6"
+            style="color: #111827"
+          >
+            Edit permission
+          </div>
+          <div class="app-page__dialog-sub">
             <code>{{ selected?.code }}</code>
+            <span v-if="selected"> · {{ selected.resource }} / {{ selected.action }}</span>
           </div>
         </q-card-section>
         <q-form @submit.prevent="submitEdit">
           <q-card-section class="q-gutter-md">
             <q-input
               v-model="editForm.name"
-              label="Nome"
+              label="Name"
               outlined
               dense
               required
             />
             <q-input
               v-model="editForm.description"
-              label="Descrição"
+              label="Description"
               outlined
               dense
               type="textarea"
@@ -315,7 +447,7 @@ onMounted(() => {
             />
             <q-toggle
               v-model="editForm.is_active"
-              label="Permissão ativa"
+              label="Permission active"
               color="primary"
             />
           </q-card-section>
@@ -323,7 +455,7 @@ onMounted(() => {
             <q-btn
               flat
               no-caps
-              label="Cancelar"
+              label="Cancel"
               color="primary"
               @click="editOpen = false"
             />
@@ -332,7 +464,7 @@ onMounted(() => {
               unelevated
               no-caps
               color="primary"
-              label="Salvar"
+              label="Save"
               :loading="saving"
             />
           </q-card-actions>
@@ -342,85 +474,3 @@ onMounted(() => {
   </q-page>
 </template>
 
-<style scoped lang="scss">
-.admin-page {
-  padding: 1.5rem 1.5rem 2.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.admin-page__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.admin-page__eyebrow {
-  margin: 0 0 0.25rem;
-  color: var(--ls-accent);
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.admin-page__header h1 {
-  margin: 0 0 0.35rem;
-  font-family: var(--ls-font-display);
-  font-size: 1.85rem;
-  font-weight: 600;
-}
-
-.admin-page__lead {
-  margin: 0;
-  color: var(--ls-muted);
-  max-width: 36rem;
-}
-
-.admin-table {
-  background: var(--ls-panel);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.admin-table__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.15rem;
-}
-
-.admin-table__muted {
-  color: var(--ls-muted);
-  font-size: 0.9rem;
-}
-
-.admin-table__code {
-  background: rgba(15, 118, 110, 0.1);
-  padding: 0.15rem 0.4rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
-}
-
-.admin-table__empty {
-  padding: 2rem;
-  text-align: center;
-  color: var(--ls-muted);
-}
-
-.admin-dialog {
-  min-width: min(440px, 92vw);
-}
-
-.admin-dialog__sub {
-  margin-top: 0.2rem;
-  color: var(--ls-muted);
-  font-size: 0.9rem;
-}
-
-.admin-dialog__sub code {
-  background: rgba(15, 118, 110, 0.1);
-  padding: 0.1rem 0.35rem;
-  border-radius: 6px;
-}
-</style>

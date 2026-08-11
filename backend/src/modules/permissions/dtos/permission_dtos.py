@@ -11,6 +11,8 @@ from uuid import UUID
 class PermissionDto:
     id: UUID
     code: str
+    resource: str
+    action: str
     name: str
     description: str
     is_active: bool

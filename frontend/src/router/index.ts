@@ -6,6 +6,7 @@ import {
 } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { PermissionCode } from '@/constants/permissions'
+import { resolveHomeRoute, resolveHomeRouteName } from '@/utils/homeRoute'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -23,18 +24,37 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    // Client opening page — full-viewport map (same shell as temp MainPage), no MainLayout chrome
+    path: '/main',
+    name: 'main',
+    component: () => import('@/pages/MainPage.vue'),
+    meta: {
+      requiresAuth: true,
+      permissions: [PermissionCode.DASHBOARD_CLIENT],
+    },
+  },
+  {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     meta: { requiresAuth: true },
     children: [
       {
         path: '',
-        redirect: { name: 'dashboard' },
+        redirect: () => {
+          const auth = useAuthStore()
+          return resolveHomeRoute(auth.user?.permissions)
+        },
       },
       {
         path: 'dashboard',
         name: 'dashboard',
         component: () => import('@/pages/DashboardPage.vue'),
+      },
+      {
+        path: 'admin',
+        name: 'admin-overview',
+        component: () => import('@/pages/stuff/AdminOverviewPage.vue'),
+        meta: { permissions: [PermissionCode.DASHBOARD_ADMIN] },
       },
       {
         path: 'users',
@@ -54,12 +74,50 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/PermissionsPage.vue'),
         meta: { permissions: [PermissionCode.PERMISSIONS_READ] },
       },
+      {
+        path: 'reports/indicators',
+        name: 'manager-indicators',
+        component: () => import('@/pages/stuff/ManagerIndicatorsPage.vue'),
+        meta: { permissions: [PermissionCode.DASHBOARD_MANAGER] },
+      },
+      {
+        path: 'reports',
+        name: 'manager-reports',
+        component: () => import('@/pages/stuff/ManagerReportsPage.vue'),
+        meta: { permissions: [PermissionCode.DASHBOARD_MANAGER] },
+      },
+      {
+        path: 'operations/today',
+        name: 'operator-operations',
+        component: () => import('@/pages/stuff/OperatorOperationsPage.vue'),
+        meta: { permissions: [PermissionCode.DASHBOARD_OPERATOR] },
+      },
+      {
+        path: 'me',
+        name: 'client-profile',
+        component: () => import('@/pages/stuff/ClientProfilePage.vue'),
+        meta: { permissions: [PermissionCode.DASHBOARD_CLIENT] },
+      },
+      {
+        path: 'dashboard/readonly',
+        name: 'viewer-readonly',
+        component: () => import('@/pages/stuff/ViewerReadonlyPage.vue'),
+        meta: { permissions: [PermissionCode.DASHBOARD_VIEWER] },
+      },
+      {
+        path: 'account/profile',
+        name: 'account-profile',
+        component: () => import('@/pages/stuff/AccountProfilePage.vue'),
+      },
     ],
   },
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
-    redirect: () => ({ name: 'dashboard' }),
+    redirect: () => {
+      const auth = useAuthStore()
+      return resolveHomeRoute(auth.user?.permissions)
+    },
   },
 ]
 
@@ -68,14 +126,17 @@ const router = createRouter({
   routes,
 })
 
-function resolvePostLoginTarget(redirect: unknown): RouteLocationRaw {
+function resolvePostLoginTarget(
+  redirect: unknown,
+  permissions: readonly string[] | undefined,
+): RouteLocationRaw {
   if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
     if (redirect === '/login' || redirect.startsWith('/login?')) {
-      return { name: 'dashboard' }
+      return resolveHomeRoute(permissions)
     }
     return redirect
   }
-  return { name: 'dashboard' }
+  return resolveHomeRoute(permissions)
 }
 
 router.beforeEach(async (to) => {
@@ -89,7 +150,7 @@ router.beforeEach(async (to) => {
 
   if (isPublic) {
     if (auth.isAuthenticated) {
-      return resolvePostLoginTarget(to.query.redirect)
+      return resolvePostLoginTarget(to.query.redirect, auth.user?.permissions)
     }
     return true
   }
@@ -107,8 +168,13 @@ router.beforeEach(async (to) => {
     const granted = new Set(auth.user?.permissions ?? [])
     const allowed = required.every((code) => granted.has(code))
     if (!allowed) {
-      return { name: 'dashboard' }
+      return resolveHomeRoute(auth.user?.permissions)
     }
+  }
+
+  // Client home is the map — bounce composed dashboard away for CLIENT-only users
+  if (to.name === 'dashboard' && resolveHomeRouteName(auth.user?.permissions) === 'main') {
+    return { name: 'main' }
   }
 
   return true

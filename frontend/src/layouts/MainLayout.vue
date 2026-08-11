@@ -1,148 +1,102 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
-import { usePermissions } from '@/composables/usePermissions'
+import { useLayoutConfig } from '@/composables/useLayoutConfig'
+import BaseHeader from '@/components/layout/BaseHeader.vue'
+import BaseSidebar from '@/components/layout/BaseSidebar.vue'
+import type { MenuItem } from '@/components/layout/BaseSidebar.vue'
 
 const router = useRouter()
+const route = useRoute()
 const $q = useQuasar()
 const auth = useAuthStore()
 const dashboard = useDashboardStore()
-const { can } = usePermissions()
+const { layoutConfig } = useLayoutConfig()
 
-const menuItems = computed(() =>
-  dashboard.menu.filter((item) => can(item.required_permission)),
-)
+const isSmartphone = () => window.innerWidth < 768
+const leftDrawerOpen = ref(!isSmartphone())
+
+const isDashboardPage = computed(() => {
+  const path = route.path.replace(/\/$/, '') || '/'
+  return path === '/dashboard' || path === '/'
+})
+
+function toggleLeftDrawer() {
+  leftDrawerOpen.value = !leftDrawerOpen.value
+}
+
+function handleMenuClick(_item: MenuItem) {
+  // Navigation handled inside BaseSidebar.
+}
+
+function handleLogout() {
+  $q.dialog({
+    title: 'Confirm sign out',
+    message: 'Do you want to end this session?',
+    cancel: true,
+    persistent: false,
+  }).onOk(() => {
+    void (async () => {
+      await auth.logout()
+      dashboard.clear()
+      await router.push({ name: 'login' })
+      $q.notify({ type: 'positive', message: 'Signed out' })
+    })()
+  })
+}
+
+function handleResize() {
+  if (isSmartphone() && leftDrawerOpen.value) {
+    leftDrawerOpen.value = false
+  } else if (!isSmartphone() && !leftDrawerOpen.value) {
+    leftDrawerOpen.value = true
+  }
+}
 
 onMounted(async () => {
-  if (!dashboard.widgets.length) {
+  window.addEventListener('resize', handleResize)
+  if (!dashboard.menu.length && !dashboard.widgets.length) {
     await dashboard.load()
   }
 })
 
-async function logout() {
-  await auth.logout()
-  dashboard.clear()
-  await router.push({ name: 'login' })
-  $q.notify({ type: 'positive', message: 'Sessão encerrada' })
-}
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <template>
   <q-layout
-    view="lHh Lpr lFf"
+    view="hHh Lpr lFf"
     class="main-layout"
   >
-    <q-header
-      elevated
-      class="main-layout__header"
-    >
-      <q-toolbar>
-        <q-toolbar-title class="brand">
-          Lanstar
-        </q-toolbar-title>
-        <div class="user-chip">
-          <span>{{ auth.user?.fullName }}</span>
-          <small>{{ auth.user?.roleNames.join(' · ') || 'sem role' }}</small>
-        </div>
-        <q-btn
-          flat
-          dense
-          label="Sair"
-          @click="logout"
-        />
-      </q-toolbar>
-    </q-header>
+    <BaseHeader
+      :header-title="layoutConfig.headerTitle"
+      :user-subtitle="layoutConfig.userSubtitle"
+      :nav-menu-options="layoutConfig.navMenuOptions"
+      @toggle-drawer="toggleLeftDrawer"
+    />
 
-    <q-drawer
-      show-if-above
-      bordered
-      :width="260"
-      class="main-layout__drawer"
-    >
-      <div class="drawer-brand">
-        <p>Navegação</p>
-        <strong>Menu por permissão</strong>
-      </div>
-      <q-list padding>
-        <q-item
-          clickable
-          v-ripple
-          :to="{ name: 'dashboard' }"
-          exact
-        >
-          <q-item-section avatar>
-            <q-icon name="dashboard" />
-          </q-item-section>
-          <q-item-section>Dashboard</q-item-section>
-        </q-item>
+    <BaseSidebar
+      v-if="!isDashboardPage"
+      v-model:drawer-open="leftDrawerOpen"
+      :menu-items="layoutConfig.menuItems"
+      @menu-click="handleMenuClick"
+      @logout="handleLogout"
+    />
 
-        <q-item
-          v-for="item in menuItems"
-          :key="item.id"
-          clickable
-          v-ripple
-          :to="item.route"
-        >
-          <q-item-section avatar>
-            <q-icon :name="item.icon" />
-          </q-item-section>
-          <q-item-section>{{ item.label }}</q-item-section>
-        </q-item>
-      </q-list>
-    </q-drawer>
-
-    <q-page-container>
-      <router-view />
+    <q-page-container class="main-layout__content">
+      <router-view :key="route.fullPath" />
     </q-page-container>
   </q-layout>
 </template>
 
 <style scoped lang="scss">
-.main-layout__header {
-  background: linear-gradient(120deg, #0f766e 0%, #115e59 55%, #0b1f1c 100%);
-  color: #fff;
-}
-
-.brand {
-  font-family: var(--ls-font-display);
-  font-size: 1.45rem;
-  letter-spacing: 0.02em;
-}
-
-.user-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  margin-right: 0.75rem;
-  line-height: 1.15;
-}
-
-.user-chip small {
-  opacity: 0.8;
-  font-size: 0.72rem;
-}
-
-.main-layout__drawer {
-  background: linear-gradient(180deg, #f7fbf9 0%, #eef5f2 100%);
-}
-
-.drawer-brand {
-  padding: 1.25rem 1.2rem 0.5rem;
-}
-
-.drawer-brand p {
-  margin: 0;
-  color: var(--ls-muted);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.drawer-brand strong {
-  font-family: var(--ls-font-display);
-  font-size: 1.1rem;
+.main-layout__content {
+  min-height: 100vh;
+  background: var(--app-navigation-background, #f9fafb);
 }
 </style>

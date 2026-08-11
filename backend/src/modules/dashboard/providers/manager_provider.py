@@ -17,14 +17,14 @@ class ManagerDashboardProvider(DashboardSectionProvider):
         return [
             DashboardMenuItem(
                 id="manager-indicators",
-                label="Indicadores da empresa",
+                label="Company indicators",
                 route="/reports/indicators",
                 icon="insights",
                 required_permission=PermissionCode.DASHBOARD_MANAGER,
             ),
             DashboardMenuItem(
                 id="manager-reports",
-                label="Relatórios",
+                label="Reports",
                 route="/reports",
                 icon="description",
                 required_permission=PermissionCode.DASHBOARD_MANAGER,
@@ -35,7 +35,7 @@ class ManagerDashboardProvider(DashboardSectionProvider):
         return [
             DashboardWidget(
                 id="manager-kpis",
-                title="Indicadores da empresa",
+                title="Company indicators",
                 widget_type="indicators",
                 data={
                     "revenue_mtd": 128450.75,
@@ -46,12 +46,12 @@ class ManagerDashboardProvider(DashboardSectionProvider):
             ),
             DashboardWidget(
                 id="manager-reports",
-                title="Relatórios",
+                title="Reports",
                 widget_type="actions",
                 data={
                     "reports": [
-                        {"id": "sales-weekly", "label": "Vendas semanais"},
-                        {"id": "pipeline", "label": "Pipeline comercial"},
+                        {"id": "sales-weekly", "label": "Weekly sales"},
+                        {"id": "pipeline", "label": "Sales pipeline"},
                         {"id": "headcount", "label": "Headcount"},
                     ]
                 },

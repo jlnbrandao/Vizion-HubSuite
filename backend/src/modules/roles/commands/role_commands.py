@@ -10,6 +10,7 @@ from src.shared.application.command import Command
 
 @dataclass(frozen=True, kw_only=True)
 class CreateRoleCommand(Command):
+    tenant_id: UUID
     name: str
     description: str = ""
 

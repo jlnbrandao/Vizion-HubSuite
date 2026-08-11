@@ -5,16 +5,16 @@ defineProps<{ data: Record<string, unknown> }>()
 <template>
   <dl class="profile">
     <div>
-      <dt>Nome</dt>
+      <dt>Name</dt>
       <dd>{{ data.full_name }}</dd>
     </div>
     <div>
-      <dt>E-mail</dt>
+      <dt>Email</dt>
       <dd>{{ data.email }}</dd>
     </div>
     <div>
       <dt>Status</dt>
-      <dd>{{ data.is_active ? 'Ativo' : 'Inativo' }}</dd>
+      <dd>{{ data.is_active ? 'Active' : 'Inactive' }}</dd>
     </div>
   </dl>
 </template>
@@ -27,12 +27,13 @@ defineProps<{ data: Record<string, unknown> }>()
 }
 
 .profile dt {
-  color: var(--ls-muted);
+  color: #9ca3af;
   font-size: 0.78rem;
 }
 
 .profile dd {
   margin: 0.15rem 0 0;
   font-weight: 600;
+  color: var(--q-primary, #1e40af);
 }
 </style>

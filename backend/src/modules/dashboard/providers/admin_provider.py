@@ -23,8 +23,15 @@ class AdminDashboardProvider(DashboardSectionProvider):
     async def build_menu(self, user: CurrentUser) -> list[DashboardMenuItem]:
         return [
             DashboardMenuItem(
+                id="admin-overview",
+                label="Administration",
+                route="/admin",
+                icon="admin_panel_settings",
+                required_permission=PermissionCode.DASHBOARD_ADMIN,
+            ),
+            DashboardMenuItem(
                 id="admin-users",
-                label="Usuários",
+                label="Users",
                 route="/users",
                 icon="people",
                 required_permission=PermissionCode.USERS_READ,
@@ -38,7 +45,7 @@ class AdminDashboardProvider(DashboardSectionProvider):
             ),
             DashboardMenuItem(
                 id="admin-permissions",
-                label="Permissões",
+                label="Permissions",
                 route="/permissions",
                 icon="key",
                 required_permission=PermissionCode.PERMISSIONS_READ,
@@ -54,7 +61,7 @@ class AdminDashboardProvider(DashboardSectionProvider):
         return [
             DashboardWidget(
                 id="admin-rbac-stats",
-                title="Administração RBAC",
+                title="RBAC Administration",
                 widget_type="stats",
                 data={
                     "users_total": users_total,
@@ -65,12 +72,12 @@ class AdminDashboardProvider(DashboardSectionProvider):
             ),
             DashboardWidget(
                 id="admin-user-mgmt",
-                title="Usuários",
+                title="Users",
                 widget_type="actions",
                 data={
                     "actions": [
-                        {"label": "Criar usuário", "route": "/users?create=1"},
-                        {"label": "Listar usuários", "route": "/users"},
+                        {"label": "Create user", "route": "/users?create=1"},
+                        {"label": "List users", "route": "/users"},
                     ]
                 },
             ),
@@ -80,17 +87,17 @@ class AdminDashboardProvider(DashboardSectionProvider):
                 widget_type="actions",
                 data={
                     "actions": [
-                        {"label": "Gerenciar roles", "route": "/roles"},
+                        {"label": "Manage roles", "route": "/roles"},
                     ]
                 },
             ),
             DashboardWidget(
                 id="admin-permission-mgmt",
-                title="Permissões",
+                title="Permissions",
                 widget_type="actions",
                 data={
                     "actions": [
-                        {"label": "Gerenciar permissões", "route": "/permissions"},
+                        {"label": "Manage permissions", "route": "/permissions"},
                     ]
                 },
             ),

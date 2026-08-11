@@ -2,7 +2,7 @@
 
 Vue 3 + Quasar + Pinia + Vue Router + Axios.
 
-## Rodar
+## Run
 
 ```bash
 cd frontend
@@ -10,18 +10,20 @@ npm install
 npm run dev
 ```
 
-App: http://localhost:9000  
-API proxy: `/api` → `http://localhost:8000`
+Abra **http://bigbang.localhost:9000** (tenant demo).  
+Não use `http://localhost:9000` sem subdomínio — o backend resolve o tenant pelo primeiro label do `Host`.
 
-## Permissões (sem ifs por role)
+API proxy: `/api` → `http://127.0.0.1:8000` com `changeOrigin: false` (preserva `Host: bigbang.localhost`).
 
-| Peça | Papel |
+## Permissions (no role-name branching)
+
+| Piece | Role |
 |------|--------|
-| `constants/permissions.ts` | Catálogo canônico (espelha backend) |
+| `constants/permissions.ts` | Canonical catalog (mirrors backend) |
 | `composables/usePermissions.ts` | `can` / `canAny` / `canAll` |
-| `stores/dashboard.ts` | Menu/widgets vindos da API |
-| `widgetRegistry.ts` | Resolve `widget_type` → componente |
-| Router `meta.permissions` | Guard por permissão |
+| `stores/dashboard.ts` | Menu/widgets from the API |
+| `widgetRegistry.ts` | Resolves `widget_type` → component |
+| Router `meta.permissions` | Permission-based guard |
 
-O menu lateral filtra itens com `can(item.required_permission)`.
-O dashboard renderiza o que o backend composer devolve — a UI não ramifica por `ADMIN`/`MANAGER`.
+The side menu filters items with `can(item.required_permission)`.
+The dashboard renders what the backend composer returns — the UI does not branch on `ADMIN`/`MANAGER`.

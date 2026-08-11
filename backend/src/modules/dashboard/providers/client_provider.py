@@ -22,8 +22,15 @@ class ClientDashboardProvider(DashboardSectionProvider):
     async def build_menu(self, user: CurrentUser) -> list[DashboardMenuItem]:
         return [
             DashboardMenuItem(
+                id="client-map",
+                label="Map",
+                route="/main",
+                icon="map",
+                required_permission=PermissionCode.DASHBOARD_CLIENT,
+            ),
+            DashboardMenuItem(
                 id="client-profile",
-                label="Meus dados",
+                label="My data",
                 route="/me",
                 icon="person",
                 required_permission=PermissionCode.DASHBOARD_CLIENT,
@@ -35,7 +42,7 @@ class ClientDashboardProvider(DashboardSectionProvider):
         return [
             DashboardWidget(
                 id="client-own-data",
-                title="Meus dados",
+                title="My data",
                 widget_type="profile",
                 data={
                     "id": str(profile.id),

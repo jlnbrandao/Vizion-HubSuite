@@ -1,4 +1,4 @@
-"""Idempotent database seed: permissions, roles ADMIN…VIEWER, demo admin user.
+"""Idempotent database seed: permissions, roles ADMIN…VIEWER, demo users.
 
 Usage (from backend/):
     python -m scripts.seed
@@ -9,9 +9,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+from dataclasses import dataclass
 from uuid import UUID
 
-from src.modules.permissions.commands.permission_commands import CreatePermissionCommand
+from src.modules.permissions.commands.permission_commands import (
+    CreatePermissionCommand,
+    DeletePermissionCommand,
+    UpdatePermissionCommand,
+)
 from src.modules.permissions.value_objects.permission_code import (
     PermissionCode as PermissionCodeVO,
 )
@@ -20,24 +25,66 @@ from src.modules.roles.commands.role_commands import (
     ReplaceRolePermissionsCommand,
 )
 from src.modules.roles.value_objects.role_name import RoleName
+from src.modules.tenants.commands.tenant_commands import UpsertTenantCommand
 from src.modules.users.commands.user_commands import (
+    ChangeUserPasswordCommand,
     CreateUserCommand,
     ReplaceUserRolesCommand,
+    UpdateUserCommand,
 )
 from src.modules.users.value_objects.email import Email
+from src.modules.users.value_objects.username import Username
 from src.shared.infrastructure.di.container import Container, create_container
 from src.shared.infrastructure.di.register_handlers import register_module_handlers
 from src.shared.infrastructure.security.permission_codes import PermissionCode
+from src.shared.infrastructure.tenant_context import (
+    bind_rls_bypass,
+    bind_tenant,
+    unbind_rls_bypass,
+    unbind_tenant,
+)
 
 logger = logging.getLogger("seed")
 
-DEMO_EMAIL = "galileu@lanstar.com.br"
-DEMO_PASSWORD = "Demo@12345"
-DEMO_FULL_NAME = "Galileu Admin"
-DEMO_ROLE = "ADMIN"
+BIGBANG_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000001")
+SEED_PASSWORD = "123Mudar."
+
+
+@dataclass(frozen=True, slots=True)
+class SeedUser:
+    username: str
+    full_name: str
+    email: str
+    role: str
+
+
+SEED_USERS: tuple[SeedUser, ...] = (
+    SeedUser("galileu", "System Administrator", "galileu@lanstar.com.br", "ADMIN"),
+    SeedUser("manager", "Default Manager", "manager@lanstar.com.br", "MANAGER"),
+    SeedUser("operator", "Default Operator", "operator@lanstar.com.br", "OPERATOR"),
+    SeedUser("user", "Default User", "user@lanstar.com.br", "CLIENT"),
+    SeedUser("viewer", "Default Viewer", "viewer@lanstar.com.br", "VIEWER"),
+)
+
+# Former emails remapped on refresh (e.g. teste@ → user@).
+LEGACY_EMAILS: dict[str, str] = {
+    "teste@lanstar.com.br": "user@lanstar.com.br",
+}
+
+# Old compound action codes retired in favor of bare PermissionAction.ASSIGN.
+OBSOLETE_PERMISSION_CODES: frozenset[str] = frozenset(
+    {
+        "users.assign_roles",
+        "roles.assign_permissions",
+        "navigation.create",
+        "navigation.read",
+        "navigation.update",
+        "navigation.delete",
+    }
+)
 
 ROLE_DESCRIPTIONS: dict[str, str] = {
-    "ADMIN": "CRUD de usuários, roles e permissões",
+    "ADMIN": "CRUD for users, roles, and permissions",
     "MANAGER": "Company indicators and user oversight",
     "OPERATOR": "Day-to-day operations",
     "CLIENT": "Own profile access only",
@@ -51,12 +98,12 @@ ADMIN_PERMISSIONS: frozenset[str] = frozenset(
         PermissionCode.USERS_READ,
         PermissionCode.USERS_UPDATE,
         PermissionCode.USERS_DELETE,
-        PermissionCode.USERS_ASSIGN_ROLES,
+        PermissionCode.USERS_ASSIGN,
         PermissionCode.ROLES_CREATE,
         PermissionCode.ROLES_READ,
         PermissionCode.ROLES_UPDATE,
         PermissionCode.ROLES_DELETE,
-        PermissionCode.ROLES_ASSIGN_PERMISSIONS,
+        PermissionCode.ROLES_ASSIGN,
         PermissionCode.PERMISSIONS_CREATE,
         PermissionCode.PERMISSIONS_READ,
         PermissionCode.PERMISSIONS_UPDATE,
@@ -108,14 +155,25 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
 }
 
 
-def _permission_label(code: str) -> str:
+def _permission_meta(code: str) -> tuple[str, str]:
+    definition = PermissionCode.definition_for(code)
+    if definition is not None:
+        return definition.name, definition.description
     resource, action = code.split(".", 1)
-    return f"{resource.replace('_', ' ').title()} {action.replace('_', ' ').title()}"
+    name = f"{resource.replace('_', ' ').title()} {action.replace('_', ' ').title()}"
+    return name, f"Permission {code}"
 
 
 def validate_role_permissions_map() -> None:
     """Ensure ROLE_PERMISSIONS references canonical codes; ADMIN is RBAC-only."""
     all_codes = set(PermissionCode.all_codes())
+    catalog_codes = {item.code for item in PermissionCode.catalog()}
+    missing_meta = all_codes - catalog_codes
+    if missing_meta:
+        raise ValueError(
+            f"PERMISSION_CATALOG missing metadata for: {sorted(missing_meta)}"
+        )
+
     for role, codes in ROLE_PERMISSIONS.items():
         unknown = codes - all_codes
         if unknown:
@@ -139,18 +197,31 @@ async def _ensure_permissions(container: Container) -> dict[str, UUID]:
     code_to_id: dict[str, UUID] = {}
 
     for code in PermissionCode.all_codes():
+        name, description = _permission_meta(code)
         async with container.unit_of_work():
             existing = await permissions.get_by_code(PermissionCodeVO.from_primitive(code))
         if existing is not None:
             code_to_id[code] = existing.id
-            logger.info("permission exists: %s", code)
+            if existing.name.value != name or existing.description != description:
+                await command_bus.execute(
+                    UpdatePermissionCommand(
+                        permission_id=existing.id,
+                        name=name,
+                        description=description,
+                        is_active=existing.is_active,
+                    )
+                )
+                logger.info("permission metadata synced: %s", code)
+            else:
+                logger.info("permission exists: %s", code)
             continue
 
         permission_id = await command_bus.execute(
             CreatePermissionCommand(
+                tenant_id=BIGBANG_TENANT_ID,
                 code=code,
-                name=_permission_label(code),
-                description=f"Permission {code}",
+                name=name,
+                description=description,
             )
         )
         code_to_id[code] = permission_id
@@ -175,6 +246,7 @@ async def _ensure_roles(
         else:
             role_id = await command_bus.execute(
                 CreateRoleCommand(
+                    tenant_id=BIGBANG_TENANT_ID,
                     name=role_name,
                     description=ROLE_DESCRIPTIONS.get(role_name, ""),
                 )
@@ -194,34 +266,109 @@ async def _ensure_roles(
     return role_to_id
 
 
-async def _ensure_demo_user(container: Container, role_to_id: dict[str, UUID]) -> None:
+async def _retire_obsolete_permissions(container: Container) -> None:
+    """Remove legacy compound codes after roles point at the new catalog."""
     command_bus = container.command_bus()
+    permissions = container.permission_repository()
+
+    for code in sorted(OBSOLETE_PERMISSION_CODES):
+        async with container.unit_of_work():
+            existing = await permissions.get_by_code(PermissionCodeVO.from_primitive(code))
+        if existing is None:
+            continue
+        await command_bus.execute(DeletePermissionCommand(permission_id=existing.id))
+        logger.info("obsolete permission removed: %s", code)
+
+
+async def _find_existing_user(container: Container, seed_user: SeedUser):
     users = container.user_repository()
-    admin_role_id = role_to_id[DEMO_ROLE]
-    email = Email.from_primitive(DEMO_EMAIL)
+    email = Email.from_primitive(seed_user.email)
+    username = Username.from_primitive(seed_user.username)
+    legacy_emails = [
+        Email.from_primitive(old)
+        for old, new in LEGACY_EMAILS.items()
+        if new == seed_user.email
+    ]
 
     async with container.unit_of_work():
-        existing = await users.get_by_email(email)
+        by_email = await users.get_by_email(email)
+        if by_email is not None:
+            return by_email
+        for legacy in legacy_emails:
+            by_legacy = await users.get_by_email(legacy)
+            if by_legacy is not None:
+                return by_legacy
+        return await users.get_by_username(username)
 
-    if existing is None:
+
+async def _ensure_seed_users(container: Container, role_to_id: dict[str, UUID]) -> None:
+    command_bus = container.command_bus()
+    users = container.user_repository()
+
+    for seed_user in SEED_USERS:
+        role_id = role_to_id[seed_user.role]
+        existing = await _find_existing_user(container, seed_user)
+
+        if existing is None:
+            await command_bus.execute(
+                CreateUserCommand(
+                    tenant_id=BIGBANG_TENANT_ID,
+                    email=seed_user.email,
+                    username=seed_user.username,
+                    full_name=seed_user.full_name,
+                    password=SEED_PASSWORD,
+                    role_ids=frozenset({role_id}),
+                )
+            )
+            logger.info("seed user created: %s (%s)", seed_user.username, seed_user.role)
+            continue
+
+        target_email = Email.from_primitive(seed_user.email)
+        if existing.email != target_email:
+            async with container.unit_of_work() as uow:
+                user = await users.get_by_id(existing.id)
+                if user is None:
+                    continue
+                conflict = await users.get_by_email(target_email)
+                if conflict is not None and conflict.id != user.id:
+                    raise RuntimeError(
+                        f"Cannot remap email to {seed_user.email}: already in use"
+                    )
+                user.change_email(target_email)
+                await users.update(user)
+                uow.track(user)
+                await uow.commit()
+            logger.info(
+                "seed user email remapped: %s → %s",
+                existing.email.value,
+                seed_user.email,
+            )
+
         await command_bus.execute(
-            CreateUserCommand(
-                email=DEMO_EMAIL,
-                full_name=DEMO_FULL_NAME,
-                password=DEMO_PASSWORD,
-                role_ids=frozenset({admin_role_id}),
+            UpdateUserCommand(
+                user_id=existing.id,
+                username=seed_user.username,
+                full_name=seed_user.full_name,
+                is_active=True,
             )
         )
-        logger.info("demo user created: %s", DEMO_EMAIL)
-        return
-
-    await command_bus.execute(
-        ReplaceUserRolesCommand(
-            user_id=existing.id,
-            role_ids=frozenset({admin_role_id}),
+        await command_bus.execute(
+            ChangeUserPasswordCommand(
+                user_id=existing.id,
+                new_password=SEED_PASSWORD,
+            )
         )
-    )
-    logger.info("demo user exists (roles refreshed): %s", DEMO_EMAIL)
+        await command_bus.execute(
+            ReplaceUserRolesCommand(
+                user_id=existing.id,
+                role_ids=frozenset({role_id}),
+            )
+        )
+        logger.info(
+            "seed user refreshed: %s (%s)",
+            seed_user.username,
+            seed_user.role,
+        )
 
 
 async def seed() -> None:
@@ -229,12 +376,26 @@ async def seed() -> None:
     container = create_container()
     register_module_handlers(container)
 
+    bypass_token = bind_rls_bypass(True)
+    id_token, slug_token, name_token = bind_tenant(
+        BIGBANG_TENANT_ID, slug="bigbang", name="Bigbang"
+    )
     try:
+        await container.command_bus().execute(
+            UpsertTenantCommand(
+                slug="bigbang",
+                name="Bigbang",
+                tenant_id=BIGBANG_TENANT_ID,
+            )
+        )
         code_to_id = await _ensure_permissions(container)
         role_to_id = await _ensure_roles(container, code_to_id)
-        await _ensure_demo_user(container, role_to_id)
+        await _retire_obsolete_permissions(container)
+        await _ensure_seed_users(container, role_to_id)
         logger.info("seed completed successfully")
     finally:
+        unbind_tenant(id_token, slug_token, name_token)
+        unbind_rls_bypass(bypass_token)
         engine = container.engine()
         await engine.dispose()
         redis = container.redis()

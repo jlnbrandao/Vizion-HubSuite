@@ -10,7 +10,9 @@ from src.shared.application.command import Command
 
 @dataclass(frozen=True, kw_only=True)
 class CreateUserCommand(Command):
+    tenant_id: UUID
     email: str
+    username: str
     full_name: str
     password: str
     role_ids: frozenset[UUID] = field(default_factory=frozenset)
@@ -19,6 +21,7 @@ class CreateUserCommand(Command):
 @dataclass(frozen=True, kw_only=True)
 class UpdateUserCommand(Command):
     user_id: UUID
+    username: str
     full_name: str
     is_active: bool = True
 

@@ -1,0 +1,30 @@
+[Unit]
+Description=Lanstar API (uvicorn FastAPI)
+Documentation=file:///opt/lanstar/README.md
+After=network-online.target lanstar-infra.service
+Wants=network-online.target
+Requires=lanstar-infra.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/lanstar/backend
+EnvironmentFile=-/opt/lanstar/backend/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/bin/sleep 3
+ExecStart=/opt/lanstar/backend/.venv/bin/uvicorn src.main:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 2 \
+    --proxy-headers \
+    --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

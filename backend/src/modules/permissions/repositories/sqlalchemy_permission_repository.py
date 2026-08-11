@@ -20,6 +20,7 @@ def _to_entity(model: PermissionModel) -> Permission:
         id=model.id,
         created_at=model.created_at,
         updated_at=model.updated_at,
+        tenant_id=model.tenant_id,
         code=PermissionCode(value=model.code),
         name=PermissionName(value=model.name),
         description=model.description,
@@ -29,6 +30,8 @@ def _to_entity(model: PermissionModel) -> Permission:
 
 def _apply_entity(model: PermissionModel, entity: Permission) -> None:
     model.code = entity.code.value
+    model.resource = entity.code.resource
+    model.action = entity.code.action
     model.name = entity.name.value
     model.description = entity.description
     model.is_active = entity.is_active
@@ -52,7 +55,10 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
     async def add(self, entity: Permission) -> None:
         model = PermissionModel(
             id=entity.id,
+            tenant_id=entity.tenant_id,
             code=entity.code.value,
+            resource=entity.code.resource,
+            action=entity.code.action,
             name=entity.name.value,
             description=entity.description,
             is_active=entity.is_active,
@@ -81,10 +87,20 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
         result = await self._session().execute(stmt)
         return result.scalar_one_or_none() is not None
 
-    async def list_all(self, *, only_active: bool = False) -> list[Permission]:
+    async def list_all(
+        self,
+        *,
+        only_active: bool = False,
+        resource: str | None = None,
+        action: str | None = None,
+    ) -> list[Permission]:
         stmt = select(PermissionModel).order_by(PermissionModel.code)
         if only_active:
             stmt = stmt.where(PermissionModel.is_active.is_(True))
+        if resource:
+            stmt = stmt.where(PermissionModel.resource == resource)
+        if action:
+            stmt = stmt.where(PermissionModel.action == action)
         result = await self._session().execute(stmt)
         return [_to_entity(m) for m in result.scalars().all()]
 

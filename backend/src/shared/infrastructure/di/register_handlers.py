@@ -36,6 +36,8 @@ from src.modules.roles.queries.role_queries import (
     GetRolesByIdsQuery,
     ListRolesQuery,
 )
+from src.modules.tenants.commands.tenant_commands import UpsertTenantCommand
+from src.modules.tenants.queries.tenant_queries import GetTenantBySlugQuery
 from src.modules.users.commands.user_commands import (
     AssignRolesToUserCommand,
     ChangeUserPasswordCommand,
@@ -49,6 +51,7 @@ from src.modules.users.queries.user_queries import (
     CountUsersQuery,
     GetUserByEmailQuery,
     GetUserByIdQuery,
+    GetUserByUsernameQuery,
     ListUsersQuery,
 )
 from src.shared.application.command_bus import CommandBus
@@ -99,8 +102,13 @@ def register_module_handlers(container: Container) -> None:
     command_bus.register(ReplaceUserRolesCommand, container.replace_user_roles_handler())
     query_bus.register(GetUserByIdQuery, container.get_user_by_id_handler())
     query_bus.register(GetUserByEmailQuery, container.get_user_by_email_handler())
+    query_bus.register(GetUserByUsernameQuery, container.get_user_by_username_handler())
     query_bus.register(ListUsersQuery, container.list_users_handler())
     query_bus.register(CountUsersQuery, container.count_users_handler())
+
+    # Tenants
+    command_bus.register(UpsertTenantCommand, container.upsert_tenant_handler())
+    query_bus.register(GetTenantBySlugQuery, container.get_tenant_by_slug_handler())
 
     # Authentication
     command_bus.register(LoginCommand, container.login_handler())

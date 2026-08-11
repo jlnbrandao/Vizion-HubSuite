@@ -20,12 +20,15 @@ from src.modules.users.events.user_events import (
 from src.modules.users.value_objects.email import Email
 from src.modules.users.value_objects.full_name import FullName
 from src.modules.users.value_objects.hashed_password import HashedPassword
+from src.modules.users.value_objects.username import Username
 from src.shared.domain.aggregate_root import AggregateRoot
 
 
 @dataclass(eq=False, kw_only=True)
 class User(AggregateRoot):
+    tenant_id: UUID
     email: Email
+    username: Username
     full_name: FullName
     hashed_password: HashedPassword
     role_ids: set[UUID] = field(default_factory=set)
@@ -35,11 +38,19 @@ class User(AggregateRoot):
     def create(
         cls,
         *,
+        tenant_id: UUID,
         email: Email,
+        username: Username,
         full_name: FullName,
         hashed_password: HashedPassword,
     ) -> User:
-        user = cls(email=email, full_name=full_name, hashed_password=hashed_password)
+        user = cls(
+            tenant_id=tenant_id,
+            email=email,
+            username=username,
+            full_name=full_name,
+            hashed_password=hashed_password,
+        )
         user.raise_event(UserCreatedEvent(aggregate_id=user.id, email=email.value))
         return user
 
@@ -49,6 +60,13 @@ class User(AggregateRoot):
         self.email = email
         self.touch()
         self.raise_event(UserUpdatedEvent(aggregate_id=self.id, email=email.value))
+
+    def change_username(self, username: Username) -> None:
+        if self.username == username:
+            return
+        self.username = username
+        self.touch()
+        self.raise_event(UserUpdatedEvent(aggregate_id=self.id, email=self.email.value))
 
     def change_full_name(self, full_name: FullName) -> None:
         if self.full_name == full_name:

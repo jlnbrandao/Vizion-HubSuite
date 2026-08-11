@@ -68,7 +68,11 @@ class CreateRoleHandler(CommandHandler[CreateRoleCommand, UUID]):
             if await self._roles.exists_by_name(name):
                 raise ConflictError(f"Role already exists: {name.value}")
 
-            role = Role.create(name=name, description=description)
+            role = Role.create(
+                tenant_id=command.tenant_id,
+                name=name,
+                description=description,
+            )
             await self._roles.add(role)
             uow.track(role)
             await uow.commit()

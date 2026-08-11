@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from uuid import UUID
 
 from src.modules.permissions.events.permission_events import (
     PermissionCreatedEvent,
@@ -16,6 +17,7 @@ from src.shared.domain.aggregate_root import AggregateRoot
 
 @dataclass(eq=False, kw_only=True)
 class Permission(AggregateRoot):
+    tenant_id: UUID
     code: PermissionCode
     name: PermissionName
     description: str = ""
@@ -25,11 +27,17 @@ class Permission(AggregateRoot):
     def create(
         cls,
         *,
+        tenant_id: UUID,
         code: PermissionCode,
         name: PermissionName,
         description: str = "",
     ) -> Permission:
-        permission = cls(code=code, name=name, description=description.strip())
+        permission = cls(
+            tenant_id=tenant_id,
+            code=code,
+            name=name,
+            description=description.strip(),
+        )
         permission.raise_event(
             PermissionCreatedEvent(
                 aggregate_id=permission.id,

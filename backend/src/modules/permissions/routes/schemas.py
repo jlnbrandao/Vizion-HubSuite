@@ -23,6 +23,8 @@ class UpdatePermissionRequest(BaseModel):
 class PermissionResponse(BaseModel):
     id: UUID
     code: str
+    resource: str
+    action: str
     name: str
     description: str
     is_active: bool

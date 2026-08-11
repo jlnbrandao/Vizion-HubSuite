@@ -32,6 +32,7 @@ from src.shared.infrastructure.di.container import Container
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.security.dependencies import require_permission
 from src.shared.infrastructure.security.permission_codes import PermissionCode
+from src.shared.infrastructure.tenant_context import require_current_tenant_id
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -40,6 +41,7 @@ def _to_response(dto: UserDto) -> UserResponse:
     return UserResponse(
         id=dto.id,
         email=dto.email,
+        username=dto.username,
         full_name=dto.full_name,
         role_ids=list(dto.role_ids),
         is_active=dto.is_active,
@@ -57,7 +59,9 @@ async def create_user(
 ) -> UserIdResponse:
     user_id = await command_bus.execute(
         CreateUserCommand(
+            tenant_id=require_current_tenant_id(),
             email=body.email,
+            username=body.username,
             full_name=body.full_name,
             password=body.password,
             role_ids=frozenset(body.role_ids),
@@ -99,6 +103,7 @@ async def update_user(
     await command_bus.execute(
         UpdateUserCommand(
             user_id=user_id,
+            username=body.username,
             full_name=body.full_name,
             is_active=body.is_active,
         )
@@ -134,7 +139,7 @@ async def assign_roles(
     user_id: UUID,
     body: RoleIdsRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.USERS_ASSIGN_ROLES)),
+    _: CurrentUser = Depends(require_permission(PermissionCode.USERS_ASSIGN)),
 ) -> None:
     await command_bus.execute(
         AssignRolesToUserCommand(user_id=user_id, role_ids=frozenset(body.role_ids))
@@ -147,7 +152,7 @@ async def revoke_roles(
     user_id: UUID,
     body: RoleIdsRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.USERS_ASSIGN_ROLES)),
+    _: CurrentUser = Depends(require_permission(PermissionCode.USERS_ASSIGN)),
 ) -> None:
     await command_bus.execute(
         RevokeRolesFromUserCommand(user_id=user_id, role_ids=frozenset(body.role_ids))
@@ -160,7 +165,7 @@ async def replace_roles(
     user_id: UUID,
     body: RoleIdsRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.USERS_ASSIGN_ROLES)),
+    _: CurrentUser = Depends(require_permission(PermissionCode.USERS_ASSIGN)),
 ) -> None:
     await command_bus.execute(
         ReplaceUserRolesCommand(user_id=user_id, role_ids=frozenset(body.role_ids))

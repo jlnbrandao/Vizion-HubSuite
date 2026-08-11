@@ -11,6 +11,9 @@ class CurrentUser:
     id: UUID
     email: str
     full_name: str
+    tenant_id: UUID
+    tenant_slug: str
+    tenant_name: str = ""
     role_ids: tuple[UUID, ...] = field(default_factory=tuple)
     role_names: frozenset[str] = field(default_factory=frozenset)
     permissions: frozenset[str] = field(default_factory=frozenset)

@@ -14,6 +14,7 @@ from src.config.settings import get_settings
 from src.shared.infrastructure.database import Base
 
 # Import models so metadata is populated
+import src.modules.tenants.repositories.tenant_model  # noqa: F401
 import src.modules.permissions.repositories.permission_model  # noqa: F401
 import src.modules.roles.repositories.role_model  # noqa: F401
 import src.modules.users.repositories.user_model  # noqa: F401

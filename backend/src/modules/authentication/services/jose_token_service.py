@@ -28,6 +28,8 @@ class JoseTokenService(TokenService):
             "sub": str(claims.user_id),
             "email": claims.email,
             "full_name": claims.full_name,
+            "tenant_id": str(claims.tenant_id),
+            "tenant_slug": claims.tenant_slug,
             "role_ids": [str(rid) for rid in claims.role_ids],
             "iat": int(now.timestamp()),
             "exp": int(exp.timestamp()),

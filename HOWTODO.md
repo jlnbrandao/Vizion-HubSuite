@@ -34,6 +34,48 @@ CurrentUser.permissions
 3. Formato obrigatório: `resource.action` — regex `^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$`.
 4. Usar constantes `PermissionCode.*` — nunca string solta em rotas/UI.
 5. O JWT **não** embute permissões; elas são resolvidas a cada request a partir dos `role_ids`.
+6. Além do código, registrar **metadados** (resource, action, name, description) no catálogo.
+7. Preferir **actions padronizadas** — não inventar verbos.
+
+---
+
+## Metadados da permissão
+
+O código canônico (`users.create`) é o que gates e `can()` checam. Persistimos também metadados para listar, filtrar e gerar UI:
+
+| Campo | Exemplo | Uso |
+|-------|---------|-----|
+| `id` | UUID | PK / FK em `role_permissions` |
+| `code` | `users.create` | Gate AuthZ (`require_permission`, `can`) |
+| `resource` | `users` | Filtrar “todas as permissões do recurso X” |
+| `action` | `create` | Filtrar por verbo / gerar telas por ação |
+| `name` | `Criar usuários` | Label em UI / matriz de roles |
+| `description` | `Permite criar usuários` | Ajuda / tooltip |
+
+`resource` e `action` são derivados de `code` (`resource.action`) e armazenados em colunas indexadas. A API devolve os campos e aceita `?resource=` / `?action=` em `GET /api/v1/permissions`.
+
+### Actions padronizadas
+
+Evite inventar verbos. Use `PermissionAction` (backend) / `PermissionAction` (frontend):
+
+| Action | Uso típico |
+|--------|------------|
+| `create` | Criar registro |
+| `read` | Ver detalhe / acessar página |
+| `update` | Editar |
+| `delete` | Excluir |
+| `list` | Listar coleção (quando distinto de `read`) |
+| `manage` | Administração ampla do recurso |
+| `export` | Exportar dados |
+| `import` | Importar dados |
+| `approve` | Aprovar fluxo |
+| `cancel` | Cancelar fluxo |
+| `execute` | Disparar job / ação |
+| `assign` | Atribuir vínculo (ex.: `users.assign`, `roles.assign`) |
+| `link` / `unlink` | Associar / desassociar |
+| `activate` / `deactivate` | Ativar / desativar |
+
+**Exceções de seção:** `dashboard.admin|manager|operator|client|viewer` e `system.settings` são chaves de seção/feature, não verbos CRUD. Não use esse padrão para recursos de domínio novos.
 
 ---
 
@@ -41,7 +83,7 @@ CurrentUser.permissions
 
 Toda feature protegida começa aqui.
 
-### 1. Backend — catálogo canônico
+### 1. Backend — catálogo canônico + metadados
 
 Arquivo: [`backend/src/shared/infrastructure/security/permission_codes.py`](backend/src/shared/infrastructure/security/permission_codes.py)
 
@@ -51,9 +93,26 @@ class PermissionCode:
     REPORTS_READ = "reports.read"
     REPORTS_CREATE = "reports.create"
     REPORTS_EXPORT = "reports.export"
+
+# Em PERMISSION_CATALOG:
+PermissionDefinition(
+    code=PermissionCode.REPORTS_READ,
+    name="Ler relatórios",
+    description="Permite visualizar relatórios",
+),
+PermissionDefinition(
+    code=PermissionCode.REPORTS_CREATE,
+    name="Criar relatórios",
+    description="Permite criar relatórios",
+),
+PermissionDefinition(
+    code=PermissionCode.REPORTS_EXPORT,
+    name="Exportar relatórios",
+    description="Permite exportar relatórios",
+),
 ```
 
-`PermissionCode.all_codes()` coleta automaticamente atributos `UPPER` string.
+`PermissionCode.all_codes()` coleta atributos `UPPER` string. O seed usa `PermissionCode.definition_for(code)` para name/description.
 
 ### 2. Frontend — espelho
 
@@ -67,6 +126,8 @@ export const PermissionCode = {
   REPORTS_EXPORT: 'reports.export',
 } as const
 ```
+
+Para actions novas, reutilize `PermissionAction` (`create`, `export`, …).
 
 ### 3. Seed — mapear para roles
 
@@ -98,15 +159,15 @@ cd backend
 python -m scripts.seed
 ```
 
-Idempotente: cria permissões faltantes e substitui o conjunto de permissões de cada role.
+Idempotente: cria permissões faltantes, sincroniza name/description do catálogo e substitui o conjunto de permissões de cada role.
 
 ### Alternativa em runtime (admin UI / API)
 
 | Operação | Endpoint | Permissão exigida |
 |----------|----------|-------------------|
 | Criar permissão | `POST /api/v1/permissions` | `permissions.create` |
-| Atribuir a role | `PUT /api/v1/roles/{id}/permissions` | `roles.assign_permissions` |
-| Atribuir role a usuário | `PUT /api/v1/users/{id}/roles` | `users.assign_roles` |
+| Atribuir a role | `PUT /api/v1/roles/{id}/permissions` | `roles.assign` |
+| Atribuir role a usuário | `PUT /api/v1/users/{id}/roles` | `users.assign` |
 
 Features de produto ainda devem entrar no **catálogo + seed**, para o ambiente ser reproduzível.
 
@@ -331,7 +392,7 @@ Quando a página já existe e você precisa proteger uma ação pontual.
 
 ### Checklist
 
-1. Passo zero — permissão específica (ex.: `users.assign_roles`, `reports.export`).
+1. Passo zero — permissão específica (ex.: `users.assign`, `reports.export`).
 2. Endpoint backend com o **mesmo** código.
 3. Router da página continua com a permissão de leitura (ex.: `users.read`).
 4. Botão: `v-if="can(PermissionCode.…)"`.
@@ -343,7 +404,7 @@ Quando a página já existe e você precisa proteger uma ação pontual.
 | Router | `meta.permissions: [USERS_READ]` |
 | Botão criar | `can(USERS_CREATE)` |
 | Botão editar | `can(USERS_UPDATE)` |
-| Botão roles | `can(USERS_ASSIGN_ROLES)` |
+| Botão roles | `can(USERS_ASSIGN)` |
 | Botão excluir | `can(USERS_DELETE)` |
 | API | cada rota com o `require_permission` correspondente |
 
@@ -355,8 +416,8 @@ Esconder o botão **não** substitui o gate no backend. Sempre os dois.
 
 | Peça | Caminho |
 |------|---------|
-| Catálogo backend | `backend/src/shared/infrastructure/security/permission_codes.py` |
-| Catálogo frontend | `frontend/src/constants/permissions.ts` |
+| Catálogo backend (+ metadados / actions) | `backend/src/shared/infrastructure/security/permission_codes.py` |
+| Catálogo frontend (+ `PermissionAction`) | `frontend/src/constants/permissions.ts` |
 | Seed / mapa role→perms | `backend/scripts/seed.py` |
 | CurrentUser | `backend/src/shared/infrastructure/security/current_user.py` |
 | Depends AuthZ | `backend/src/shared/infrastructure/security/dependencies.py` |
@@ -379,8 +440,8 @@ Esconder o botão **não** substitui o gate no backend. Sempre os dois.
 
 | Resource | Actions |
 |----------|---------|
-| `users` | `create`, `read`, `update`, `delete`, `assign_roles` |
-| `roles` | `create`, `read`, `update`, `delete`, `assign_permissions` |
+| `users` | `create`, `read`, `update`, `delete`, `assign` |
+| `roles` | `create`, `read`, `update`, `delete`, `assign` |
 | `permissions` | `create`, `read`, `update`, `delete` |
 | `dashboard` | `admin`, `manager`, `operator`, `client`, `viewer` |
 | `system` | `settings` (no catálogo; **não** atribuída a nenhuma role do seed) |
@@ -395,13 +456,22 @@ Esconder o botão **não** substitui o gate no backend. Sempre os dois.
 | **CLIENT** | `dashboard.client` |
 | **VIEWER** | `users/roles/permissions.read`, `dashboard.viewer` |
 
-Demo: `galileu@lanstar.com.br` / `Demo@12345` → role `ADMIN`.
+Demo users (password `123Mudar.`):
+
+| username | email | role |
+|---|---|---|
+| `galileu` | `galileu@lanstar.com.br` | `ADMIN` |
+| `manager` | `manager@lanstar.com.br` | `MANAGER` |
+| `operator` | `operator@lanstar.com.br` | `OPERATOR` |
+| `user` | `user@lanstar.com.br` | `CLIENT` |
+| `viewer` | `viewer@lanstar.com.br` | `VIEWER` |
 
 ---
 
 ## Checklist pós-implementação
 
 - [ ] Código adicionado em `permission_codes.py` **e** `permissions.ts` (mesmos valores).
+- [ ] Metadados em `PERMISSION_CATALOG` (name + description); action preferencialmente de `PermissionAction`.
 - [ ] Código incluído em `ROLE_PERMISSIONS` nas roles corretas (respeitar regra do ADMIN).
 - [ ] `python -m scripts.seed` executado no ambiente.
 - [ ] Endpoints API com `Depends(require_permission(...))` (ou `require_any_permission`).
