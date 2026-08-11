@@ -10,6 +10,7 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from uuid import UUID
 
+from src.modules.authentication.services.refresh_token_store import RefreshTokenStore
 from src.modules.roles.dtos.role_dtos import RolesExistResult
 from src.modules.roles.queries.role_queries import CheckRolesExistQuery
 from src.modules.users.commands.user_commands import (
@@ -128,9 +129,15 @@ class CreateUserHandler(CommandHandler[CreateUserCommand, UUID]):
 
 
 class UpdateUserHandler(CommandHandler[UpdateUserCommand, None]):
-    def __init__(self, uow_factory: UowFactory, users: UserRepository) -> None:
+    def __init__(
+        self,
+        uow_factory: UowFactory,
+        users: UserRepository,
+        refresh_store: RefreshTokenStore,
+    ) -> None:
         self._uow_factory = uow_factory
         self._users = users
+        self._refresh_store = refresh_store
 
     async def handle(self, command: UpdateUserCommand) -> None:
         try:
@@ -149,6 +156,7 @@ class UpdateUserHandler(CommandHandler[UpdateUserCommand, None]):
                 if existing is not None and existing.id != user.id:
                     raise ConflictError(f"Username already registered: {username.value}")
 
+            was_active = user.is_active
             user.change_username(username)
             user.change_full_name(full_name)
             if command.is_active:
@@ -160,6 +168,9 @@ class UpdateUserHandler(CommandHandler[UpdateUserCommand, None]):
             uow.track(user)
             await uow.commit()
 
+        if was_active and not command.is_active:
+            await self._refresh_store.delete_all_for_user(command.user_id)
+
 
 class ChangeUserPasswordHandler(CommandHandler[ChangeUserPasswordCommand, None]):
     def __init__(
@@ -167,10 +178,12 @@ class ChangeUserPasswordHandler(CommandHandler[ChangeUserPasswordCommand, None])
         uow_factory: UowFactory,
         users: UserRepository,
         password_hasher: PasswordHasher,
+        refresh_store: RefreshTokenStore,
     ) -> None:
         self._uow_factory = uow_factory
         self._users = users
         self._password_hasher = password_hasher
+        self._refresh_store = refresh_store
 
     async def handle(self, command: ChangeUserPasswordCommand) -> None:
         try:
@@ -190,11 +203,19 @@ class ChangeUserPasswordHandler(CommandHandler[ChangeUserPasswordCommand, None])
             uow.track(user)
             await uow.commit()
 
+        await self._refresh_store.delete_all_for_user(command.user_id)
+
 
 class DeleteUserHandler(CommandHandler[DeleteUserCommand, None]):
-    def __init__(self, uow_factory: UowFactory, users: UserRepository) -> None:
+    def __init__(
+        self,
+        uow_factory: UowFactory,
+        users: UserRepository,
+        refresh_store: RefreshTokenStore,
+    ) -> None:
         self._uow_factory = uow_factory
         self._users = users
+        self._refresh_store = refresh_store
 
     async def handle(self, command: DeleteUserCommand) -> None:
         async with self._uow_factory() as uow:
@@ -207,6 +228,8 @@ class DeleteUserHandler(CommandHandler[DeleteUserCommand, None]):
             uow.track(user)
             await uow.commit()
 
+        await self._refresh_store.delete_all_for_user(command.user_id)
+
 
 class AssignRolesToUserHandler(CommandHandler[AssignRolesToUserCommand, None]):
     def __init__(
@@ -214,10 +237,12 @@ class AssignRolesToUserHandler(CommandHandler[AssignRolesToUserCommand, None]):
         uow_factory: UowFactory,
         users: UserRepository,
         query_bus: QueryBus,
+        refresh_store: RefreshTokenStore,
     ) -> None:
         self._uow_factory = uow_factory
         self._users = users
         self._query_bus = query_bus
+        self._refresh_store = refresh_store
 
     async def handle(self, command: AssignRolesToUserCommand) -> None:
         result: RolesExistResult = await self._query_bus.ask(
@@ -237,11 +262,19 @@ class AssignRolesToUserHandler(CommandHandler[AssignRolesToUserCommand, None]):
             uow.track(user)
             await uow.commit()
 
+        await self._refresh_store.delete_all_for_user(command.user_id)
+
 
 class RevokeRolesFromUserHandler(CommandHandler[RevokeRolesFromUserCommand, None]):
-    def __init__(self, uow_factory: UowFactory, users: UserRepository) -> None:
+    def __init__(
+        self,
+        uow_factory: UowFactory,
+        users: UserRepository,
+        refresh_store: RefreshTokenStore,
+    ) -> None:
         self._uow_factory = uow_factory
         self._users = users
+        self._refresh_store = refresh_store
 
     async def handle(self, command: RevokeRolesFromUserCommand) -> None:
         async with self._uow_factory() as uow:
@@ -254,6 +287,8 @@ class RevokeRolesFromUserHandler(CommandHandler[RevokeRolesFromUserCommand, None
             uow.track(user)
             await uow.commit()
 
+        await self._refresh_store.delete_all_for_user(command.user_id)
+
 
 class ReplaceUserRolesHandler(CommandHandler[ReplaceUserRolesCommand, None]):
     def __init__(
@@ -261,10 +296,12 @@ class ReplaceUserRolesHandler(CommandHandler[ReplaceUserRolesCommand, None]):
         uow_factory: UowFactory,
         users: UserRepository,
         query_bus: QueryBus,
+        refresh_store: RefreshTokenStore,
     ) -> None:
         self._uow_factory = uow_factory
         self._users = users
         self._query_bus = query_bus
+        self._refresh_store = refresh_store
 
     async def handle(self, command: ReplaceUserRolesCommand) -> None:
         if command.role_ids:
@@ -285,6 +322,7 @@ class ReplaceUserRolesHandler(CommandHandler[ReplaceUserRolesCommand, None]):
             uow.track(user)
             await uow.commit()
 
+        await self._refresh_store.delete_all_for_user(command.user_id)
 
 class GetUserByIdHandler(QueryHandler[GetUserByIdQuery, UserDto]):
     def __init__(self, uow_factory: UowFactory, users: UserRepository) -> None:

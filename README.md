@@ -43,6 +43,19 @@ Event Bus e Dependency Injection.
 - Login **não** tem campo de tenant: acesse a app pelo host do tenant.
 - JWT e refresh session carregam `tenant_id` / `tenant_slug`; token de um tenant é rejeitado se o Host for de outro.
 
+## Autenticação e autorização
+
+| Peça | Comportamento |
+|------|----------------|
+| Access token | JWT HS256 (~15 min), enviado no header `Authorization: Bearer` |
+| Refresh token | Opaco, Redis TTL 7 dias, cookie **httpOnly** (`lanstar_refresh_token`, `SameSite=lax`, `Secure` fora de development) |
+| Frontend | Access só em **memória** (não persiste em `localStorage`); bootstrap/refresh usam o cookie |
+| AuthZ | `Depends(require_permission(...))` no backend; UI espelha com `can()` / `meta.permissions` |
+| Hierarquia | Roles ranqueadas (`ADMIN` > `MANAGER` > …): quem tem `users.update` **não** gerencia pares ou superiores (ex.: MANAGER não reseta senha de ADMIN) |
+| Sessões | Refresh recarrega `role_ids` / `is_active` do banco; senha, desativação, delete ou troca de roles invalida todos os refresh tokens do usuário |
+
+Em produção (`APP_ENV` ≠ `development`), `JWT_SECRET_KEY` deve ter **≥ 32 caracteres** e não pode ser o placeholder padrão — a API recusa subir com secret fraco.
+
 ## Stack completa (Docker)
 
 ```bash

@@ -282,29 +282,34 @@ class Container(containers.DeclarativeContainer):
         UpdateUserHandler,
         uow_factory=unit_of_work.provider,
         users=user_repository,
+        refresh_store=refresh_token_store,
     )
     change_user_password_handler: providers.Factory[ChangeUserPasswordHandler] = providers.Factory(
         ChangeUserPasswordHandler,
         uow_factory=unit_of_work.provider,
         users=user_repository,
         password_hasher=password_hasher,
+        refresh_store=refresh_token_store,
     )
     delete_user_handler: providers.Factory[DeleteUserHandler] = providers.Factory(
         DeleteUserHandler,
         uow_factory=unit_of_work.provider,
         users=user_repository,
+        refresh_store=refresh_token_store,
     )
     assign_roles_to_user_handler: providers.Factory[AssignRolesToUserHandler] = providers.Factory(
         AssignRolesToUserHandler,
         uow_factory=unit_of_work.provider,
         users=user_repository,
         query_bus=query_bus,
+        refresh_store=refresh_token_store,
     )
     revoke_roles_from_user_handler: providers.Factory[RevokeRolesFromUserHandler] = (
         providers.Factory(
             RevokeRolesFromUserHandler,
             uow_factory=unit_of_work.provider,
             users=user_repository,
+            refresh_store=refresh_token_store,
         )
     )
     replace_user_roles_handler: providers.Factory[ReplaceUserRolesHandler] = providers.Factory(
@@ -312,6 +317,7 @@ class Container(containers.DeclarativeContainer):
         uow_factory=unit_of_work.provider,
         users=user_repository,
         query_bus=query_bus,
+        refresh_store=refresh_token_store,
     )
     get_user_by_id_handler: providers.Factory[GetUserByIdHandler] = providers.Factory(
         GetUserByIdHandler,
@@ -370,6 +376,7 @@ class Container(containers.DeclarativeContainer):
         token_service=token_service,
         refresh_store=refresh_token_store,
         event_bus=event_bus,
+        query_bus=query_bus,
     )
     resolve_effective_access_handler: providers.Factory[ResolveEffectiveAccessHandler] = (
         providers.Factory(

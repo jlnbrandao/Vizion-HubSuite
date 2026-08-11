@@ -6,6 +6,9 @@ from uuid import uuid4
 
 import pytest
 
+from src.modules.authentication.services.in_memory_refresh_token_store import (
+    InMemoryRefreshTokenStore,
+)
 from src.modules.roles.commands.role_commands import CreateRoleCommand
 from src.modules.roles.handlers.role_handlers import CheckRolesExistHandler, CreateRoleHandler
 from src.modules.roles.queries.role_queries import CheckRolesExistQuery
@@ -79,6 +82,11 @@ def uow_factory(event_bus: EventBus):
 @pytest.fixture
 def password_hasher() -> FakePasswordHasher:
     return FakePasswordHasher()
+
+
+@pytest.fixture
+def refresh_store() -> InMemoryRefreshTokenStore:
+    return InMemoryRefreshTokenStore()
 
 
 @pytest.fixture
@@ -165,10 +173,10 @@ async def test_create_user_duplicate_username(
 
 @pytest.mark.asyncio
 async def test_assign_rejects_unknown_roles(
-    users_repo, uow_factory, password_hasher, query_bus
+    users_repo, uow_factory, password_hasher, query_bus, refresh_store
 ) -> None:
     create_user = CreateUserHandler(uow_factory, users_repo, password_hasher, query_bus)
-    assign = AssignRolesToUserHandler(uow_factory, users_repo, query_bus)
+    assign = AssignRolesToUserHandler(uow_factory, users_repo, query_bus, refresh_store)
 
     user_id = await create_user.handle(
         CreateUserCommand(tenant_id=BIGBANG_TENANT_ID,
@@ -187,16 +195,18 @@ async def test_assign_rejects_unknown_roles(
 
 @pytest.mark.asyncio
 async def test_update_password_list_replace_delete(
-    users_repo, roles_repo, uow_factory, password_hasher, query_bus
+    users_repo, roles_repo, uow_factory, password_hasher, query_bus, refresh_store
 ) -> None:
     create_role = CreateRoleHandler(uow_factory, roles_repo)
     create_user = CreateUserHandler(uow_factory, users_repo, password_hasher, query_bus)
-    update = UpdateUserHandler(uow_factory, users_repo)
-    change_pwd = ChangeUserPasswordHandler(uow_factory, users_repo, password_hasher)
-    replace = ReplaceUserRolesHandler(uow_factory, users_repo, query_bus)
+    update = UpdateUserHandler(uow_factory, users_repo, refresh_store)
+    change_pwd = ChangeUserPasswordHandler(
+        uow_factory, users_repo, password_hasher, refresh_store
+    )
+    replace = ReplaceUserRolesHandler(uow_factory, users_repo, query_bus, refresh_store)
     list_users = ListUsersHandler(uow_factory, users_repo)
     get_by_email = GetUserByEmailHandler(uow_factory, users_repo)
-    delete = DeleteUserHandler(uow_factory, users_repo)
+    delete = DeleteUserHandler(uow_factory, users_repo, refresh_store)
 
     r1 = await create_role.handle(CreateRoleCommand(tenant_id=BIGBANG_TENANT_ID,name="MANAGER"))
     r2 = await create_role.handle(CreateRoleCommand(tenant_id=BIGBANG_TENANT_ID,name="VIEWER"))
@@ -237,3 +247,71 @@ async def test_update_password_list_replace_delete(
 
     await delete.handle(DeleteUserCommand(user_id=user_id))
     assert await list_users.handle(ListUsersQuery()) == []
+
+
+@pytest.mark.asyncio
+async def test_password_change_and_deactivate_revoke_refresh_sessions(
+    users_repo, uow_factory, password_hasher, query_bus, refresh_store
+) -> None:
+    from datetime import UTC, datetime
+
+    from src.modules.authentication.dtos.auth_dtos import RefreshSessionDto
+    from src.modules.authentication.value_objects.refresh_token import RefreshToken
+
+    create_user = CreateUserHandler(uow_factory, users_repo, password_hasher, query_bus)
+    change_pwd = ChangeUserPasswordHandler(
+        uow_factory, users_repo, password_hasher, refresh_store
+    )
+    update = UpdateUserHandler(uow_factory, users_repo, refresh_store)
+
+    user_id = await create_user.handle(
+        CreateUserCommand(
+            tenant_id=BIGBANG_TENANT_ID,
+            email="s@x.com",
+            username="sess",
+            full_name="Session User",
+            password="Secret123",
+        )
+    )
+    token = RefreshToken.generate()
+    await refresh_store.save(
+        token,
+        RefreshSessionDto(
+            user_id=user_id,
+            email="s@x.com",
+            full_name="Session User",
+            tenant_id=BIGBANG_TENANT_ID,
+            tenant_slug="bigbang",
+            role_ids=(),
+            created_at=datetime.now(UTC),
+        ),
+    )
+    assert await refresh_store.get(token) is not None
+
+    await change_pwd.handle(
+        ChangeUserPasswordCommand(user_id=user_id, new_password="NewSecret1")
+    )
+    assert await refresh_store.get(token) is None
+
+    token2 = RefreshToken.generate()
+    await refresh_store.save(
+        token2,
+        RefreshSessionDto(
+            user_id=user_id,
+            email="s@x.com",
+            full_name="Session User",
+            tenant_id=BIGBANG_TENANT_ID,
+            tenant_slug="bigbang",
+            role_ids=(),
+            created_at=datetime.now(UTC),
+        ),
+    )
+    await update.handle(
+        UpdateUserCommand(
+            user_id=user_id,
+            username="sess",
+            full_name="Session User",
+            is_active=False,
+        )
+    )
+    assert await refresh_store.get(token2) is None

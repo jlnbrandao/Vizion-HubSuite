@@ -15,6 +15,12 @@ Não use `http://localhost:9000` sem subdomínio — o backend resolve o tenant 
 
 API proxy: `/api` → `http://127.0.0.1:8000` com `changeOrigin: false` (preserva `Host: bigbang.localhost`).
 
+## Auth
+
+- Access token JWT fica **apenas em memória** (Axios `Authorization: Bearer`).
+- Refresh token vive em cookie **httpOnly** (mesmo origin via proxy; `withCredentials: true`).
+- No reload, o store chama `/auth/refresh` e hidrata o usuário via `/dashboard/me`.
+
 ## Permissions (no role-name branching)
 
 | Piece | Role |

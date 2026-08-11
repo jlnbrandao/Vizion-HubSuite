@@ -23,9 +23,14 @@ from src.modules.users.commands.user_commands import CreateUserCommand
 from src.modules.users.handlers.user_handlers import (
     CreateUserHandler,
     GetUserByEmailHandler,
+    GetUserByIdHandler,
     GetUserByUsernameHandler,
 )
-from src.modules.users.queries.user_queries import GetUserByEmailQuery, GetUserByUsernameQuery
+from src.modules.users.queries.user_queries import (
+    GetUserByEmailQuery,
+    GetUserByIdQuery,
+    GetUserByUsernameQuery,
+)
 from src.modules.users.repositories.in_memory_user_repository import InMemoryUserRepository
 from src.modules.users.services.password_hasher import PasswordHasher
 from src.modules.users.value_objects.hashed_password import HashedPassword
@@ -82,6 +87,7 @@ def query_bus(uow_factory, users_repo) -> QueryBus:
     bus = QueryBus()
     bus.register(GetUserByEmailQuery, GetUserByEmailHandler(uow_factory, users_repo))
     bus.register(GetUserByUsernameQuery, GetUserByUsernameHandler(uow_factory, users_repo))
+    bus.register(GetUserByIdQuery, GetUserByIdHandler(uow_factory, users_repo))
     return bus
 
 
@@ -128,8 +134,8 @@ def logout_handler(refresh_store, event_bus):
 
 
 @pytest.fixture
-def refresh_handler(token_service, refresh_store, event_bus):
-    return RefreshTokenHandler(token_service, refresh_store, event_bus)
+def refresh_handler(token_service, refresh_store, event_bus, query_bus):
+    return RefreshTokenHandler(token_service, refresh_store, event_bus, query_bus)
 
 
 @pytest.mark.asyncio
@@ -200,6 +206,50 @@ async def test_logout_invalidates_refresh(
         LoginCommand(login="admin@lanstar.io", password="Secret123")
     )
     await logout_handler.handle(LogoutCommand(refresh_token=pair.refresh_token))
+
+    with pytest.raises(UnauthorizedError):
+        await refresh_handler.handle(
+            RefreshTokenCommand(refresh_token=pair.refresh_token)
+        )
+
+
+@pytest.mark.asyncio
+async def test_refresh_reloads_role_ids_from_db(
+    seeded_user, login_handler, refresh_handler, token_service, users_repo, uow_factory
+) -> None:
+    from uuid import uuid4
+
+    pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123"))
+    new_role_id = uuid4()
+
+    async with uow_factory() as uow:
+        user = await users_repo.get_by_id(seeded_user)
+        assert user is not None
+        user.replace_roles({new_role_id})
+        await users_repo.update(user)
+        uow.track(user)
+        await uow.commit()
+
+    new_pair = await refresh_handler.handle(
+        RefreshTokenCommand(refresh_token=pair.refresh_token)
+    )
+    claims = token_service.decode_access_token(new_pair.access_token)
+    assert claims.role_ids == (new_role_id,)
+
+
+@pytest.mark.asyncio
+async def test_refresh_rejects_inactive_user(
+    seeded_user, login_handler, refresh_handler, users_repo, uow_factory
+) -> None:
+    pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123"))
+
+    async with uow_factory() as uow:
+        user = await users_repo.get_by_id(seeded_user)
+        assert user is not None
+        user.deactivate()
+        await users_repo.update(user)
+        uow.track(user)
+        await uow.commit()
 
     with pytest.raises(UnauthorizedError):
         await refresh_handler.handle(

@@ -15,29 +15,34 @@ import type {
   UserResponse,
 } from '@/types/api'
 
-const ACCESS_KEY = 'lanstar.access_token'
-const REFRESH_KEY = 'lanstar.refresh_token'
+const LEGACY_ACCESS_KEY = 'lanstar.access_token'
+const LEGACY_REFRESH_KEY = 'lanstar.refresh_token'
+
+/** In-memory access token — never persisted (refresh lives in httpOnly cookie). */
+let memoryAccessToken: string | null = null
 
 export const tokenStorage = {
   getAccess(): string | null {
-    return localStorage.getItem(ACCESS_KEY)
+    return memoryAccessToken
   },
-  getRefresh(): string | null {
-    return localStorage.getItem(REFRESH_KEY)
-  },
-  set(access: string, refresh: string) {
-    localStorage.setItem(ACCESS_KEY, access)
-    localStorage.setItem(REFRESH_KEY, refresh)
+  setAccess(access: string) {
+    memoryAccessToken = access
   },
   clear() {
-    localStorage.removeItem(ACCESS_KEY)
-    localStorage.removeItem(REFRESH_KEY)
+    memoryAccessToken = null
+    try {
+      localStorage.removeItem(LEGACY_ACCESS_KEY)
+      localStorage.removeItem(LEGACY_REFRESH_KEY)
+    } catch {
+      // ignore storage access errors
+    }
   },
 }
 
 export const api = axios.create({
   baseURL: '/api/v1',
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -51,14 +56,12 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 let refreshPromise: Promise<string> | null = null
 
 async function refreshAccessToken(): Promise<string> {
-  const refresh = tokenStorage.getRefresh()
-  if (!refresh) {
-    throw new Error('No refresh token')
-  }
-  const { data } = await axios.post<TokenResponse>('/api/v1/auth/refresh', {
-    refresh_token: refresh,
-  })
-  tokenStorage.set(data.access_token, data.refresh_token)
+  const { data } = await axios.post<TokenResponse>(
+    '/api/v1/auth/refresh',
+    {},
+    { withCredentials: true },
+  )
+  tokenStorage.setAccess(data.access_token)
   return data.access_token
 }
 
@@ -97,8 +100,11 @@ export const authApi = {
   login(login: string, password: string) {
     return api.post<TokenResponse>('/auth/login', { login, password })
   },
-  logout(refreshToken: string) {
-    return api.post('/auth/logout', { refresh_token: refreshToken })
+  refresh() {
+    return api.post<TokenResponse>('/auth/refresh', {})
+  },
+  logout() {
+    return api.post('/auth/logout', {})
   },
 }
 

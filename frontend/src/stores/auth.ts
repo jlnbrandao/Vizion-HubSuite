@@ -14,8 +14,8 @@ export const useAuthStore = defineStore('auth', () => {
     () => Boolean(accessToken.value && user.value),
   )
 
-  function persistTokens(access: string, refresh: string) {
-    tokenStorage.set(access, refresh)
+  function persistAccess(access: string) {
+    tokenStorage.setAccess(access)
     accessToken.value = access
   }
 
@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     try {
       const { data } = await authApi.login(loginId, password)
-      persistTokens(data.access_token, data.refresh_token)
+      persistAccess(data.access_token)
 
       // Minimal identity from login response — ensures isAuthenticated before hydrate.
       user.value = {
@@ -75,16 +75,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function bootstrap() {
-    const existing = tokenStorage.getAccess()
-    if (!existing) {
-      accessToken.value = null
-      user.value = null
-      bootstrapped.value = true
-      return
-    }
-
-    accessToken.value = existing
+    tokenStorage.clear()
     try {
+      const { data } = await authApi.refresh()
+      persistAccess(data.access_token)
       await hydrateFromDashboard()
     } catch {
       clearSession()
@@ -94,11 +88,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
-    const refresh = tokenStorage.getRefresh()
     try {
-      if (refresh) {
-        await authApi.logout(refresh)
-      }
+      await authApi.logout()
     } finally {
       clearSession()
     }

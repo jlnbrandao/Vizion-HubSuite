@@ -19,16 +19,19 @@ class LoginRequest(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str = Field(..., min_length=32)
+    """Optional body token — prefers httpOnly cookie when omitted."""
+
+    refresh_token: str | None = Field(default=None, min_length=32)
 
 
 class LogoutRequest(BaseModel):
-    refresh_token: str = Field(..., min_length=32)
+    """Optional body token — prefers httpOnly cookie when omitted."""
+
+    refresh_token: str | None = Field(default=None, min_length=32)
 
 
 class TokenResponse(BaseModel):
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
     expires_in: int
     user_id: UUID
