@@ -16,7 +16,7 @@ from src.modules.users.value_objects.email import Email
 from src.modules.users.value_objects.full_name import FullName
 from src.modules.users.value_objects.hashed_password import HashedPassword
 from src.modules.users.value_objects.username import Username
-from tests.unit.conftest import BIGBANG_TENANT_ID
+from tests.unit.conftest import UNIVERSE_TENANT_ID
 
 
 def test_email_normalizes_and_validates() -> None:
@@ -54,7 +54,7 @@ def test_username_allows_digit_start() -> None:
 
 def test_user_create_raises_event() -> None:
     user = User.create(
-        tenant_id=BIGBANG_TENANT_ID,
+        tenant_id=UNIVERSE_TENANT_ID,
         email=Email(value="a@b.com"),
         username=Username(value="ada"),
         full_name=FullName(value="Ada Lovelace"),
@@ -68,7 +68,7 @@ def test_user_create_raises_event() -> None:
 
 def test_user_assign_roles_and_change_password() -> None:
     user = User.create(
-        tenant_id=BIGBANG_TENANT_ID,
+        tenant_id=UNIVERSE_TENANT_ID,
         email=Email(value="u@x.com"),
         username=Username(value="user_x"),
         full_name=FullName(value="User Name"),

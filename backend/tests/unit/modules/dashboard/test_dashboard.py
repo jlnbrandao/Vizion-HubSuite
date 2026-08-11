@@ -33,7 +33,7 @@ from src.modules.users.value_objects.username import Username
 from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.security.permission_codes import PermissionCode
-from tests.unit.conftest import BIGBANG_TENANT_ID
+from tests.unit.conftest import UNIVERSE_TENANT_ID
 from tests.unit.shared.in_memory_unit_of_work import InMemoryUnitOfWork
 
 
@@ -80,8 +80,8 @@ async def test_admin_dashboard_includes_rbac_sections(composer: DashboardCompose
         GetDashboardQuery(
             user_id=uuid4(),
             email="admin@lanstar.io",
-            tenant_id=BIGBANG_TENANT_ID,
-            tenant_slug="bigbang",
+            tenant_id=UNIVERSE_TENANT_ID,
+            tenant_slug="universe",
             full_name="Admin",
             role_names=frozenset({"ADMIN"}),
             permissions=frozenset(
@@ -119,8 +119,8 @@ async def test_manager_and_viewer_compose_independently(composer: DashboardCompo
         GetDashboardQuery(
             user_id=uuid4(),
             email="mgr@lanstar.io",
-            tenant_id=BIGBANG_TENANT_ID,
-            tenant_slug="bigbang",
+            tenant_id=UNIVERSE_TENANT_ID,
+            tenant_slug="universe",
             full_name="Manager",
             role_names=frozenset({"MANAGER"}),
             permissions=frozenset({PermissionCode.DASHBOARD_MANAGER}),
@@ -132,8 +132,8 @@ async def test_manager_and_viewer_compose_independently(composer: DashboardCompo
         GetDashboardQuery(
             user_id=uuid4(),
             email="view@lanstar.io",
-            tenant_id=BIGBANG_TENANT_ID,
-            tenant_slug="bigbang",
+            tenant_id=UNIVERSE_TENANT_ID,
+            tenant_slug="universe",
             full_name="Viewer",
             role_names=frozenset({"VIEWER"}),
             permissions=frozenset({PermissionCode.DASHBOARD_VIEWER}),
@@ -150,8 +150,8 @@ async def test_operator_dashboard(composer: DashboardComposer) -> None:
         GetDashboardQuery(
             user_id=uuid4(),
             email="op@lanstar.io",
-            tenant_id=BIGBANG_TENANT_ID,
-            tenant_slug="bigbang",
+            tenant_id=UNIVERSE_TENANT_ID,
+            tenant_slug="universe",
             full_name="Operator",
             permissions=frozenset({PermissionCode.DASHBOARD_OPERATOR}),
         )
@@ -164,7 +164,7 @@ async def test_operator_dashboard(composer: DashboardComposer) -> None:
 async def test_client_dashboard_loads_own_profile(uow_factory, query_bus) -> None:
     users: InMemoryUserRepository = query_bus._handlers[GetUserByIdQuery]._users  # type: ignore[attr-defined]
     user = User.create(
-        tenant_id=BIGBANG_TENANT_ID,
+        tenant_id=UNIVERSE_TENANT_ID,
         email=Email(value="client@lanstar.io"),
         username=Username(value="client"),
         full_name=FullName(value="Client User"),
@@ -186,8 +186,8 @@ async def test_client_dashboard_loads_own_profile(uow_factory, query_bus) -> Non
         GetDashboardQuery(
             user_id=user.id,
             email=user.email.value,
-            tenant_id=BIGBANG_TENANT_ID,
-            tenant_slug="bigbang",
+            tenant_id=UNIVERSE_TENANT_ID,
+            tenant_slug="universe",
             full_name=user.full_name.value,
             role_names=frozenset({"CLIENT"}),
             permissions=frozenset({PermissionCode.DASHBOARD_CLIENT}),
@@ -206,8 +206,8 @@ async def test_no_dashboard_permissions_yields_empty(composer: DashboardComposer
         GetDashboardQuery(
             user_id=uuid4(),
             email="x@y.com",
-            tenant_id=BIGBANG_TENANT_ID,
-            tenant_slug="bigbang",
+            tenant_id=UNIVERSE_TENANT_ID,
+            tenant_slug="universe",
             full_name="Nobody",
             permissions=frozenset({PermissionCode.USERS_READ}),
         )

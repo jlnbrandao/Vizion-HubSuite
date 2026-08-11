@@ -35,14 +35,14 @@ Event Bus e Dependency Injection.
 
 ## Multi-tenancy (RLS)
 
-- Tabela `tenants`; seed cria **`bigbang`** (app) e **`platform`** (ops).
+- Tabela `tenants`; seed cria **`universe`** (app) e **`bigbang`** (ops).
 - `users`, `roles`, `permissions`, `user_roles` e `role_permissions` são isolados por `tenant_id` com **FORCE ROW LEVEL SECURITY**.
 - `tenants` SELECT é restrito ao tenant atual (ou `rls_bypass`); resolução por Host usa a função **`resolve_tenant_by_slug`** (`SECURITY DEFINER`).
-- O slug do tenant vem do **subdomínio do Host** (primeiro label) — igual para **qualquer** tenant (`bigbang`, `platform`, …):
-  - `bigbang.localhost` / `platform.localhost`
-  - `bigbang.<ip>` / `platform.<ip>` (ex.: `platform.134.209.122.250`)
-  - `bigbang.lanstar.com.br` / `platform.lanstar.com.br`
-  - `bigbang.lanstar.local` / `platform.lanstar.local`
+- O slug do tenant vem do **subdomínio do Host** (primeiro label) — igual para **qualquer** tenant (`universe`, `bigbang`, …):
+  - `universe.localhost` / `bigbang.localhost`
+  - `universe.<ip>` / `bigbang.<ip>` (ex.: `bigbang.134.209.122.250`)
+  - `universe.lanstar.com.br` / `bigbang.lanstar.com.br`
+  - `universe.lanstar.local` / `bigbang.lanstar.local`
 - Hosts são validados contra `ALLOWED_TENANT_BASE_DOMAINS` (default: `localhost,lanstar.com.br,lanstar.local`). Formas `*.<ipv4>` são sempre aceitas.
 - Login **não** tem campo de tenant: acesse a app pelo host do tenant.
 - JWT e refresh session carregam `tenant_id` / `tenant_slug`; token de um tenant é rejeitado se o Host for de outro.
@@ -59,15 +59,17 @@ Event Bus e Dependency Injection.
 
 Rotacione as senhas padrão (`lanstar_app` / `lanstar_migrate`) em produção.
 
-### Platform admin
+### Platform Administrator
 
-- Permissões `tenants.*` + `system.settings` existem só no tenant **`platform`** (não no RBAC comum).
+- Permissões `tenants.*` + `system.settings` existem só no tenant **`bigbang`** (não no RBAC comum).
 - API: `GET/POST /api/v1/tenants`, rename, activate/deactivate — exige permissões `tenants.*`.
-- Login (mesmos padrões de Host do `bigbang`):
-  - http://platform.localhost:9000
-  - `http://platform.<servidor>:9000` (ex.: `http://platform.134.209.122.250:9000`)
-  - https://platform.lanstar.com.br (DNS)
-  - http://platform.lanstar.local:9000 (`/etc/hosts`)
+- `GET /tenants` e `GET /tenants/{id}` incluem o **Administrador** do tenant (usuário com role `ADMIN`: `id`, `username`, `email`, `full_name`), ou `null` se não houver (ex.: tenant `bigbang`).
+- `POST /tenants` exige dados do Administrador (`admin_username`, `admin_email`, `admin_full_name`, `admin_password`) e provisiona a role `ADMIN` + permissões RBAC + o usuário admin.
+- Login (mesmos padrões de Host do `universe`):
+  - http://bigbang.localhost:9000
+  - `http://bigbang.<servidor>:9000` (ex.: `http://bigbang.134.209.122.250:9000`)
+  - https://bigbang.lanstar.com.br (DNS)
+  - http://bigbang.lanstar.local:9000 (`/etc/hosts`)
 - Usuário: `galileu` / `123Mudar.`
 
 ## Autenticação e autorização
@@ -94,21 +96,21 @@ docker compose up -d --build
 docker compose --profile seed run --rm seed
 ```
 
-- App (tenant bigbang): http://bigbang.localhost:9000  
+- App (tenant universe): http://universe.localhost:9000  
+  (ou `http://universe.<servidor>:9000` / DNS `universe.lanstar.com.br` / `universe.lanstar.local`)
+- Ops (tenant bigbang): http://bigbang.localhost:9000  
   (ou `http://bigbang.<servidor>:9000` / DNS `bigbang.lanstar.com.br` / `bigbang.lanstar.local`)
-- Platform: http://platform.localhost:9000  
-  (ou `http://platform.<servidor>:9000` / DNS `platform.lanstar.com.br` / `platform.lanstar.local`)
 - API: mesma origem via proxy `/api` (Host preservado)
-- Login demo (bigbang): `admin` ou `admin@lanstar.com.br` / `123Mudar.`
+- Login demo (universe): `admin` ou `admin@lanstar.com.br` / `123Mudar.`
 
 Não use `http://localhost:9000` sem subdomínio — a API exige slug no Host.
 
 Exemplo `/etc/hosts` (ajuste o IP do servidor):
 
 ```
-127.0.0.1       bigbang.localhost platform.localhost
-134.209.122.250 bigbang.lanstar.local platform.lanstar.local
-134.209.122.250 bigbang.134.209.122.250 platform.134.209.122.250
+127.0.0.1       universe.localhost bigbang.localhost
+134.209.122.250 universe.lanstar.local bigbang.lanstar.local
+134.209.122.250 universe.134.209.122.250 bigbang.134.209.122.250
 ```
 
 ## Infraestrutura apenas (Postgres + Redis)
@@ -130,7 +132,7 @@ python -m scripts.seed
 uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Chamadas locais à API devem enviar `Host: bigbang.localhost` (ex.: curl `-H 'Host: bigbang.localhost'`).
+Chamadas locais à API devem enviar `Host: universe.localhost` (ex.: curl `-H 'Host: universe.localhost'`).
 
 ## Frontend (desenvolvimento local)
 
@@ -140,13 +142,13 @@ npm install
 npm run dev
 ```
 
-Abra **http://bigbang.localhost:9000** (proxy `/api` → backend `:8000` com `changeOrigin: false` para preservar o Host).
+Abra **http://universe.localhost:9000** (proxy `/api` → backend `:8000` com `changeOrigin: false` para preservar o Host).
 
 ## Seed
 
 O seed é idempotente e cria:
 
-### Tenant `bigbang`
+### Tenant `universe`
 
 - permissões de produto (sem `tenants.*` / `system.settings`)
 - roles `ADMIN`, `MANAGER`, `OPERATOR`, `CLIENT`, `VIEWER`
@@ -160,15 +162,17 @@ O seed é idempotente e cria:
 | `user` | `user@lanstar.com.br` | `CLIENT` |
 | `viewer` | `viewer@lanstar.com.br` | `VIEWER` |
 
-O **ADMIN** tem apenas CRUD de usuários/roles/permissões e `dashboard.admin`.
+O **ADMIN** (`admin`) é o Administrador do tenant — o mesmo associado em `GET /api/v1/tenants` como `admin`. Tem apenas CRUD de usuários/roles/permissões e `dashboard.admin`.
 
-### Tenant `platform`
+### Tenant `bigbang`
 
 | username | email | role |
 |---|---|---|
 | `galileu` | `galileu@lanstar.com.br` | `PLATFORM` |
 
-Permissões: `tenants.create|read|update|activate|deactivate` e `system.settings`.
+Sem role `ADMIN` (só `PLATFORM`); em `/tenants` o campo `admin` fica `null` para este tenant.
+
+Permissões: `tenants.create|read|update|activate|deactivate`, `system.settings` e `dashboard.platform`.
 
 ```bash
 cd backend
@@ -185,7 +189,7 @@ pytest -v
 ## Arquitetura (resumo)
 
 ```
-Cliente (bigbang.* | platform.*) → FastAPI Gateway
+Cliente (universe.* | bigbang.*) → FastAPI Gateway
        → TenantMiddleware (Host allowlist → resolve_tenant_by_slug → RLS GUC)
        → RateLimit (tenant:IP)
        → AuthN (JWT + reload user) / AuthZ / Validation

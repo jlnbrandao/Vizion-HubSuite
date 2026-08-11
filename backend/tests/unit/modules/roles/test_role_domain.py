@@ -12,7 +12,7 @@ from src.modules.roles.events.role_events import (
     RoleCreatedEvent,
 )
 from src.modules.roles.value_objects.role_name import RoleName
-from tests.unit.conftest import BIGBANG_TENANT_ID
+from tests.unit.conftest import UNIVERSE_TENANT_ID
 
 
 def test_role_name_normalizes_and_validates() -> None:
@@ -24,7 +24,7 @@ def test_role_name_normalizes_and_validates() -> None:
 
 
 def test_role_create_and_assign_permissions() -> None:
-    role = Role.create(tenant_id=BIGBANG_TENANT_ID, name=RoleName(value="MANAGER"))
+    role = Role.create(tenant_id=UNIVERSE_TENANT_ID, name=RoleName(value="MANAGER"))
     events = role.pull_domain_events()
     assert isinstance(events[0], RoleCreatedEvent)
 
@@ -40,7 +40,7 @@ def test_role_create_and_assign_permissions() -> None:
 
 
 def test_role_replace_permissions() -> None:
-    role = Role.create(tenant_id=BIGBANG_TENANT_ID, name=RoleName(value="OPERATOR"))
+    role = Role.create(tenant_id=UNIVERSE_TENANT_ID, name=RoleName(value="OPERATOR"))
     role.pull_domain_events()
 
     a, b, c = uuid4(), uuid4(), uuid4()

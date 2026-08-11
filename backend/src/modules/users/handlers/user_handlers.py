@@ -22,7 +22,7 @@ from src.modules.users.commands.user_commands import (
     RevokeRolesFromUserCommand,
     UpdateUserCommand,
 )
-from src.modules.users.dtos.user_dtos import UserAuthDto, UserDto
+from src.modules.users.dtos.user_dtos import UserAuthDto, UserDto, UserSummaryDto
 from src.modules.users.entities.user import User
 from src.modules.users.queries.user_queries import (
     CountUsersQuery,
@@ -30,6 +30,7 @@ from src.modules.users.queries.user_queries import (
     GetUserByIdQuery,
     GetUserByUsernameQuery,
     ListUsersQuery,
+    ResolveTenantAdminsQuery,
 )
 from src.modules.users.repositories.user_repository import UserRepository
 from src.modules.users.services.password_hasher import PasswordHasher
@@ -397,3 +398,31 @@ class CountUsersHandler(QueryHandler[CountUsersQuery, int]):
     async def handle(self, query: CountUsersQuery) -> int:
         async with self._uow_factory():
             return await self._users.count(only_active=query.only_active)
+
+
+class ResolveTenantAdminsHandler(
+    QueryHandler[ResolveTenantAdminsQuery, dict[UUID, UserSummaryDto]]
+):
+    def __init__(self, uow_factory: UowFactory, users: UserRepository) -> None:
+        self._uow_factory = uow_factory
+        self._users = users
+
+    async def handle(self, query: ResolveTenantAdminsQuery) -> dict[UUID, UserSummaryDto]:
+        if not query.tenant_ids:
+            return {}
+        async with self._uow_factory():
+            found = await self._users.find_primary_by_role_name_for_tenants(
+                tenant_ids=set(query.tenant_ids),
+                role_name=query.role_name,
+                only_active=query.only_active,
+            )
+        return {
+            tenant_id: UserSummaryDto(
+                id=user.id,
+                tenant_id=user.tenant_id,
+                email=user.email.value,
+                username=user.username.value,
+                full_name=user.full_name.value,
+            )
+            for tenant_id, user in found.items()
+        }

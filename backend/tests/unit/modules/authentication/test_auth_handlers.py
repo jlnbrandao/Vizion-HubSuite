@@ -38,7 +38,7 @@ from src.modules.users.value_objects.plain_password import PlainPassword
 from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.exceptions import UnauthorizedError
-from tests.unit.conftest import BIGBANG_TENANT_ID
+from tests.unit.conftest import UNIVERSE_TENANT_ID
 from tests.unit.shared.in_memory_unit_of_work import InMemoryUnitOfWork
 
 
@@ -113,7 +113,7 @@ async def seeded_user(users_repo, uow_factory, password_hasher, query_bus):
     )
     create = CreateUserHandler(uow_factory, users_repo, password_hasher, query_bus)
     user_id = await create.handle(
-        CreateUserCommand(tenant_id=BIGBANG_TENANT_ID,
+        CreateUserCommand(tenant_id=UNIVERSE_TENANT_ID,
             email="admin@lanstar.io",
             username="admin",
             full_name="Admin User",

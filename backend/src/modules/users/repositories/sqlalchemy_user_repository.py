@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.roles.repositories.role_model import RoleModel
 from src.modules.users.entities.user import User
 from src.modules.users.repositories.user_model import UserModel, UserRoleModel
 from src.modules.users.repositories.user_repository import UserRepository
@@ -169,6 +170,39 @@ class SqlAlchemyUserRepository(UserRepository):
             stmt = stmt.where(UserModel.is_active.is_(True))
         result = await self._session().execute(stmt)
         return int(result.scalar_one())
+
+    async def find_primary_by_role_name_for_tenants(
+        self,
+        *,
+        tenant_ids: set[UUID],
+        role_name: str,
+        only_active: bool = True,
+    ) -> dict[UUID, User]:
+        if not tenant_ids:
+            return {}
+
+        stmt = (
+            select(UserModel)
+            .join(UserRoleModel, UserRoleModel.user_id == UserModel.id)
+            .join(RoleModel, RoleModel.id == UserRoleModel.role_id)
+            .where(
+                UserModel.tenant_id.in_(tenant_ids),
+                RoleModel.tenant_id == UserModel.tenant_id,
+                RoleModel.name == role_name,
+            )
+            .order_by(UserModel.tenant_id, UserModel.created_at.asc())
+            .distinct(UserModel.tenant_id)
+        )
+        stmt = apply_tenant_scope(stmt, UserModel.tenant_id)
+        if only_active:
+            stmt = stmt.where(UserModel.is_active.is_(True))
+
+        result = await self._session().execute(stmt)
+        users: dict[UUID, User] = {}
+        for model in result.scalars().all():
+            role_ids = await _load_role_ids(self._session(), model.id)
+            users[model.tenant_id] = _to_entity(model, role_ids)
+        return users
 
     async def _sync_roles(self, entity: User) -> None:
         session = self._session()

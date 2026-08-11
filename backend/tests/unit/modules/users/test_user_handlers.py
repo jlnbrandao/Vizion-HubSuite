@@ -44,7 +44,7 @@ from src.modules.users.value_objects.plain_password import PlainPassword
 from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.exceptions import ConflictError, ValidationError
-from tests.unit.conftest import BIGBANG_TENANT_ID
+from tests.unit.conftest import UNIVERSE_TENANT_ID
 from tests.unit.shared.in_memory_unit_of_work import InMemoryUnitOfWork
 
 
@@ -104,9 +104,9 @@ async def test_create_user_with_roles(
     create_user = CreateUserHandler(uow_factory, users_repo, password_hasher, query_bus)
     get_user = GetUserByIdHandler(uow_factory, users_repo)
 
-    role_id = await create_role.handle(CreateRoleCommand(tenant_id=BIGBANG_TENANT_ID,name="ADMIN"))
+    role_id = await create_role.handle(CreateRoleCommand(tenant_id=UNIVERSE_TENANT_ID,name="ADMIN"))
     user_id = await create_user.handle(
-        CreateUserCommand(tenant_id=BIGBANG_TENANT_ID,
+        CreateUserCommand(tenant_id=UNIVERSE_TENANT_ID,
             email="admin@lanstar.io",
             username="admin",
             full_name="System Admin",
@@ -127,7 +127,7 @@ async def test_create_user_duplicate_email(
 ) -> None:
     create_user = CreateUserHandler(uow_factory, users_repo, password_hasher, query_bus)
     await create_user.handle(
-        CreateUserCommand(tenant_id=BIGBANG_TENANT_ID,
+        CreateUserCommand(tenant_id=UNIVERSE_TENANT_ID,
             email="a@b.com",
             username="user_a",
             full_name="A B",
@@ -137,7 +137,7 @@ async def test_create_user_duplicate_email(
 
     with pytest.raises(ConflictError):
         await create_user.handle(
-            CreateUserCommand(tenant_id=BIGBANG_TENANT_ID,
+            CreateUserCommand(tenant_id=UNIVERSE_TENANT_ID,
                 email="A@B.com",
                 username="user_b",
                 full_name="Other",
@@ -152,7 +152,7 @@ async def test_create_user_duplicate_username(
 ) -> None:
     create_user = CreateUserHandler(uow_factory, users_repo, password_hasher, query_bus)
     await create_user.handle(
-        CreateUserCommand(tenant_id=BIGBANG_TENANT_ID,
+        CreateUserCommand(tenant_id=UNIVERSE_TENANT_ID,
             email="a@b.com",
             username="shared",
             full_name="A B",
@@ -162,7 +162,7 @@ async def test_create_user_duplicate_username(
 
     with pytest.raises(ConflictError):
         await create_user.handle(
-            CreateUserCommand(tenant_id=BIGBANG_TENANT_ID,
+            CreateUserCommand(tenant_id=UNIVERSE_TENANT_ID,
                 email="c@d.com",
                 username="Shared",
                 full_name="Other",
@@ -179,7 +179,7 @@ async def test_assign_rejects_unknown_roles(
     assign = AssignRolesToUserHandler(uow_factory, users_repo, query_bus, refresh_store)
 
     user_id = await create_user.handle(
-        CreateUserCommand(tenant_id=BIGBANG_TENANT_ID,
+        CreateUserCommand(tenant_id=UNIVERSE_TENANT_ID,
             email="u@x.com",
             username="user_x",
             full_name="User X",
@@ -208,10 +208,10 @@ async def test_update_password_list_replace_delete(
     get_by_email = GetUserByEmailHandler(uow_factory, users_repo)
     delete = DeleteUserHandler(uow_factory, users_repo, refresh_store)
 
-    r1 = await create_role.handle(CreateRoleCommand(tenant_id=BIGBANG_TENANT_ID,name="MANAGER"))
-    r2 = await create_role.handle(CreateRoleCommand(tenant_id=BIGBANG_TENANT_ID,name="VIEWER"))
+    r1 = await create_role.handle(CreateRoleCommand(tenant_id=UNIVERSE_TENANT_ID,name="MANAGER"))
+    r2 = await create_role.handle(CreateRoleCommand(tenant_id=UNIVERSE_TENANT_ID,name="VIEWER"))
     user_id = await create_user.handle(
-        CreateUserCommand(tenant_id=BIGBANG_TENANT_ID,
+        CreateUserCommand(tenant_id=UNIVERSE_TENANT_ID,
             email="m@x.com",
             username="mgr",
             full_name="Mgr",
@@ -240,7 +240,7 @@ async def test_update_password_list_replace_delete(
     assert set(users[0].role_ids) == {r1, r2}
 
     auth = await get_by_email.handle(
-        GetUserByEmailQuery(tenant_id=BIGBANG_TENANT_ID, email="m@x.com")
+        GetUserByEmailQuery(tenant_id=UNIVERSE_TENANT_ID, email="m@x.com")
     )
     assert auth.hashed_password.startswith("hashed::NewSecret1")
     assert auth.username == "manager"
@@ -266,7 +266,7 @@ async def test_password_change_and_deactivate_revoke_refresh_sessions(
 
     user_id = await create_user.handle(
         CreateUserCommand(
-            tenant_id=BIGBANG_TENANT_ID,
+            tenant_id=UNIVERSE_TENANT_ID,
             email="s@x.com",
             username="sess",
             full_name="Session User",
@@ -280,8 +280,8 @@ async def test_password_change_and_deactivate_revoke_refresh_sessions(
             user_id=user_id,
             email="s@x.com",
             full_name="Session User",
-            tenant_id=BIGBANG_TENANT_ID,
-            tenant_slug="bigbang",
+            tenant_id=UNIVERSE_TENANT_ID,
+            tenant_slug="universe",
             role_ids=(),
             created_at=datetime.now(UTC),
         ),
@@ -300,8 +300,8 @@ async def test_password_change_and_deactivate_revoke_refresh_sessions(
             user_id=user_id,
             email="s@x.com",
             full_name="Session User",
-            tenant_id=BIGBANG_TENANT_ID,
-            tenant_slug="bigbang",
+            tenant_id=UNIVERSE_TENANT_ID,
+            tenant_slug="universe",
             role_ids=(),
             created_at=datetime.now(UTC),
         ),

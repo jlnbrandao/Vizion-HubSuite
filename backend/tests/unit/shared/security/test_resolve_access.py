@@ -34,7 +34,7 @@ from src.modules.permissions.queries.permission_queries import CheckPermissionsE
 from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.security.permission_codes import PermissionCode
-from tests.unit.conftest import BIGBANG_TENANT_ID
+from tests.unit.conftest import UNIVERSE_TENANT_ID
 from tests.unit.shared.in_memory_unit_of_work import InMemoryUnitOfWork
 
 
@@ -78,20 +78,20 @@ async def test_resolve_effective_access_aggregates_permissions(uow_factory) -> N
 
     p_read = await create_perm.handle(
         CreatePermissionCommand(
-            tenant_id=BIGBANG_TENANT_ID,
+            tenant_id=UNIVERSE_TENANT_ID,
             code=PermissionCode.USERS_READ,
             name="Read Users",
         )
     )
     p_create = await create_perm.handle(
         CreatePermissionCommand(
-            tenant_id=BIGBANG_TENANT_ID,
+            tenant_id=UNIVERSE_TENANT_ID,
             code=PermissionCode.USERS_CREATE,
             name="Create Users",
         )
     )
     role_id = await create_role.handle(
-        CreateRoleCommand(tenant_id=BIGBANG_TENANT_ID, name="ADMIN")
+        CreateRoleCommand(tenant_id=UNIVERSE_TENANT_ID, name="ADMIN")
     )
     await assign.handle(
         AssignPermissionsToRoleCommand(

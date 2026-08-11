@@ -13,7 +13,7 @@ from src.modules.permissions.events.permission_events import (
 )
 from src.modules.permissions.value_objects.permission_code import PermissionCode
 from src.modules.permissions.value_objects.permission_name import PermissionName
-from tests.unit.conftest import BIGBANG_TENANT_ID
+from tests.unit.conftest import UNIVERSE_TENANT_ID
 
 
 def test_permission_code_validates_format() -> None:
@@ -40,7 +40,7 @@ def test_permission_catalog_covers_all_codes() -> None:
 
 def test_permission_create_raises_event() -> None:
     permission = Permission.create(
-        tenant_id=BIGBANG_TENANT_ID,
+        tenant_id=UNIVERSE_TENANT_ID,
         code=PermissionCode(value="users.read"),
         name=PermissionName(value="Read Users"),
         description="List users",
@@ -53,7 +53,7 @@ def test_permission_create_raises_event() -> None:
 
 def test_permission_rename_is_idempotent() -> None:
     permission = Permission.create(
-        tenant_id=BIGBANG_TENANT_ID,
+        tenant_id=UNIVERSE_TENANT_ID,
         code=PermissionCode(value="roles.read"),
         name=PermissionName(value="Read Roles"),
     )

@@ -10,10 +10,10 @@ npm install
 npm run dev
 ```
 
-Abra **http://bigbang.localhost:9000** (tenant demo).  
+Abra **http://universe.localhost:9000** (tenant demo).  
 Não use `http://localhost:9000` sem subdomínio — o backend resolve o tenant pelo primeiro label do `Host`.
 
-API proxy: `/api` → `http://127.0.0.1:8000` com `changeOrigin: false` (preserva `Host: bigbang.localhost`).
+API proxy: `/api` → `http://127.0.0.1:8000` com `changeOrigin: false` (preserva `Host: universe.localhost`).
 
 ## Auth
 

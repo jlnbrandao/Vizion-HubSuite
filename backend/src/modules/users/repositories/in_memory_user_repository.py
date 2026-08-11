@@ -76,3 +76,36 @@ class InMemoryUserRepository(UserRepository):
         if only_active:
             return sum(1 for u in items if u.is_active)
         return len(items)
+
+    async def find_primary_by_role_name_for_tenants(
+        self,
+        *,
+        tenant_ids: set[UUID],
+        role_name: str,
+        only_active: bool = True,
+    ) -> dict[UUID, User]:
+        """In-memory: resolve via optional ``role_names`` map ``{role_id: name}``."""
+        role_names: dict[UUID, str] = getattr(self, "role_names", {})
+        admin_role_ids = {
+            role_id for role_id, name in role_names.items() if name == role_name
+        }
+        if not admin_role_ids:
+            return {}
+
+        by_tenant: dict[UUID, list[User]] = {}
+        for user in self._items.values():
+            if user.tenant_id not in tenant_ids:
+                continue
+            if not matches_tenant_scope(user.tenant_id):
+                continue
+            if only_active and not user.is_active:
+                continue
+            if not (user.role_ids & admin_role_ids):
+                continue
+            by_tenant.setdefault(user.tenant_id, []).append(user)
+
+        return {
+            tid: sorted(users, key=lambda u: u.created_at)[0]
+            for tid, users in by_tenant.items()
+            if users
+        }

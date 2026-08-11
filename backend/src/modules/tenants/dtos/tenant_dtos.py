@@ -7,8 +7,19 @@ from uuid import UUID
 
 
 @dataclass(frozen=True, kw_only=True)
+class TenantAdminDto:
+    """Primary tenant Administrator (user with role ADMIN)."""
+
+    id: UUID
+    username: str
+    email: str
+    full_name: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class TenantDto:
     id: UUID
     slug: str
     name: str
     is_active: bool = True
+    admin: TenantAdminDto | None = None

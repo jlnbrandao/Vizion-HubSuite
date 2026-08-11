@@ -123,17 +123,30 @@ export interface IdResponse {
   id: string
 }
 
+export interface TenantAdminResponse {
+  id: string
+  username: string
+  email: string
+  full_name: string
+}
+
 export interface TenantResponse {
   id: string
   slug: string
   name: string
   is_active: boolean
+  admin: TenantAdminResponse | null
 }
 
 export interface CreateTenantPayload {
   slug: string
   name: string
+  admin_username: string
+  admin_email: string
+  admin_full_name: string
+  admin_password: string
 }
+
 
 export interface RenameTenantPayload {
   name: string

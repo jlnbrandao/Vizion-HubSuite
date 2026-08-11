@@ -15,6 +15,10 @@ def test_role_permissions_map_is_valid() -> None:
     validate_role_permissions_map()
 
 
+def test_admin_role_codes_match_catalog_helper() -> None:
+    assert ADMIN_PERMISSIONS == PermissionCode.admin_role_codes()
+
+
 def test_admin_has_rbac_crud_only() -> None:
     assert ROLE_PERMISSIONS["ADMIN"] == ADMIN_PERMISSIONS
     assert ROLE_PERMISSIONS["ADMIN"].isdisjoint(FORBIDDEN_FOR_ADMIN)

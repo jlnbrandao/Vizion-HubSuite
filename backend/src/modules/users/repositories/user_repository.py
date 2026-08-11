@@ -34,3 +34,14 @@ class UserRepository(Repository[User], ABC):
     @abstractmethod
     async def count(self, *, only_active: bool = False) -> int:
         ...
+
+    @abstractmethod
+    async def find_primary_by_role_name_for_tenants(
+        self,
+        *,
+        tenant_ids: set[UUID],
+        role_name: str,
+        only_active: bool = True,
+    ) -> dict[UUID, User]:
+        """Return one primary user per tenant that holds ``role_name`` (earliest created)."""
+        ...

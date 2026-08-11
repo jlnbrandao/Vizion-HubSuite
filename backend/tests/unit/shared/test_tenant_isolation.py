@@ -13,7 +13,7 @@ from src.modules.users.value_objects.full_name import FullName
 from src.modules.users.value_objects.hashed_password import HashedPassword
 from src.modules.users.value_objects.username import Username
 from src.shared.infrastructure.tenant_context import bind_tenant, unbind_tenant
-from tests.unit.conftest import BIGBANG_TENANT_ID
+from tests.unit.conftest import UNIVERSE_TENANT_ID
 
 OTHER_TENANT_ID = uuid4()
 
@@ -31,12 +31,12 @@ def _user(*, tenant_id, email: str, username: str) -> User:
 @pytest.mark.asyncio
 async def test_in_memory_user_get_by_id_is_tenant_scoped() -> None:
     repo = InMemoryUserRepository()
-    local = _user(tenant_id=BIGBANG_TENANT_ID, email="a@x.com", username="local")
+    local = _user(tenant_id=UNIVERSE_TENANT_ID, email="a@x.com", username="local")
     foreign = _user(tenant_id=OTHER_TENANT_ID, email="b@x.com", username="foreign")
     await repo.add(local)
     await repo.add(foreign)
 
-    # Autouse fixture binds BIGBANG
+    # Autouse fixture binds UNIVERSE
     assert await repo.get_by_id(local.id) is not None
     assert await repo.get_by_id(foreign.id) is None
 

@@ -27,7 +27,7 @@ from src.modules.permissions.repositories.in_memory_permission_repository import
 )
 from src.shared.application.event_bus import EventBus
 from src.shared.infrastructure.exceptions import ConflictError, NotFoundError
-from tests.unit.conftest import BIGBANG_TENANT_ID
+from tests.unit.conftest import UNIVERSE_TENANT_ID
 from tests.unit.shared.in_memory_unit_of_work import InMemoryUnitOfWork
 
 
@@ -55,7 +55,7 @@ async def test_create_and_get_permission(permissions_repo, uow_factory) -> None:
     get_one = GetPermissionByIdHandler(uow_factory, permissions_repo)
 
     permission_id = await create.handle(
-        CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="users.create", name="Create User")
+        CreatePermissionCommand(tenant_id=UNIVERSE_TENANT_ID,code="users.create", name="Create User")
     )
     dto = await get_one.handle(GetPermissionByIdQuery(permission_id=permission_id))
 
@@ -72,9 +72,9 @@ async def test_list_permissions_filters_by_resource_and_action(
     create = CreatePermissionHandler(uow_factory, permissions_repo)
     list_all = ListPermissionsHandler(uow_factory, permissions_repo)
 
-    await create.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="users.create", name="Create User"))
-    await create.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="users.read", name="Read User"))
-    await create.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="roles.read", name="Read Role"))
+    await create.handle(CreatePermissionCommand(tenant_id=UNIVERSE_TENANT_ID,code="users.create", name="Create User"))
+    await create.handle(CreatePermissionCommand(tenant_id=UNIVERSE_TENANT_ID,code="users.read", name="Read User"))
+    await create.handle(CreatePermissionCommand(tenant_id=UNIVERSE_TENANT_ID,code="roles.read", name="Read Role"))
 
     by_users = await list_all.handle(ListPermissionsQuery(resource="users"))
     assert [item.code for item in by_users] == ["users.create", "users.read"]
@@ -89,10 +89,10 @@ async def test_list_permissions_filters_by_resource_and_action(
 @pytest.mark.asyncio
 async def test_create_permission_conflict(permissions_repo, uow_factory) -> None:
     create = CreatePermissionHandler(uow_factory, permissions_repo)
-    await create.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="users.read", name="Read"))
+    await create.handle(CreatePermissionCommand(tenant_id=UNIVERSE_TENANT_ID,code="users.read", name="Read"))
 
     with pytest.raises(ConflictError):
-        await create.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="users.read", name="Read again"))
+        await create.handle(CreatePermissionCommand(tenant_id=UNIVERSE_TENANT_ID,code="users.read", name="Read again"))
 
 
 @pytest.mark.asyncio
@@ -103,7 +103,7 @@ async def test_update_list_delete_permission(permissions_repo, uow_factory) -> N
     delete = DeletePermissionHandler(uow_factory, permissions_repo)
 
     permission_id = await create.handle(
-        CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="roles.read", name="Read Roles")
+        CreatePermissionCommand(tenant_id=UNIVERSE_TENANT_ID,code="roles.read", name="Read Roles")
     )
     await update.handle(
         UpdatePermissionCommand(
@@ -127,7 +127,7 @@ async def test_check_permissions_exist(permissions_repo, uow_factory) -> None:
     create = CreatePermissionHandler(uow_factory, permissions_repo)
     check = CheckPermissionsExistHandler(uow_factory, permissions_repo)
 
-    pid = await create.handle(CreatePermissionCommand(tenant_id=BIGBANG_TENANT_ID,code="a.read", name="A"))
+    pid = await create.handle(CreatePermissionCommand(tenant_id=UNIVERSE_TENANT_ID,code="a.read", name="A"))
     from uuid import uuid4
 
     missing = uuid4()

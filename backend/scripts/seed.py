@@ -1,5 +1,9 @@
 """Idempotent database seed: permissions, roles ADMIN…VIEWER, demo users.
 
+Each app tenant (e.g. universe) gets an Administrator user with role ADMIN
+(exposed by GET /api/v1/tenants as `admin`). The ops tenant `bigbang` uses role
+PLATFORM instead (no ADMIN association on the catalog).
+
 Usage (from backend/):
     python -m scripts.seed
 """
@@ -46,8 +50,9 @@ from src.shared.infrastructure.tenant_context import (
 
 logger = logging.getLogger("seed")
 
-BIGBANG_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000001")
-PLATFORM_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000002")
+# Stable UUIDs (slug renames are applied by UpsertTenant on refresh).
+UNIVERSE_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000001")  # was slug bigbang
+BIGBANG_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000002")  # was slug platform
 SEED_PASSWORD = "123Mudar."
 
 
@@ -101,25 +106,7 @@ ROLE_DESCRIPTIONS: dict[str, str] = {
 }
 
 # ADMIN: only identity/RBAC administration — no manager/operator/client/viewer/settings.
-ADMIN_PERMISSIONS: frozenset[str] = frozenset(
-    {
-        PermissionCode.USERS_CREATE,
-        PermissionCode.USERS_READ,
-        PermissionCode.USERS_UPDATE,
-        PermissionCode.USERS_DELETE,
-        PermissionCode.USERS_ASSIGN,
-        PermissionCode.ROLES_CREATE,
-        PermissionCode.ROLES_READ,
-        PermissionCode.ROLES_UPDATE,
-        PermissionCode.ROLES_DELETE,
-        PermissionCode.ROLES_ASSIGN,
-        PermissionCode.PERMISSIONS_CREATE,
-        PermissionCode.PERMISSIONS_READ,
-        PermissionCode.PERMISSIONS_UPDATE,
-        PermissionCode.PERMISSIONS_DELETE,
-        PermissionCode.DASHBOARD_ADMIN,
-    }
-)
+ADMIN_PERMISSIONS: frozenset[str] = PermissionCode.admin_role_codes()
 
 FORBIDDEN_FOR_ADMIN: frozenset[str] = frozenset(
     {
@@ -438,7 +425,7 @@ async def _seed_tenant(
             role_permissions=role_permissions,
             role_descriptions=role_descriptions,
         )
-        if slug == "bigbang":
+        if slug == "universe":
             await _retire_obsolete_permissions(container)
         await _ensure_seed_users(
             container, role_to_id, tenant_id=tenant_id, seed_users=seed_users
@@ -460,26 +447,27 @@ async def seed() -> None:
 
     bypass_token = bind_rls_bypass(True)
     try:
+        # Rename order matters: free slug `bigbang` before assigning it to ops tenant.
         await _seed_tenant(
             container,
-            tenant_id=BIGBANG_TENANT_ID,
-            slug="bigbang",
-            name="Bigbang",
+            tenant_id=UNIVERSE_TENANT_ID,
+            slug="universe",
+            name="Universe",
             permission_codes=tenant_scoped_codes,
             role_permissions=ROLE_PERMISSIONS,
             seed_users=SEED_USERS,
         )
         await _seed_tenant(
             container,
-            tenant_id=PLATFORM_TENANT_ID,
-            slug="platform",
-            name="Platform",
+            tenant_id=BIGBANG_TENANT_ID,
+            slug="bigbang",
+            name="Bigbang",
             permission_codes=PLATFORM_PERMISSIONS,
             role_permissions={"PLATFORM": PLATFORM_PERMISSIONS},
             seed_users=(
                 SeedUser(
                     "galileu",
-                    "Platform Operator",
+                    "Platform Administrator",
                     "galileu@lanstar.com.br",
                     "PLATFORM",
                 ),

@@ -30,7 +30,7 @@ def test_create_and_decode_access_token(token_service: JoseTokenService) -> None
         email="a@b.com",
         full_name="Ada",
         tenant_id=uuid4(),
-        tenant_slug="bigbang",
+        tenant_slug="universe",
         role_ids=(role_id,),
     )
     token = token_service.create_access_token(claims)
@@ -38,7 +38,7 @@ def test_create_and_decode_access_token(token_service: JoseTokenService) -> None
 
     assert decoded.user_id == user_id
     assert decoded.email == "a@b.com"
-    assert decoded.tenant_slug == "bigbang"
+    assert decoded.tenant_slug == "universe"
     assert decoded.role_ids == (role_id,)
     assert token_service.access_token_expires_in_seconds() == 15 * 60
 

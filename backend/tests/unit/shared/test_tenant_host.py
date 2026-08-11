@@ -14,16 +14,16 @@ from src.shared.infrastructure.tenant_host import (
 @pytest.mark.parametrize(
     ("host", "expected"),
     [
-        ("bigbang.lanstar.com.br", "bigbang"),
-        ("bigbang.lanstar.com.br:443", "bigbang"),
-        ("bigbang.134.23.23.56", "bigbang"),
+        ("universe.lanstar.com.br", "universe"),
+        ("universe.lanstar.com.br:443", "universe"),
+        ("universe.134.23.23.56", "universe"),
+        ("universe.localhost", "universe"),
+        ("universe.localhost:9000", "universe"),
         ("bigbang.localhost", "bigbang"),
-        ("bigbang.localhost:9000", "bigbang"),
-        ("platform.localhost", "platform"),
-        ("platform.134.209.122.250", "platform"),
-        ("platform.lanstar.com.br", "platform"),
-        ("platform.lanstar.local", "platform"),
+        ("bigbang.134.209.122.250", "bigbang"),
+        ("bigbang.lanstar.com.br", "bigbang"),
         ("bigbang.lanstar.local", "bigbang"),
+        ("universe.lanstar.local", "universe"),
     ],
 )
 def test_extract_tenant_slug_ok(host: str, expected: str) -> None:
@@ -41,7 +41,7 @@ def test_extract_tenant_slug_ok(host: str, expected: str) -> None:
         "192.168.0.1",
         "www.lanstar.com.br",
         "api.lanstar.com.br",
-        "bigbang",
+        "universe",
     ],
 )
 def test_extract_tenant_slug_rejects(host: str | None) -> None:
@@ -56,7 +56,7 @@ def test_base_domain_allowlist() -> None:
         enforce=True,
     )
     assert_host_base_domain_allowed(
-        "platform.lanstar.local",
+        "bigbang.lanstar.local",
         ("localhost", "lanstar.com.br", "lanstar.local"),
         enforce=True,
     )

@@ -37,3 +37,12 @@ class ListUsersQuery(Query):
 @dataclass(frozen=True, kw_only=True)
 class CountUsersQuery(Query):
     only_active: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
+class ResolveTenantAdminsQuery(Query):
+    """Platform catalog: primary ADMIN user per tenant (via role name)."""
+
+    tenant_ids: frozenset[UUID]
+    role_name: str = "ADMIN"
+    only_active: bool = True

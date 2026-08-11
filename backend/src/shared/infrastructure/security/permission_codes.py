@@ -110,6 +110,29 @@ class PermissionCode:
         )
 
     @classmethod
+    def admin_role_codes(cls) -> frozenset[str]:
+        """Default ADMIN role: identity/RBAC CRUD + admin dashboard only."""
+        return frozenset(
+            {
+                cls.USERS_CREATE,
+                cls.USERS_READ,
+                cls.USERS_UPDATE,
+                cls.USERS_DELETE,
+                cls.USERS_ASSIGN,
+                cls.ROLES_CREATE,
+                cls.ROLES_READ,
+                cls.ROLES_UPDATE,
+                cls.ROLES_DELETE,
+                cls.ROLES_ASSIGN,
+                cls.PERMISSIONS_CREATE,
+                cls.PERMISSIONS_READ,
+                cls.PERMISSIONS_UPDATE,
+                cls.PERMISSIONS_DELETE,
+                cls.DASHBOARD_ADMIN,
+            }
+        )
+
+    @classmethod
     def all_codes(cls) -> tuple[str, ...]:
         return tuple(
             value

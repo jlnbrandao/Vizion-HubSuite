@@ -7,7 +7,7 @@ from uuid import UUID
 
 from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, Depends, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from src.modules.tenants.commands.tenant_commands import (
     ActivateTenantCommand,
@@ -28,11 +28,19 @@ from src.shared.infrastructure.tenant_context import bind_rls_bypass, unbind_rls
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
 
+class TenantAdminResponse(BaseModel):
+    id: UUID
+    username: str
+    email: str
+    full_name: str
+
+
 class TenantResponse(BaseModel):
     id: UUID
     slug: str
     name: str
     is_active: bool
+    admin: TenantAdminResponse | None = None
 
 
 class TenantIdResponse(BaseModel):
@@ -42,6 +50,10 @@ class TenantIdResponse(BaseModel):
 class CreateTenantRequest(BaseModel):
     slug: str = Field(..., min_length=1, max_length=63)
     name: str = Field(..., min_length=1, max_length=120)
+    admin_username: str = Field(..., min_length=3, max_length=32)
+    admin_email: EmailStr
+    admin_full_name: str = Field(..., min_length=1, max_length=150)
+    admin_password: str = Field(..., min_length=8, max_length=128)
 
 
 class RenameTenantRequest(BaseModel):
@@ -49,11 +61,20 @@ class RenameTenantRequest(BaseModel):
 
 
 def _to_response(dto: TenantDto) -> TenantResponse:
+    admin = None
+    if dto.admin is not None:
+        admin = TenantAdminResponse(
+            id=dto.admin.id,
+            username=dto.admin.username,
+            email=dto.admin.email,
+            full_name=dto.admin.full_name,
+        )
     return TenantResponse(
         id=dto.id,
         slug=dto.slug,
         name=dto.name,
         is_active=dto.is_active,
+        admin=admin,
     )
 
 
@@ -102,7 +123,14 @@ async def create_tenant(
 ) -> TenantIdResponse:
     async with _platform_catalog_scope():
         tenant_id = await command_bus.execute(
-            CreateTenantCommand(slug=body.slug, name=body.name)
+            CreateTenantCommand(
+                slug=body.slug,
+                name=body.name,
+                admin_username=body.admin_username,
+                admin_email=str(body.admin_email),
+                admin_full_name=body.admin_full_name,
+                admin_password=body.admin_password,
+            )
         )
     return TenantIdResponse(id=tenant_id)
 

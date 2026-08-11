@@ -63,6 +63,7 @@ from src.modules.users.queries.user_queries import (
     GetUserByIdQuery,
     GetUserByUsernameQuery,
     ListUsersQuery,
+    ResolveTenantAdminsQuery,
 )
 from src.shared.application.command_bus import CommandBus
 from src.shared.application.query_bus import QueryBus
@@ -115,6 +116,7 @@ def register_module_handlers(container: Container) -> None:
     query_bus.register(GetUserByUsernameQuery, container.get_user_by_username_handler())
     query_bus.register(ListUsersQuery, container.list_users_handler())
     query_bus.register(CountUsersQuery, container.count_users_handler())
+    query_bus.register(ResolveTenantAdminsQuery, container.resolve_tenant_admins_handler())
 
     # Tenants
     command_bus.register(UpsertTenantCommand, container.upsert_tenant_handler())

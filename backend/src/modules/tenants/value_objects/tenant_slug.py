@@ -1,4 +1,4 @@
-"""TenantSlug — lowercase DNS-like identifier (e.g. bigbang)."""
+"""TenantSlug — lowercase DNS-like identifier (e.g. universe)."""
 
 from __future__ import annotations
 

@@ -32,3 +32,14 @@ class UserAuthDto:
     hashed_password: str
     role_ids: tuple[UUID, ...] = field(default_factory=tuple)
     is_active: bool = True
+
+
+@dataclass(frozen=True, kw_only=True)
+class UserSummaryDto:
+    """Lightweight user projection for cross-module catalogs."""
+
+    id: UUID
+    tenant_id: UUID
+    email: str
+    username: str
+    full_name: str

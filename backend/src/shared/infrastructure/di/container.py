@@ -77,6 +77,7 @@ from src.modules.users.handlers.user_handlers import (
     GetUserByUsernameHandler,
     ListUsersHandler,
     ReplaceUserRolesHandler,
+    ResolveTenantAdminsHandler,
     RevokeRolesFromUserHandler,
     UpdateUserHandler,
 )
@@ -351,6 +352,13 @@ class Container(containers.DeclarativeContainer):
         uow_factory=unit_of_work.provider,
         users=user_repository,
     )
+    resolve_tenant_admins_handler: providers.Factory[ResolveTenantAdminsHandler] = (
+        providers.Factory(
+            ResolveTenantAdminsHandler,
+            uow_factory=unit_of_work.provider,
+            users=user_repository,
+        )
+    )
 
     # --- Tenant handlers ---
     get_tenant_by_slug_handler: providers.Factory[GetTenantBySlugHandler] = providers.Factory(
@@ -362,11 +370,13 @@ class Container(containers.DeclarativeContainer):
         GetTenantByIdHandler,
         uow_factory=unit_of_work.provider,
         tenants=tenant_repository,
+        query_bus=query_bus,
     )
     list_tenants_handler: providers.Factory[ListTenantsHandler] = providers.Factory(
         ListTenantsHandler,
         uow_factory=unit_of_work.provider,
         tenants=tenant_repository,
+        query_bus=query_bus,
     )
     upsert_tenant_handler: providers.Factory[UpsertTenantHandler] = providers.Factory(
         UpsertTenantHandler,
@@ -377,6 +387,8 @@ class Container(containers.DeclarativeContainer):
         CreateTenantHandler,
         uow_factory=unit_of_work.provider,
         tenants=tenant_repository,
+        command_bus=command_bus,
+        query_bus=query_bus,
     )
     rename_tenant_handler: providers.Factory[RenameTenantHandler] = providers.Factory(
         RenameTenantHandler,

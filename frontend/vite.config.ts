@@ -21,7 +21,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
-        // Keep browser Host (e.g. bigbang.localhost) for tenant resolution.
+        // Keep browser Host (e.g. universe.localhost) for tenant resolution.
         changeOrigin: false,
       },
     },

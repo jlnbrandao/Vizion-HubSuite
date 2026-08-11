@@ -19,6 +19,10 @@ class UpsertTenantCommand(Command):
 class CreateTenantCommand(Command):
     slug: str
     name: str
+    admin_username: str
+    admin_email: str
+    admin_full_name: str
+    admin_password: str
 
 
 @dataclass(frozen=True, kw_only=True)

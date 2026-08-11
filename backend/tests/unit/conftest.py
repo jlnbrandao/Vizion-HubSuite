@@ -8,18 +8,18 @@ import pytest
 
 from src.shared.infrastructure.tenant_context import bind_tenant, unbind_tenant
 
-BIGBANG_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000001")
+UNIVERSE_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000001")
 
 
 @pytest.fixture
 def tenant_id() -> UUID:
-    return BIGBANG_TENANT_ID
+    return UNIVERSE_TENANT_ID
 
 
 @pytest.fixture(autouse=True)
 def bind_test_tenant() -> None:
     id_token, slug_token, name_token = bind_tenant(
-        BIGBANG_TENANT_ID, slug="bigbang", name="Bigbang"
+        UNIVERSE_TENANT_ID, slug="universe", name="Universe"
     )
     yield
     unbind_tenant(id_token, slug_token, name_token)

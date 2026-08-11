@@ -22,6 +22,10 @@ const selected = ref<TenantResponse | null>(null)
 const createForm = reactive({
   slug: '',
   name: '',
+  admin_username: '',
+  admin_email: '',
+  admin_full_name: '',
+  admin_password: '',
 })
 
 const renameForm = reactive({
@@ -31,6 +35,13 @@ const renameForm = reactive({
 const columns: QTableColumn[] = [
   { name: 'slug', label: 'Slug', field: 'slug', align: 'left', sortable: true },
   { name: 'name', label: 'Name', field: 'name', align: 'left', sortable: true },
+  {
+    name: 'admin',
+    label: 'Administrator',
+    field: (row: TenantResponse) => row.admin?.username ?? '—',
+    align: 'left',
+    sortable: true,
+  },
   { name: 'is_active', label: 'Active', field: 'is_active', align: 'center' },
   { name: 'actions', label: 'Actions', field: 'id', align: 'right' },
 ]
@@ -54,6 +65,10 @@ async function load() {
 function openCreate() {
   createForm.slug = ''
   createForm.name = ''
+  createForm.admin_username = ''
+  createForm.admin_email = ''
+  createForm.admin_full_name = ''
+  createForm.admin_password = ''
   createOpen.value = true
 }
 
@@ -66,7 +81,14 @@ function openRename(tenant: TenantResponse) {
 async function submitCreate() {
   saving.value = true
   try {
-    await tenantsApi.create({ slug: createForm.slug.trim(), name: createForm.name.trim() })
+    await tenantsApi.create({
+      slug: createForm.slug.trim(),
+      name: createForm.name.trim(),
+      admin_username: createForm.admin_username.trim(),
+      admin_email: createForm.admin_email.trim(),
+      admin_full_name: createForm.admin_full_name.trim(),
+      admin_password: createForm.admin_password,
+    })
     createOpen.value = false
     $q.notify({ type: 'positive', message: 'Tenant created' })
     await load()
@@ -156,6 +178,15 @@ watch(
       :loading="loading"
       :pagination="{ rowsPerPage: 20 }"
     >
+      <template #body-cell-admin="props">
+        <q-td :props="props">
+          <template v-if="props.row.admin">
+            <div>{{ props.row.admin.username }}</div>
+            <div class="app-page__muted text-caption">{{ props.row.admin.email }}</div>
+          </template>
+          <span v-else class="app-page__muted">—</span>
+        </q-td>
+      </template>
       <template #body-cell-is_active="props">
         <q-td :props="props">
           <q-badge :color="props.row.is_active ? 'positive' : 'grey'">
@@ -196,11 +227,38 @@ watch(
     </q-table>
 
     <q-dialog v-model="createOpen" persistent>
-      <q-card style="min-width: 360px">
+      <q-card style="min-width: 420px">
         <q-card-section class="text-h6">Create tenant</q-card-section>
         <q-card-section class="q-gutter-md">
           <q-input v-model="createForm.slug" label="Slug" :rules="[slugRule]" outlined dense />
           <q-input v-model="createForm.name" label="Name" outlined dense />
+          <div class="text-subtitle2 q-mt-sm">Tenant Administrator</div>
+          <q-input
+            v-model="createForm.admin_username"
+            label="Admin username"
+            outlined
+            dense
+          />
+          <q-input
+            v-model="createForm.admin_email"
+            label="Admin email"
+            type="email"
+            outlined
+            dense
+          />
+          <q-input
+            v-model="createForm.admin_full_name"
+            label="Admin full name"
+            outlined
+            dense
+          />
+          <q-input
+            v-model="createForm.admin_password"
+            label="Admin password"
+            type="password"
+            outlined
+            dense
+          />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Cancel" v-close-popup />
@@ -209,7 +267,14 @@ watch(
             label="Create"
             unelevated
             :loading="saving"
-            :disable="!createForm.slug.trim() || !createForm.name.trim()"
+            :disable="
+              !createForm.slug.trim() ||
+              !createForm.name.trim() ||
+              !createForm.admin_username.trim() ||
+              !createForm.admin_email.trim() ||
+              !createForm.admin_full_name.trim() ||
+              createForm.admin_password.length < 8
+            "
             @click="submitCreate"
           />
         </q-card-actions>

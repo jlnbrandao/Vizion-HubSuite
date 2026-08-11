@@ -17,8 +17,8 @@ def _user(*permissions: str, roles: tuple[str, ...] = ()) -> CurrentUser:
         email="u@x.com",
         full_name="User",
         tenant_id=uuid4(),
-        tenant_slug="bigbang",
-        tenant_name="Bigbang",
+        tenant_slug="universe",
+        tenant_name="Universe",
         role_names=frozenset(r.upper() for r in roles),
         permissions=frozenset(permissions),
     )

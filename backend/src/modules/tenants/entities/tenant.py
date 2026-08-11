@@ -28,6 +28,12 @@ class Tenant(AggregateRoot):
         self.name = cleaned
         self.touch()
 
+    def change_slug(self, slug: TenantSlug) -> None:
+        if self.slug == slug:
+            return
+        self.slug = slug
+        self.touch()
+
     def activate(self) -> None:
         if self.is_active:
             return
