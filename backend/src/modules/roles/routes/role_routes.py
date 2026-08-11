@@ -30,6 +30,10 @@ from src.shared.infrastructure.di.container import Container
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.security.dependencies import require_permission
 from src.shared.infrastructure.security.permission_codes import PermissionCode
+from src.shared.infrastructure.security.role_management_guards import (
+    ensure_can_create_role_name,
+    ensure_can_manage_role,
+)
 from src.shared.infrastructure.security.role_permission_guards import (
     ensure_can_edit_role_permissions,
 )
@@ -55,8 +59,9 @@ def _to_response(dto: RoleDto) -> RoleResponse:
 async def create_role(
     body: CreateRoleRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_CREATE)),
+    actor: CurrentUser = Depends(require_permission(PermissionCode.ROLES_CREATE)),
 ) -> RoleIdResponse:
+    ensure_can_create_role_name(actor=actor, name=body.name)
     role_id = await command_bus.execute(
         CreateRoleCommand(
             tenant_id=require_current_tenant_id(),
@@ -95,8 +100,10 @@ async def update_role(
     role_id: UUID,
     body: UpdateRoleRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_UPDATE)),
+    query_bus: QueryBus = Depends(Provide[Container.query_bus]),
+    actor: CurrentUser = Depends(require_permission(PermissionCode.ROLES_UPDATE)),
 ) -> None:
+    await ensure_can_manage_role(actor=actor, role_id=role_id, query_bus=query_bus)
     await command_bus.execute(
         UpdateRoleCommand(
             role_id=role_id,
@@ -111,8 +118,10 @@ async def update_role(
 async def delete_role(
     role_id: UUID,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_DELETE)),
+    query_bus: QueryBus = Depends(Provide[Container.query_bus]),
+    actor: CurrentUser = Depends(require_permission(PermissionCode.ROLES_DELETE)),
 ) -> None:
+    await ensure_can_manage_role(actor=actor, role_id=role_id, query_bus=query_bus)
     await command_bus.execute(DeleteRoleCommand(role_id=role_id))
 
 

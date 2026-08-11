@@ -28,6 +28,6 @@ def can_manage(actor_roles: Iterable[str], target_roles: Iterable[str]) -> bool:
 
 
 def can_grant_roles(actor_roles: Iterable[str], granted_roles: Iterable[str]) -> bool:
-    """True when the actor may grant every listed role (rank >= each role)."""
+    """True when the actor may grant every listed role (must strictly outrank each)."""
     actor = role_rank(actor_roles)
-    return all(actor >= ROLE_RANK.get(name.upper(), 0) for name in granted_roles)
+    return all(actor > ROLE_RANK.get(name.upper(), 0) for name in granted_roles)

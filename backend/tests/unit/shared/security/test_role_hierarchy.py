@@ -25,8 +25,10 @@ def test_can_manage_strictly_outranks() -> None:
     assert not can_manage(["MANAGER"], ["MANAGER"])
 
 
-def test_can_grant_roles_allows_equal_or_lower() -> None:
-    assert can_grant_roles(["ADMIN"], ["ADMIN", "MANAGER"])
-    assert can_grant_roles(["MANAGER"], ["OPERATOR", "VIEWER"])
+def test_can_grant_roles_requires_strictly_higher() -> None:
+    assert can_grant_roles(["ADMIN"], ["MANAGER", "OPERATOR"])
+    assert can_grant_roles(["PLATFORM"], ["ADMIN", "MANAGER"])
+    assert not can_grant_roles(["ADMIN"], ["ADMIN"])
     assert not can_grant_roles(["MANAGER"], ["ADMIN"])
-    assert can_grant_roles(["MANAGER"], ["MANAGER"])
+    assert not can_grant_roles(["MANAGER"], ["MANAGER"])
+    assert can_grant_roles(["MANAGER"], ["OPERATOR", "VIEWER"])

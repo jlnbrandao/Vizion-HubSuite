@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_days: int = 7
 
+    # Refresh cookie Secure flag. None = Secure outside development.
+    # Set COOKIE_SECURE=false for HTTP-only deploys until TLS is enabled.
+    cookie_secure: bool | None = None
+
     rate_limit_requests: int = 100
     rate_limit_window_seconds: int = 60
     auth_rate_limit_requests: int = 20
@@ -58,6 +62,12 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"
+
+    @property
+    def refresh_cookie_secure(self) -> bool:
+        if self.cookie_secure is not None:
+            return self.cookie_secure
+        return not self.is_development
 
     @property
     def migrate_database_url(self) -> str:

@@ -15,7 +15,7 @@ def set_refresh_cookie(response: Response, token: str, settings: Settings) -> No
         key=REFRESH_COOKIE_NAME,
         value=token,
         httponly=True,
-        secure=not settings.is_development,
+        secure=settings.refresh_cookie_secure,
         samesite="lax",
         path=REFRESH_COOKIE_PATH,
         max_age=settings.jwt_refresh_token_expire_days * 86_400,
@@ -26,7 +26,7 @@ def clear_refresh_cookie(response: Response, settings: Settings) -> None:
     response.delete_cookie(
         key=REFRESH_COOKIE_NAME,
         path=REFRESH_COOKIE_PATH,
-        secure=not settings.is_development,
+        secure=settings.refresh_cookie_secure,
         httponly=True,
         samesite="lax",
     )
