@@ -40,15 +40,19 @@ services:
       APP_DEBUG: "true"
       APP_HOST: 0.0.0.0
       APP_PORT: "8000"
+      # App DB role (FORCE RLS). Defaults are for local compose only — rotate in production.
       DATABASE_URL: postgresql+asyncpg://lanstar_app:lanstar_app@postgres:5432/lanstar
       DATABASE_MIGRATE_URL: postgresql+asyncpg://lanstar:lanstar@postgres:5432/lanstar
       REDIS_URL: redis://redis:6379/0
+      # PyJWT HS256 — use a ≥32 char secret outside development
       JWT_SECRET_KEY: change-me-in-production-use-long-random-string
       JWT_ALGORITHM: HS256
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "15"
       JWT_REFRESH_TOKEN_EXPIRE_DAYS: "7"
       RATE_LIMIT_REQUESTS: "100"
       RATE_LIMIT_WINDOW_SECONDS: "60"
+      AUTH_RATE_LIMIT_REQUESTS: "20"
+      AUTH_RATE_LIMIT_WINDOW_SECONDS: "60"
       ALLOWED_TENANT_BASE_DOMAINS: localhost,lanstar.com.br,lanstar.local
     ports:
       - "8000:8000"
@@ -82,6 +86,7 @@ services:
       dockerfile: Dockerfile
     container_name: lanstar-seed
     environment:
+      # Seed only runs with demo password when APP_ENV=development (or SEED_ALLOW_INSECURE=true)
       APP_ENV: development
       DATABASE_URL: postgresql+asyncpg://lanstar:lanstar@postgres:5432/lanstar
       REDIS_URL: redis://redis:6379/0

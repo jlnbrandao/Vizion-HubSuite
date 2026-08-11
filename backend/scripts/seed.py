@@ -4,6 +4,9 @@ Each app tenant (e.g. universe) gets an Administrator user with role ADMIN
 (exposed by GET /api/v1/tenants as `admin`). The ops tenant `bigbang` uses role
 PLATFORM instead (no ADMIN association on the catalog).
 
+Demo password is SEED_PASSWORD (meets letter+digit+special). Outside
+APP_ENV=development the seed refuses to run unless SEED_ALLOW_INSECURE=true.
+
 Usage (from backend/):
     python -m scripts.seed
 """

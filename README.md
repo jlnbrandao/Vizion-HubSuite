@@ -8,7 +8,7 @@ Event Bus e Dependency Injection.
 
 | Camada | Tecnologias |
 |--------|-------------|
-| Backend | Python 3.13, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL (RLS), Redis, JWT |
+| Backend | Python 3.13, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL (RLS), Redis, **PyJWT** (HS256) |
 | Frontend | Vue 3, Pinia, Vue Router, Axios, Quasar |
 
 ## Etapas
@@ -76,19 +76,20 @@ Rotacione as senhas padrão (`lanstar_app` / `lanstar_migrate`) em produção.
 
 | Peça | Comportamento |
 |------|----------------|
-| Access token | JWT HS256 (~15 min), enviado no header `Authorization: Bearer` |
-| Refresh token | Opaco, Redis TTL 7 dias, cookie **httpOnly** (`lanstar_refresh_token`, `SameSite=lax`, `Secure` fora de development) |
+| Access token | **PyJWT** HS256 (~15 min), header `Authorization: Bearer`; claim `cv` = `credentials_version` |
+| Refresh token | Opaco (`secrets`), Redis guarda só **SHA-256** (TTL 7 dias), cookie **httpOnly** (`lanstar_refresh_token`, `SameSite=lax`, `Secure` fora de development) |
 | Frontend | Access só em **memória** (não persiste em `localStorage`); bootstrap/refresh usam o cookie |
 | AuthZ | `Depends(require_permission(...))` no backend; UI espelha com `can()` / `meta.permissions` |
-| Hierarquia | Roles ranqueadas (`PLATFORM` > `ADMIN` > `MANAGER` > …): quem tem `users.update` **não** gerencia pares ou superiores |
-| Rate limit | Chave `tenant:IP` (respeita `X-Real-IP`; auth login/refresh com limite mais baixo) |
-| Sessões | Refresh recarrega `role_ids` / `is_active` do banco; senha, desativação, delete ou troca de roles invalida refresh **e** access (`credentials_version` no JWT) |
+| Hierarquia | Roles ranqueadas (`PLATFORM` > `ADMIN` > `MANAGER` > …): quem tem `users.update` / `roles.assign` **não** gerencia pares ou superiores; permissões platform-only não são atribuíveis sem bypass |
+| Rate limit | Chave `tenant:IP` via `X-Real-IP` (nginx); login/refresh usam limite mais baixo (`AUTH_RATE_LIMIT_*`) |
+| Sessões | Refresh recarrega `role_ids` / `is_active` do banco; senha, desativação, delete ou troca de roles invalida refresh **e** access (`credentials_version`) |
+| Senhas | Novas senhas: letra + dígito + caractere especial (mín. 8); troca da própria senha exige `current_password` |
 
 Em produção (`APP_ENV` ≠ `development`):
 
 - `JWT_SECRET_KEY` ≥ 32 caracteres (placeholders rejeitados)
 - `ALLOWED_TENANT_BASE_DOMAINS` obrigatório
-- Senhas default de banco (`lanstar` / `lanstar_app` / `lanstar_migrate`) rejeitadas na URL
+- Senhas default de banco (`lanstar` / `lanstar_app` / `lanstar_migrate`) rejeitadas na URL — rotacione no Postgres após a migration `0009`
 - Seed demo recusado (exceto `SEED_ALLOW_INSECURE=true`)
 - `/docs` / OpenAPI desabilitados
 
@@ -149,7 +150,10 @@ Abra **http://universe.localhost:9000** (proxy `/api` → backend `:8000` com `c
 
 ## Seed
 
-O seed é idempotente e cria:
+O seed é idempotente. Em `APP_ENV=development` (default local/Docker) cria os dados abaixo.
+Fora de development, o seed **recusa** a senha demo salvo `SEED_ALLOW_INSECURE=true`.
+
+Senha demo (`123Mudar.`) atende a política (letra + dígito + especial).
 
 ### Tenant `universe`
 
@@ -180,6 +184,7 @@ Permissões: `tenants.create|read|update|activate|deactivate`, `system.settings`
 ```bash
 cd backend
 python -m scripts.seed
+# produção controlada (não recomendado): SEED_ALLOW_INSECURE=true python -m scripts.seed
 ```
 
 ## Testes
@@ -195,7 +200,7 @@ pytest -v
 Cliente (universe.* | bigbang.*) → FastAPI Gateway
        → TenantMiddleware (Host allowlist → resolve_tenant_by_slug → RLS GUC)
        → RateLimit (tenant:IP)
-       → AuthN (JWT + reload user) / AuthZ / Validation
+       → AuthN (PyJWT + reload user / credentials_version) / AuthZ / Validation
        → CommandBus / QueryBus
        → Handler
        → Domain (Aggregates, VOs, Events)

@@ -1,10 +1,11 @@
-"""Jose JWT access token service."""
+"""PyJWT access token service."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError
 
 from src.config.settings import Settings
 from src.modules.authentication.services.token_service import TokenService
@@ -12,7 +13,7 @@ from src.modules.authentication.value_objects.access_token_claims import AccessT
 from src.shared.infrastructure.exceptions import UnauthorizedError
 
 
-class JoseTokenService(TokenService):
+class JwtTokenService(TokenService):
     def __init__(self, settings: Settings) -> None:
         self._secret = settings.jwt_secret_key
         self._algorithm = settings.jwt_algorithm
@@ -39,8 +40,13 @@ class JoseTokenService(TokenService):
 
     def decode_access_token(self, token: str) -> AccessTokenClaims:
         try:
-            payload = jwt.decode(token, self._secret, algorithms=[self._algorithm])
-        except JWTError as exc:
+            payload = jwt.decode(
+                token,
+                self._secret,
+                algorithms=[self._algorithm],
+                options={"require": ["exp", "iat", "sub"]},
+            )
+        except InvalidTokenError as exc:
             raise UnauthorizedError("Invalid or expired access token") from exc
 
         try:

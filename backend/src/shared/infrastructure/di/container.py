@@ -16,7 +16,7 @@ from src.modules.authentication.handlers.auth_handlers import (
     LogoutHandler,
     RefreshTokenHandler,
 )
-from src.modules.authentication.services.jose_token_service import JoseTokenService
+from src.modules.authentication.services.jwt_token_service import JwtTokenService
 from src.modules.authentication.services.redis_refresh_token_store import RedisRefreshTokenStore
 from src.modules.dashboard.handlers.dashboard_handlers import GetDashboardHandler
 from src.modules.dashboard.providers.admin_provider import AdminDashboardProvider
@@ -136,8 +136,8 @@ class Container(containers.DeclarativeContainer):
         BcryptPasswordHasher
     )
 
-    token_service: providers.Singleton[JoseTokenService] = providers.Singleton(
-        JoseTokenService,
+    token_service: providers.Singleton[JwtTokenService] = providers.Singleton(
+        JwtTokenService,
         settings=config,
     )
 

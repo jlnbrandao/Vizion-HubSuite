@@ -18,7 +18,7 @@ from src.modules.authentication.handlers.auth_handlers import (
 from src.modules.authentication.services.in_memory_refresh_token_store import (
     InMemoryRefreshTokenStore,
 )
-from src.modules.authentication.services.jose_token_service import JoseTokenService
+from src.modules.authentication.services.jwt_token_service import JwtTokenService
 from src.modules.users.commands.user_commands import CreateUserCommand
 from src.modules.users.handlers.user_handlers import (
     CreateUserHandler,
@@ -53,7 +53,7 @@ class FakePasswordHasher(PasswordHasher):
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
-        jwt_secret_key="auth-test-secret",
+        jwt_secret_key="auth-test-secret-key-32-bytes-ok!",
         jwt_access_token_expire_minutes=15,
         jwt_refresh_token_expire_days=7,
     )
@@ -92,8 +92,8 @@ def query_bus(uow_factory, users_repo) -> QueryBus:
 
 
 @pytest.fixture
-def token_service(settings: Settings) -> JoseTokenService:
-    return JoseTokenService(settings)
+def token_service(settings: Settings) -> JwtTokenService:
+    return JwtTokenService(settings)
 
 
 @pytest.fixture
