@@ -15,7 +15,10 @@ class InMemoryRoleRepository(RoleRepository):
         self._items: dict[UUID, Role] = {}
 
     async def get_by_id(self, entity_id: UUID) -> Role | None:
-        return self._items.get(entity_id)
+        role = self._items.get(entity_id)
+        if role is None or not matches_tenant_scope(role.tenant_id):
+            return None
+        return role
 
     async def get_by_name(self, name: RoleName) -> Role | None:
         return next(

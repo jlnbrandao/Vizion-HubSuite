@@ -19,9 +19,15 @@ from src.modules.authentication.queries.access_queries import (
     ResolveEffectiveAccessQuery,
 )
 from src.modules.authentication.services.token_service import TokenService
+from src.modules.users.dtos.user_dtos import UserDto
+from src.modules.users.queries.user_queries import GetUserByIdQuery
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.di.container import Container
-from src.shared.infrastructure.exceptions import ForbiddenError, UnauthorizedError
+from src.shared.infrastructure.exceptions import (
+    ForbiddenError,
+    NotFoundError,
+    UnauthorizedError,
+)
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.tenant_context import (
     get_current_tenant_id,
@@ -58,18 +64,26 @@ async def get_current_user(
     if host_slug is not None and claims.tenant_slug != host_slug:
         raise UnauthorizedError("Token tenant does not match Host tenant")
 
+    try:
+        user: UserDto = await query_bus.ask(GetUserByIdQuery(user_id=claims.user_id))
+    except NotFoundError as exc:
+        raise UnauthorizedError("Invalid or expired credentials") from exc
+
+    if not user.is_active or user.tenant_id != host_tenant_id:
+        raise UnauthorizedError("Invalid or expired credentials")
+
     access: EffectiveAccessDto = await query_bus.ask(
-        ResolveEffectiveAccessQuery(role_ids=frozenset(claims.role_ids))
+        ResolveEffectiveAccessQuery(role_ids=frozenset(user.role_ids))
     )
 
     return CurrentUser(
-        id=claims.user_id,
-        email=claims.email,
-        full_name=claims.full_name,
-        tenant_id=claims.tenant_id,
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        tenant_id=user.tenant_id,
         tenant_slug=claims.tenant_slug,
         tenant_name=get_current_tenant_name() or claims.tenant_slug,
-        role_ids=claims.role_ids,
+        role_ids=user.role_ids,
         role_names=access.role_names,
         permissions=access.permission_codes,
     )

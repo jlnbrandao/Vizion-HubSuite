@@ -14,3 +14,7 @@ class TenantRepository(Repository[Tenant], ABC):
     @abstractmethod
     async def get_by_slug(self, slug: TenantSlug) -> Tenant | None:
         ...
+
+    @abstractmethod
+    async def list_all(self, *, only_active: bool = False) -> list[Tenant]:
+        ...

@@ -10,6 +10,7 @@ from uuid import UUID
 @dataclass(frozen=True, kw_only=True)
 class UserDto:
     id: UUID
+    tenant_id: UUID
     email: str
     username: str
     full_name: str

@@ -28,7 +28,11 @@ from src.modules.permissions.value_objects.permission_code import PermissionCode
 from src.modules.permissions.value_objects.permission_name import PermissionName
 from src.shared.application.handler import CommandHandler, QueryHandler
 from src.shared.application.unit_of_work import UnitOfWork
-from src.shared.infrastructure.exceptions import ConflictError, NotFoundError, ValidationError
+from src.shared.infrastructure.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from src.shared.infrastructure.security.permission_codes import (
+    PermissionCode as CatalogPermissionCode,
+)
+from src.shared.infrastructure.tenant_context import get_rls_bypass
 
 UowFactory = Callable[[], AbstractAsyncContextManager[UnitOfWork]]
 
@@ -58,6 +62,14 @@ class CreatePermissionHandler(CommandHandler[CreatePermissionCommand, UUID]):
             name = PermissionName.from_primitive(command.name)
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
+
+        if (
+            code.value in CatalogPermissionCode.platform_only_codes()
+            and not get_rls_bypass()
+        ):
+            raise ForbiddenError(
+                f"Platform-only permission cannot be created in tenant scope: {code.value}"
+            )
 
         async with self._uow_factory() as uow:
             if await self._permissions.exists_by_code(code):

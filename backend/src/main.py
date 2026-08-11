@@ -17,6 +17,7 @@ from src.modules.authentication.routes.auth_routes import router as auth_router
 from src.modules.dashboard.routes.dashboard_routes import router as dashboard_router
 from src.modules.permissions.routes.permission_routes import router as permissions_router
 from src.modules.roles.routes.role_routes import router as roles_router
+from src.modules.tenants.routes.tenant_routes import router as tenants_router
 from src.modules.users.routes.user_routes import router as users_router
 from src.shared.infrastructure.audit_handlers import register_audit_handlers
 from src.shared.infrastructure.di.container import Container, create_container
@@ -44,6 +45,7 @@ _WIRE_MODULES = [
     "src.modules.permissions.routes.permission_routes",
     "src.modules.roles.routes.role_routes",
     "src.modules.users.routes.user_routes",
+    "src.modules.tenants.routes.tenant_routes",
     "src.modules.authentication.routes.auth_routes",
     "src.modules.dashboard.routes.dashboard_routes",
     "src.shared.infrastructure.security.dependencies",
@@ -84,7 +86,11 @@ def create_app(container: Container | None = None) -> FastAPI:
     )
     # Last added runs first: Tenant → RateLimit → CORS → routes
     app.add_middleware(RateLimitMiddleware, rate_limiter=container.rate_limiter())
-    app.add_middleware(TenantMiddleware, query_bus=container.query_bus())
+    app.add_middleware(
+        TenantMiddleware,
+        query_bus=container.query_bus(),
+        settings=settings,
+    )
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_: Request, exc: NotFoundError) -> JSONResponse:
@@ -115,6 +121,7 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.include_router(permissions_router, prefix="/api/v1")
     app.include_router(roles_router, prefix="/api/v1")
     app.include_router(users_router, prefix="/api/v1")
+    app.include_router(tenants_router, prefix="/api/v1")
 
     return app
 

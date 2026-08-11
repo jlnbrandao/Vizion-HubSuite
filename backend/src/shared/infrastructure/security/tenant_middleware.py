@@ -8,12 +8,16 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from src.config.settings import Settings, get_settings
 from src.modules.tenants.dtos.tenant_dtos import TenantDto
 from src.modules.tenants.queries.tenant_queries import GetTenantBySlugQuery
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.exceptions import NotFoundError, ValidationError
 from src.shared.infrastructure.tenant_context import bind_tenant, unbind_tenant
-from src.shared.infrastructure.tenant_host import extract_tenant_slug_from_host
+from src.shared.infrastructure.tenant_host import (
+    assert_host_base_domain_allowed,
+    extract_tenant_slug_from_host,
+)
 
 _SKIP_PREFIXES = ("/health", "/docs", "/redoc", "/openapi.json")
 
@@ -21,17 +25,31 @@ _SKIP_PREFIXES = ("/health", "/docs", "/redoc", "/openapi.json")
 class TenantMiddleware(BaseHTTPMiddleware):
     """Bind tenant from Host first label for all API routes."""
 
-    def __init__(self, app: Callable, *, query_bus: QueryBus) -> None:
+    def __init__(
+        self,
+        app: Callable,
+        *,
+        query_bus: QueryBus,
+        settings: Settings | None = None,
+    ) -> None:
         super().__init__(app)
         self._query_bus = query_bus
+        self._settings = settings or get_settings()
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         path = request.url.path
         if any(path == p or path.startswith(p + "/") for p in _SKIP_PREFIXES):
             return await call_next(request)
 
+        host = request.headers.get("host")
         try:
-            slug = extract_tenant_slug_from_host(request.headers.get("host"))
+            # Always enforce allowlist when configured (default includes localhost + lanstar.com.br).
+            assert_host_base_domain_allowed(
+                host,
+                self._settings.tenant_base_domains,
+                enforce=bool(self._settings.tenant_base_domains),
+            )
+            slug = extract_tenant_slug_from_host(host)
         except ValidationError as exc:
             return JSONResponse(
                 status_code=422,
@@ -39,7 +57,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
             )
 
         try:
-            # Handler opens its own UoW (tenants SELECT is publicly allowed by RLS).
+            # Resolution uses SECURITY DEFINER resolve_tenant_by_slug (tenants SELECT closed).
             tenant: TenantDto = await self._query_bus.ask(GetTenantBySlugQuery(slug=slug))
         except NotFoundError:
             return JSONResponse(

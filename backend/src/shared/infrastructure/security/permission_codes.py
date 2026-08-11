@@ -87,6 +87,26 @@ class PermissionCode:
 
     SYSTEM_SETTINGS = "system.settings"
 
+    TENANTS_CREATE = "tenants.create"
+    TENANTS_READ = "tenants.read"
+    TENANTS_UPDATE = "tenants.update"
+    TENANTS_ACTIVATE = "tenants.activate"
+    TENANTS_DEACTIVATE = "tenants.deactivate"
+
+    @classmethod
+    def platform_only_codes(cls) -> frozenset[str]:
+        """Codes that must not be granted inside ordinary tenant RBAC."""
+        return frozenset(
+            {
+                cls.SYSTEM_SETTINGS,
+                cls.TENANTS_CREATE,
+                cls.TENANTS_READ,
+                cls.TENANTS_UPDATE,
+                cls.TENANTS_ACTIVATE,
+                cls.TENANTS_DEACTIVATE,
+            }
+        )
+
     @classmethod
     def all_codes(cls) -> tuple[str, ...]:
         return tuple(
@@ -204,6 +224,31 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         code=PermissionCode.SYSTEM_SETTINGS,
         name="System settings",
         description="Allows managing system settings",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.TENANTS_CREATE,
+        name="Create tenants",
+        description="Allows creating tenants (platform)",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.TENANTS_READ,
+        name="Read tenants",
+        description="Allows listing tenants (platform)",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.TENANTS_UPDATE,
+        name="Update tenants",
+        description="Allows renaming tenants (platform)",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.TENANTS_ACTIVATE,
+        name="Activate tenants",
+        description="Allows activating tenants (platform)",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.TENANTS_DEACTIVATE,
+        name="Deactivate tenants",
+        description="Allows suspending tenants (platform)",
     ),
 )
 

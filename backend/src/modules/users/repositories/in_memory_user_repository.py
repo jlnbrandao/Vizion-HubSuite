@@ -16,7 +16,10 @@ class InMemoryUserRepository(UserRepository):
         self._items: dict[UUID, User] = {}
 
     async def get_by_id(self, entity_id: UUID) -> User | None:
-        return self._items.get(entity_id)
+        user = self._items.get(entity_id)
+        if user is None or not matches_tenant_scope(user.tenant_id):
+            return None
+        return user
 
     async def get_by_email(self, email: Email) -> User | None:
         return next(
@@ -48,7 +51,7 @@ class InMemoryUserRepository(UserRepository):
         self._items.pop(entity.id, None)
 
     async def exists(self, entity_id: UUID) -> bool:
-        return entity_id in self._items
+        return await self.get_by_id(entity_id) is not None
 
     async def exists_by_email(self, email: Email) -> bool:
         return any(
@@ -69,7 +72,7 @@ class InMemoryUserRepository(UserRepository):
         return sorted(items, key=lambda u: u.username.value)
 
     async def count(self, *, only_active: bool = False) -> int:
-        items = self._items.values()
+        items = [u for u in self._items.values() if matches_tenant_scope(u.tenant_id)]
         if only_active:
             return sum(1 for u in items if u.is_active)
-        return len(self._items)
+        return len(items)

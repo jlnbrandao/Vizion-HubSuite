@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 ROLE_RANK: dict[str, int] = {
+    "PLATFORM": 200,
     "ADMIN": 100,
     "MANAGER": 80,
     "OPERATOR": 60,

@@ -13,6 +13,7 @@ from src.modules.permissions.repositories.permission_repository import Permissio
 from src.modules.permissions.value_objects.permission_code import PermissionCode
 from src.modules.permissions.value_objects.permission_name import PermissionName
 from src.shared.infrastructure.session_context import get_current_session
+from src.shared.infrastructure.tenant_scope import apply_tenant_scope
 
 
 def _to_entity(model: PermissionModel) -> Permission:
@@ -43,11 +44,19 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
         return get_current_session()
 
     async def get_by_id(self, entity_id: UUID) -> Permission | None:
-        model = await self._session().get(PermissionModel, entity_id)
+        stmt = apply_tenant_scope(
+            select(PermissionModel).where(PermissionModel.id == entity_id),
+            PermissionModel.tenant_id,
+        )
+        result = await self._session().execute(stmt)
+        model = result.scalar_one_or_none()
         return _to_entity(model) if model else None
 
     async def get_by_code(self, code: PermissionCode) -> Permission | None:
-        stmt = select(PermissionModel).where(PermissionModel.code == code.value)
+        stmt = apply_tenant_scope(
+            select(PermissionModel).where(PermissionModel.code == code.value),
+            PermissionModel.tenant_id,
+        )
         result = await self._session().execute(stmt)
         model = result.scalar_one_or_none()
         return _to_entity(model) if model else None
@@ -68,22 +77,34 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
         self._session().add(model)
 
     async def update(self, entity: Permission) -> None:
-        model = await self._session().get(PermissionModel, entity.id)
+        stmt = apply_tenant_scope(
+            select(PermissionModel).where(PermissionModel.id == entity.id),
+            PermissionModel.tenant_id,
+        )
+        result = await self._session().execute(stmt)
+        model = result.scalar_one_or_none()
         if model is None:
             raise ValueError(f"PermissionModel not found: {entity.id}")
         _apply_entity(model, entity)
 
     async def delete(self, entity: Permission) -> None:
-        model = await self._session().get(PermissionModel, entity.id)
+        stmt = apply_tenant_scope(
+            select(PermissionModel).where(PermissionModel.id == entity.id),
+            PermissionModel.tenant_id,
+        )
+        result = await self._session().execute(stmt)
+        model = result.scalar_one_or_none()
         if model is not None:
             await self._session().delete(model)
 
     async def exists(self, entity_id: UUID) -> bool:
-        model = await self._session().get(PermissionModel, entity_id)
-        return model is not None
+        return await self.get_by_id(entity_id) is not None
 
     async def exists_by_code(self, code: PermissionCode) -> bool:
-        stmt = select(PermissionModel.id).where(PermissionModel.code == code.value)
+        stmt = apply_tenant_scope(
+            select(PermissionModel.id).where(PermissionModel.code == code.value),
+            PermissionModel.tenant_id,
+        )
         result = await self._session().execute(stmt)
         return result.scalar_one_or_none() is not None
 
@@ -94,7 +115,10 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
         resource: str | None = None,
         action: str | None = None,
     ) -> list[Permission]:
-        stmt = select(PermissionModel).order_by(PermissionModel.code)
+        stmt = apply_tenant_scope(
+            select(PermissionModel).order_by(PermissionModel.code),
+            PermissionModel.tenant_id,
+        )
         if only_active:
             stmt = stmt.where(PermissionModel.is_active.is_(True))
         if resource:
@@ -107,14 +131,20 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
     async def find_by_ids(self, ids: set[UUID]) -> list[Permission]:
         if not ids:
             return []
-        stmt = select(PermissionModel).where(PermissionModel.id.in_(ids))
+        stmt = apply_tenant_scope(
+            select(PermissionModel).where(PermissionModel.id.in_(ids)),
+            PermissionModel.tenant_id,
+        )
         result = await self._session().execute(stmt)
         return [_to_entity(m) for m in result.scalars().all()]
 
     async def count(self, *, only_active: bool = False) -> int:
         from sqlalchemy import func
 
-        stmt = select(func.count()).select_from(PermissionModel)
+        stmt = apply_tenant_scope(
+            select(func.count()).select_from(PermissionModel),
+            PermissionModel.tenant_id,
+        )
         if only_active:
             stmt = stmt.where(PermissionModel.is_active.is_(True))
         result = await self._session().execute(stmt)

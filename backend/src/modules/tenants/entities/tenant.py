@@ -27,3 +27,15 @@ class Tenant(AggregateRoot):
             return
         self.name = cleaned
         self.touch()
+
+    def activate(self) -> None:
+        if self.is_active:
+            return
+        self.is_active = True
+        self.touch()
+
+    def deactivate(self) -> None:
+        if not self.is_active:
+            return
+        self.is_active = False
+        self.touch()

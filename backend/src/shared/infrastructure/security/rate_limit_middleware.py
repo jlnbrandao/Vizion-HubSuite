@@ -1,4 +1,4 @@
-"""ASGI middleware — rate limit by client IP (skips health + docs)."""
+"""ASGI middleware — rate limit by tenant + client IP (skips health + docs)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from src.shared.infrastructure.security.client_ip import client_ip_from_request
 from src.shared.infrastructure.security.rate_limiter import RateLimiter
+from src.shared.infrastructure.tenant_context import get_current_tenant_slug
 
 _SKIP_PREFIXES = ("/health", "/docs", "/redoc", "/openapi.json")
 
@@ -23,8 +25,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if any(path == p or path.startswith(p + "/") for p in _SKIP_PREFIXES):
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "unknown"
-        allowed, remaining = await self._rate_limiter.is_allowed(client_ip)
+        client_ip = client_ip_from_request(request)
+        tenant_slug = getattr(request.state, "tenant_slug", None) or get_current_tenant_slug()
+        key = f"{tenant_slug or 'unknown'}:{client_ip}"
+        allowed, remaining = await self._rate_limiter.is_allowed(key)
 
         if not allowed:
             return JSONResponse(

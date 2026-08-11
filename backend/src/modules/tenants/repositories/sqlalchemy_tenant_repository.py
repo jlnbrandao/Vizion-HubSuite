@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.tenants.entities.tenant import Tenant
@@ -12,6 +12,7 @@ from src.modules.tenants.repositories.tenant_model import TenantModel
 from src.modules.tenants.repositories.tenant_repository import TenantRepository
 from src.modules.tenants.value_objects.tenant_slug import TenantSlug
 from src.shared.infrastructure.session_context import get_current_session
+from src.shared.infrastructure.tenant_context import get_rls_bypass
 
 
 def _to_entity(model: TenantModel) -> Tenant:
@@ -41,10 +42,38 @@ class SqlAlchemyTenantRepository(TenantRepository):
         return _to_entity(model) if model else None
 
     async def get_by_slug(self, slug: TenantSlug) -> Tenant | None:
+        # Host resolution runs before tenant GUC is set — use SECURITY DEFINER helper.
+        if not get_rls_bypass():
+            result = await self._session().execute(
+                text(
+                    "SELECT id, slug, name, is_active, created_at, updated_at "
+                    "FROM resolve_tenant_by_slug(:slug)"
+                ),
+                {"slug": slug.value},
+            )
+            row = result.mappings().first()
+            if row is None:
+                return None
+            return Tenant(
+                id=row["id"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+                slug=TenantSlug(value=row["slug"]),
+                name=row["name"],
+                is_active=row["is_active"],
+            )
+
         stmt = select(TenantModel).where(TenantModel.slug == slug.value)
         result = await self._session().execute(stmt)
         model = result.scalar_one_or_none()
         return _to_entity(model) if model else None
+
+    async def list_all(self, *, only_active: bool = False) -> list[Tenant]:
+        stmt = select(TenantModel).order_by(TenantModel.slug)
+        if only_active:
+            stmt = stmt.where(TenantModel.is_active.is_(True))
+        result = await self._session().execute(stmt)
+        return [_to_entity(model) for model in result.scalars().all()]
 
     async def add(self, entity: Tenant) -> None:
         model = TenantModel(

@@ -15,6 +15,7 @@ from src.modules.users.value_objects.full_name import FullName
 from src.modules.users.value_objects.hashed_password import HashedPassword
 from src.modules.users.value_objects.username import Username
 from src.shared.infrastructure.session_context import get_current_session
+from src.shared.infrastructure.tenant_scope import apply_tenant_scope
 
 
 async def _load_role_ids(session: AsyncSession, user_id: UUID) -> set[UUID]:
@@ -43,14 +44,22 @@ class SqlAlchemyUserRepository(UserRepository):
         return get_current_session()
 
     async def get_by_id(self, entity_id: UUID) -> User | None:
-        model = await self._session().get(UserModel, entity_id)
+        stmt = apply_tenant_scope(
+            select(UserModel).where(UserModel.id == entity_id),
+            UserModel.tenant_id,
+        )
+        result = await self._session().execute(stmt)
+        model = result.scalar_one_or_none()
         if model is None:
             return None
         role_ids = await _load_role_ids(self._session(), entity_id)
         return _to_entity(model, role_ids)
 
     async def get_by_email(self, email: Email) -> User | None:
-        stmt = select(UserModel).where(UserModel.email == email.value)
+        stmt = apply_tenant_scope(
+            select(UserModel).where(UserModel.email == email.value),
+            UserModel.tenant_id,
+        )
         result = await self._session().execute(stmt)
         model = result.scalar_one_or_none()
         if model is None:
@@ -59,7 +68,10 @@ class SqlAlchemyUserRepository(UserRepository):
         return _to_entity(model, role_ids)
 
     async def get_by_username(self, username: Username) -> User | None:
-        stmt = select(UserModel).where(UserModel.username == username.value)
+        stmt = apply_tenant_scope(
+            select(UserModel).where(UserModel.username == username.value),
+            UserModel.tenant_id,
+        )
         result = await self._session().execute(stmt)
         model = result.scalar_one_or_none()
         if model is None:
@@ -85,40 +97,58 @@ class SqlAlchemyUserRepository(UserRepository):
 
     async def update(self, entity: User) -> None:
         session = self._session()
-        model = await session.get(UserModel, entity.id)
-        if model is None:
+        stmt = apply_tenant_scope(
+            select(UserModel).where(UserModel.id == entity.id),
+            UserModel.tenant_id,
+        )
+        result = await session.execute(stmt)
+        row = result.scalar_one_or_none()
+        if row is None:
             raise ValueError(f"UserModel not found: {entity.id}")
-        model.email = entity.email.value
-        model.username = entity.username.value
-        model.full_name = entity.full_name.value
-        model.hashed_password = entity.hashed_password.value
-        model.is_active = entity.is_active
-        model.updated_at = entity.updated_at
+        row.email = entity.email.value
+        row.username = entity.username.value
+        row.full_name = entity.full_name.value
+        row.hashed_password = entity.hashed_password.value
+        row.is_active = entity.is_active
+        row.updated_at = entity.updated_at
         await self._sync_roles(entity)
 
     async def delete(self, entity: User) -> None:
         session = self._session()
         await session.execute(delete(UserRoleModel).where(UserRoleModel.user_id == entity.id))
-        model = await session.get(UserModel, entity.id)
+        stmt = apply_tenant_scope(
+            select(UserModel).where(UserModel.id == entity.id),
+            UserModel.tenant_id,
+        )
+        result = await session.execute(stmt)
+        model = result.scalar_one_or_none()
         if model is not None:
             await session.delete(model)
 
     async def exists(self, entity_id: UUID) -> bool:
-        model = await self._session().get(UserModel, entity_id)
-        return model is not None
+        return await self.get_by_id(entity_id) is not None
 
     async def exists_by_email(self, email: Email) -> bool:
-        stmt = select(UserModel.id).where(UserModel.email == email.value)
+        stmt = apply_tenant_scope(
+            select(UserModel.id).where(UserModel.email == email.value),
+            UserModel.tenant_id,
+        )
         result = await self._session().execute(stmt)
         return result.scalar_one_or_none() is not None
 
     async def exists_by_username(self, username: Username) -> bool:
-        stmt = select(UserModel.id).where(UserModel.username == username.value)
+        stmt = apply_tenant_scope(
+            select(UserModel.id).where(UserModel.username == username.value),
+            UserModel.tenant_id,
+        )
         result = await self._session().execute(stmt)
         return result.scalar_one_or_none() is not None
 
     async def list_all(self, *, only_active: bool = False) -> list[User]:
-        stmt = select(UserModel).order_by(UserModel.username)
+        stmt = apply_tenant_scope(
+            select(UserModel).order_by(UserModel.username),
+            UserModel.tenant_id,
+        )
         if only_active:
             stmt = stmt.where(UserModel.is_active.is_(True))
         result = await self._session().execute(stmt)
@@ -131,7 +161,10 @@ class SqlAlchemyUserRepository(UserRepository):
     async def count(self, *, only_active: bool = False) -> int:
         from sqlalchemy import func
 
-        stmt = select(func.count()).select_from(UserModel)
+        stmt = apply_tenant_scope(
+            select(func.count()).select_from(UserModel),
+            UserModel.tenant_id,
+        )
         if only_active:
             stmt = stmt.where(UserModel.is_active.is_(True))
         result = await self._session().execute(stmt)

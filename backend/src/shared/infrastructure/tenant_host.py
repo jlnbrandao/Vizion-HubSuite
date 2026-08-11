@@ -35,6 +35,44 @@ def normalize_host(host_header: str | None) -> str:
     return host
 
 
+def _base_domain(host: str) -> str:
+    labels = [part for part in host.split(".") if part]
+    return ".".join(labels[1:]) if len(labels) >= 2 else ""
+
+
+def assert_host_base_domain_allowed(
+    host_header: str | None,
+    allowed_base_domains: tuple[str, ...] | list[str],
+    *,
+    enforce: bool,
+) -> None:
+    """Reject Hosts whose suffix is not in the allowlist when enforce=True."""
+    if not enforce:
+        return
+    allowed = tuple(d.strip().lower() for d in allowed_base_domains if d and d.strip())
+    if not allowed:
+        raise ValidationError("No allowed tenant base domains configured")
+
+    host = normalize_host(host_header)
+    if _IPV4_RE.match(host) or host == "localhost":
+        raise ValidationError(
+            "Tenant subdomain required (e.g. bigbang.localhost or bigbang.lanstar.com.br)"
+        )
+
+    base = _base_domain(host)
+    if not base:
+        raise ValidationError(
+            "Tenant subdomain required (e.g. bigbang.localhost or bigbang.lanstar.com.br)"
+        )
+
+    # Allow exact base match or IP second-label form (bigbang.10.0.0.1 → base 10.0.0.1).
+    if base in allowed:
+        return
+    if _IPV4_RE.match(base):
+        return
+    raise ValidationError(f"Host base domain not allowed: {base}")
+
+
 def extract_tenant_slug_from_host(host_header: str | None) -> str:
     """Return tenant slug from Host first label.
 

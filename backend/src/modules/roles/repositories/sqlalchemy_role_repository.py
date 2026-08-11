@@ -13,6 +13,7 @@ from src.modules.roles.repositories.role_repository import RoleRepository
 from src.modules.roles.value_objects.role_description import RoleDescription
 from src.modules.roles.value_objects.role_name import RoleName
 from src.shared.infrastructure.session_context import get_current_session
+from src.shared.infrastructure.tenant_scope import apply_tenant_scope
 
 
 async def _load_permission_ids(session: AsyncSession, role_id: UUID) -> set[UUID]:
@@ -41,14 +42,22 @@ class SqlAlchemyRoleRepository(RoleRepository):
         return get_current_session()
 
     async def get_by_id(self, entity_id: UUID) -> Role | None:
-        model = await self._session().get(RoleModel, entity_id)
+        stmt = apply_tenant_scope(
+            select(RoleModel).where(RoleModel.id == entity_id),
+            RoleModel.tenant_id,
+        )
+        result = await self._session().execute(stmt)
+        model = result.scalar_one_or_none()
         if model is None:
             return None
         permission_ids = await _load_permission_ids(self._session(), entity_id)
         return _to_entity(model, permission_ids)
 
     async def get_by_name(self, name: RoleName) -> Role | None:
-        stmt = select(RoleModel).where(RoleModel.name == name.value)
+        stmt = apply_tenant_scope(
+            select(RoleModel).where(RoleModel.name == name.value),
+            RoleModel.tenant_id,
+        )
         result = await self._session().execute(stmt)
         model = result.scalar_one_or_none()
         if model is None:
@@ -72,7 +81,12 @@ class SqlAlchemyRoleRepository(RoleRepository):
 
     async def update(self, entity: Role) -> None:
         session = self._session()
-        model = await session.get(RoleModel, entity.id)
+        stmt = apply_tenant_scope(
+            select(RoleModel).where(RoleModel.id == entity.id),
+            RoleModel.tenant_id,
+        )
+        result = await session.execute(stmt)
+        model = result.scalar_one_or_none()
         if model is None:
             raise ValueError(f"RoleModel not found: {entity.id}")
         model.name = entity.name.value
@@ -86,21 +100,31 @@ class SqlAlchemyRoleRepository(RoleRepository):
         await session.execute(
             delete(RolePermissionModel).where(RolePermissionModel.role_id == entity.id)
         )
-        model = await session.get(RoleModel, entity.id)
+        stmt = apply_tenant_scope(
+            select(RoleModel).where(RoleModel.id == entity.id),
+            RoleModel.tenant_id,
+        )
+        result = await session.execute(stmt)
+        model = result.scalar_one_or_none()
         if model is not None:
             await session.delete(model)
 
     async def exists(self, entity_id: UUID) -> bool:
-        model = await self._session().get(RoleModel, entity_id)
-        return model is not None
+        return await self.get_by_id(entity_id) is not None
 
     async def exists_by_name(self, name: RoleName) -> bool:
-        stmt = select(RoleModel.id).where(RoleModel.name == name.value)
+        stmt = apply_tenant_scope(
+            select(RoleModel.id).where(RoleModel.name == name.value),
+            RoleModel.tenant_id,
+        )
         result = await self._session().execute(stmt)
         return result.scalar_one_or_none() is not None
 
     async def list_all(self, *, only_active: bool = False) -> list[Role]:
-        stmt = select(RoleModel).order_by(RoleModel.name)
+        stmt = apply_tenant_scope(
+            select(RoleModel).order_by(RoleModel.name),
+            RoleModel.tenant_id,
+        )
         if only_active:
             stmt = stmt.where(RoleModel.is_active.is_(True))
         result = await self._session().execute(stmt)
@@ -113,7 +137,10 @@ class SqlAlchemyRoleRepository(RoleRepository):
     async def find_by_ids(self, ids: set[UUID]) -> list[Role]:
         if not ids:
             return []
-        stmt = select(RoleModel).where(RoleModel.id.in_(ids))
+        stmt = apply_tenant_scope(
+            select(RoleModel).where(RoleModel.id.in_(ids)),
+            RoleModel.tenant_id,
+        )
         result = await self._session().execute(stmt)
         roles: list[Role] = []
         for model in result.scalars().all():
@@ -124,7 +151,10 @@ class SqlAlchemyRoleRepository(RoleRepository):
     async def count(self, *, only_active: bool = False) -> int:
         from sqlalchemy import func
 
-        stmt = select(func.count()).select_from(RoleModel)
+        stmt = apply_tenant_scope(
+            select(func.count()).select_from(RoleModel),
+            RoleModel.tenant_id,
+        )
         if only_active:
             stmt = stmt.where(RoleModel.is_active.is_(True))
         result = await self._session().execute(stmt)

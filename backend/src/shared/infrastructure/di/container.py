@@ -53,7 +53,13 @@ from src.modules.roles.handlers.role_handlers import (
 )
 from src.modules.roles.repositories.sqlalchemy_role_repository import SqlAlchemyRoleRepository
 from src.modules.tenants.handlers.tenant_handlers import (
+    ActivateTenantHandler,
+    CreateTenantHandler,
+    DeactivateTenantHandler,
+    GetTenantByIdHandler,
     GetTenantBySlugHandler,
+    ListTenantsHandler,
+    RenameTenantHandler,
     UpsertTenantHandler,
 )
 from src.modules.tenants.repositories.sqlalchemy_tenant_repository import (
@@ -351,8 +357,38 @@ class Container(containers.DeclarativeContainer):
         uow_factory=unit_of_work.provider,
         tenants=tenant_repository,
     )
+    get_tenant_by_id_handler: providers.Factory[GetTenantByIdHandler] = providers.Factory(
+        GetTenantByIdHandler,
+        uow_factory=unit_of_work.provider,
+        tenants=tenant_repository,
+    )
+    list_tenants_handler: providers.Factory[ListTenantsHandler] = providers.Factory(
+        ListTenantsHandler,
+        uow_factory=unit_of_work.provider,
+        tenants=tenant_repository,
+    )
     upsert_tenant_handler: providers.Factory[UpsertTenantHandler] = providers.Factory(
         UpsertTenantHandler,
+        uow_factory=unit_of_work.provider,
+        tenants=tenant_repository,
+    )
+    create_tenant_handler: providers.Factory[CreateTenantHandler] = providers.Factory(
+        CreateTenantHandler,
+        uow_factory=unit_of_work.provider,
+        tenants=tenant_repository,
+    )
+    rename_tenant_handler: providers.Factory[RenameTenantHandler] = providers.Factory(
+        RenameTenantHandler,
+        uow_factory=unit_of_work.provider,
+        tenants=tenant_repository,
+    )
+    activate_tenant_handler: providers.Factory[ActivateTenantHandler] = providers.Factory(
+        ActivateTenantHandler,
+        uow_factory=unit_of_work.provider,
+        tenants=tenant_repository,
+    )
+    deactivate_tenant_handler: providers.Factory[DeactivateTenantHandler] = providers.Factory(
+        DeactivateTenantHandler,
         uow_factory=unit_of_work.provider,
         tenants=tenant_repository,
     )

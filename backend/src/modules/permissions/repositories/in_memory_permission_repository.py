@@ -15,7 +15,10 @@ class InMemoryPermissionRepository(PermissionRepository):
         self._items: dict[UUID, Permission] = {}
 
     async def get_by_id(self, entity_id: UUID) -> Permission | None:
-        return self._items.get(entity_id)
+        permission = self._items.get(entity_id)
+        if permission is None or not matches_tenant_scope(permission.tenant_id):
+            return None
+        return permission
 
     async def get_by_code(self, code: PermissionCode) -> Permission | None:
         return next(

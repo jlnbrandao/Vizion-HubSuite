@@ -36,8 +36,18 @@ from src.modules.roles.queries.role_queries import (
     GetRolesByIdsQuery,
     ListRolesQuery,
 )
-from src.modules.tenants.commands.tenant_commands import UpsertTenantCommand
-from src.modules.tenants.queries.tenant_queries import GetTenantBySlugQuery
+from src.modules.tenants.commands.tenant_commands import (
+    ActivateTenantCommand,
+    CreateTenantCommand,
+    DeactivateTenantCommand,
+    RenameTenantCommand,
+    UpsertTenantCommand,
+)
+from src.modules.tenants.queries.tenant_queries import (
+    GetTenantByIdQuery,
+    GetTenantBySlugQuery,
+    ListTenantsQuery,
+)
 from src.modules.users.commands.user_commands import (
     AssignRolesToUserCommand,
     ChangeUserPasswordCommand,
@@ -108,7 +118,13 @@ def register_module_handlers(container: Container) -> None:
 
     # Tenants
     command_bus.register(UpsertTenantCommand, container.upsert_tenant_handler())
+    command_bus.register(CreateTenantCommand, container.create_tenant_handler())
+    command_bus.register(RenameTenantCommand, container.rename_tenant_handler())
+    command_bus.register(ActivateTenantCommand, container.activate_tenant_handler())
+    command_bus.register(DeactivateTenantCommand, container.deactivate_tenant_handler())
     query_bus.register(GetTenantBySlugQuery, container.get_tenant_by_slug_handler())
+    query_bus.register(GetTenantByIdQuery, container.get_tenant_by_id_handler())
+    query_bus.register(ListTenantsQuery, container.list_tenants_handler())
 
     # Authentication
     command_bus.register(LoginCommand, container.login_handler())

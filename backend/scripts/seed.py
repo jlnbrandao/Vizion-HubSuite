@@ -47,6 +47,7 @@ from src.shared.infrastructure.tenant_context import (
 logger = logging.getLogger("seed")
 
 BIGBANG_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000001")
+PLATFORM_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000002")
 SEED_PASSWORD = "123Mudar."
 
 
@@ -118,9 +119,11 @@ FORBIDDEN_FOR_ADMIN: frozenset[str] = frozenset(
         PermissionCode.DASHBOARD_OPERATOR,
         PermissionCode.DASHBOARD_CLIENT,
         PermissionCode.DASHBOARD_VIEWER,
-        PermissionCode.SYSTEM_SETTINGS,
+        *PermissionCode.platform_only_codes(),
     }
 )
+
+PLATFORM_PERMISSIONS: frozenset[str] = frozenset(PermissionCode.platform_only_codes())
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "ADMIN": ADMIN_PERMISSIONS,
@@ -191,12 +194,18 @@ def validate_role_permissions_map() -> None:
         )
 
 
-async def _ensure_permissions(container: Container) -> dict[str, UUID]:
+async def _ensure_permissions(
+    container: Container,
+    *,
+    tenant_id: UUID,
+    codes: tuple[str, ...] | frozenset[str] | None = None,
+) -> dict[str, UUID]:
     command_bus = container.command_bus()
     permissions = container.permission_repository()
     code_to_id: dict[str, UUID] = {}
+    selected = tuple(codes) if codes is not None else PermissionCode.all_codes()
 
-    for code in PermissionCode.all_codes():
+    for code in selected:
         name, description = _permission_meta(code)
         async with container.unit_of_work():
             existing = await permissions.get_by_code(PermissionCodeVO.from_primitive(code))
@@ -218,7 +227,7 @@ async def _ensure_permissions(container: Container) -> dict[str, UUID]:
 
         permission_id = await command_bus.execute(
             CreatePermissionCommand(
-                tenant_id=BIGBANG_TENANT_ID,
+                tenant_id=tenant_id,
                 code=code,
                 name=name,
                 description=description,
@@ -231,13 +240,19 @@ async def _ensure_permissions(container: Container) -> dict[str, UUID]:
 
 
 async def _ensure_roles(
-    container: Container, code_to_id: dict[str, UUID]
+    container: Container,
+    code_to_id: dict[str, UUID],
+    *,
+    tenant_id: UUID,
+    role_permissions: dict[str, frozenset[str]],
+    role_descriptions: dict[str, str] | None = None,
 ) -> dict[str, UUID]:
     command_bus = container.command_bus()
     roles = container.role_repository()
     role_to_id: dict[str, UUID] = {}
+    descriptions = role_descriptions or ROLE_DESCRIPTIONS
 
-    for role_name, permission_codes in ROLE_PERMISSIONS.items():
+    for role_name, permission_codes in role_permissions.items():
         async with container.unit_of_work():
             existing = await roles.get_by_name(RoleName.from_primitive(role_name))
         if existing is not None:
@@ -246,9 +261,9 @@ async def _ensure_roles(
         else:
             role_id = await command_bus.execute(
                 CreateRoleCommand(
-                    tenant_id=BIGBANG_TENANT_ID,
+                    tenant_id=tenant_id,
                     name=role_name,
-                    description=ROLE_DESCRIPTIONS.get(role_name, ""),
+                    description=descriptions.get(role_name, ""),
                 )
             )
             logger.info("role created: %s", role_name)
@@ -301,18 +316,24 @@ async def _find_existing_user(container: Container, seed_user: SeedUser):
         return await users.get_by_username(username)
 
 
-async def _ensure_seed_users(container: Container, role_to_id: dict[str, UUID]) -> None:
+async def _ensure_seed_users(
+    container: Container,
+    role_to_id: dict[str, UUID],
+    *,
+    tenant_id: UUID,
+    seed_users: tuple[SeedUser, ...] = SEED_USERS,
+) -> None:
     command_bus = container.command_bus()
     users = container.user_repository()
 
-    for seed_user in SEED_USERS:
+    for seed_user in seed_users:
         role_id = role_to_id[seed_user.role]
         existing = await _find_existing_user(container, seed_user)
 
         if existing is None:
             await command_bus.execute(
                 CreateUserCommand(
-                    tenant_id=BIGBANG_TENANT_ID,
+                    tenant_id=tenant_id,
                     email=seed_user.email,
                     username=seed_user.username,
                     full_name=seed_user.full_name,
@@ -371,30 +392,82 @@ async def _ensure_seed_users(container: Container, role_to_id: dict[str, UUID]) 
         )
 
 
+async def _seed_tenant(
+    container: Container,
+    *,
+    tenant_id: UUID,
+    slug: str,
+    name: str,
+    permission_codes: tuple[str, ...] | frozenset[str],
+    role_permissions: dict[str, frozenset[str]],
+    seed_users: tuple[SeedUser, ...],
+    role_descriptions: dict[str, str] | None = None,
+) -> None:
+    id_token, slug_token, name_token = bind_tenant(tenant_id, slug=slug, name=name)
+    try:
+        await container.command_bus().execute(
+            UpsertTenantCommand(slug=slug, name=name, tenant_id=tenant_id)
+        )
+        code_to_id = await _ensure_permissions(
+            container, tenant_id=tenant_id, codes=permission_codes
+        )
+        role_to_id = await _ensure_roles(
+            container,
+            code_to_id,
+            tenant_id=tenant_id,
+            role_permissions=role_permissions,
+            role_descriptions=role_descriptions,
+        )
+        if slug == "bigbang":
+            await _retire_obsolete_permissions(container)
+        await _ensure_seed_users(
+            container, role_to_id, tenant_id=tenant_id, seed_users=seed_users
+        )
+    finally:
+        unbind_tenant(id_token, slug_token, name_token)
+
+
 async def seed() -> None:
     validate_role_permissions_map()
     container = create_container()
     register_module_handlers(container)
 
-    bypass_token = bind_rls_bypass(True)
-    id_token, slug_token, name_token = bind_tenant(
-        BIGBANG_TENANT_ID, slug="bigbang", name="Bigbang"
+    tenant_scoped_codes = tuple(
+        code
+        for code in PermissionCode.all_codes()
+        if code not in PermissionCode.platform_only_codes()
     )
+
+    bypass_token = bind_rls_bypass(True)
     try:
-        await container.command_bus().execute(
-            UpsertTenantCommand(
-                slug="bigbang",
-                name="Bigbang",
-                tenant_id=BIGBANG_TENANT_ID,
-            )
+        await _seed_tenant(
+            container,
+            tenant_id=BIGBANG_TENANT_ID,
+            slug="bigbang",
+            name="Bigbang",
+            permission_codes=tenant_scoped_codes,
+            role_permissions=ROLE_PERMISSIONS,
+            seed_users=SEED_USERS,
         )
-        code_to_id = await _ensure_permissions(container)
-        role_to_id = await _ensure_roles(container, code_to_id)
-        await _retire_obsolete_permissions(container)
-        await _ensure_seed_users(container, role_to_id)
+        await _seed_tenant(
+            container,
+            tenant_id=PLATFORM_TENANT_ID,
+            slug="platform",
+            name="Platform",
+            permission_codes=PLATFORM_PERMISSIONS,
+            role_permissions={"PLATFORM": PLATFORM_PERMISSIONS},
+            seed_users=(
+                SeedUser(
+                    "platform",
+                    "Platform Operator",
+                    "platform@lanstar.com.br",
+                    "PLATFORM",
+                ),
+            ),
+            role_descriptions={"PLATFORM": "Cross-tenant platform administration"},
+        )
         logger.info("seed completed successfully")
     finally:
-        unbind_tenant(id_token, slug_token, name_token)
         unbind_rls_bypass(bypass_token)
         engine = container.engine()
         await engine.dispose()

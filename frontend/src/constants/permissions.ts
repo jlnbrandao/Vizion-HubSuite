@@ -48,6 +48,12 @@ export const PermissionCode = {
   DASHBOARD_VIEWER: 'dashboard.viewer',
 
   SYSTEM_SETTINGS: 'system.settings',
+
+  TENANTS_CREATE: 'tenants.create',
+  TENANTS_READ: 'tenants.read',
+  TENANTS_UPDATE: 'tenants.update',
+  TENANTS_ACTIVATE: 'tenants.activate',
+  TENANTS_DEACTIVATE: 'tenants.deactivate',
 } as const
 
 export type PermissionCodeValue = (typeof PermissionCode)[keyof typeof PermissionCode]

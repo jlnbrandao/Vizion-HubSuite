@@ -19,6 +19,12 @@ class InMemoryTenantRepository(TenantRepository):
     async def get_by_slug(self, slug: TenantSlug) -> Tenant | None:
         return next((t for t in self._items.values() if t.slug == slug), None)
 
+    async def list_all(self, *, only_active: bool = False) -> list[Tenant]:
+        items = list(self._items.values())
+        if only_active:
+            items = [t for t in items if t.is_active]
+        return sorted(items, key=lambda t: t.slug.value)
+
     async def add(self, entity: Tenant) -> None:
         self._items[entity.id] = entity
 

@@ -6,7 +6,7 @@ Centralizes configuration so modules never hardcode secrets or connection string
 from functools import lru_cache
 from typing import Self
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _WEAK_JWT_SECRETS = frozenset(
@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     app_port: int = 8000
 
     database_url: str = "postgresql+asyncpg://lanstar:lanstar@localhost:5432/lanstar"
+    # Alembic / seed (BYPASSRLS). Falls back to database_url when empty.
+    database_migrate_url: str = ""
     redis_url: str = "redis://localhost:6379/0"
 
     jwt_secret_key: str = "change-me-in-production"
@@ -43,9 +45,34 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 100
     rate_limit_window_seconds: int = 60
 
+    # Comma-separated base domains for Host validation (empty = any suffix in development).
+    # Examples: "localhost,lanstar.com.br" → bigbang.localhost / acme.lanstar.com.br
+    allowed_tenant_base_domains: str = "localhost,lanstar.com.br"
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"
+
+    @property
+    def migrate_database_url(self) -> str:
+        return self.database_migrate_url.strip() or self.database_url
+
+    @property
+    def tenant_base_domains(self) -> tuple[str, ...]:
+        return tuple(
+            part.strip().lower()
+            for part in self.allowed_tenant_base_domains.split(",")
+            if part.strip()
+        )
+
+    @field_validator("allowed_tenant_base_domains", mode="before")
+    @classmethod
+    def _coerce_domains(cls, value: object) -> object:
+        if value is None:
+            return ""
+        if isinstance(value, (list, tuple)):
+            return ",".join(str(item) for item in value)
+        return value
 
     @model_validator(mode="after")
     def _require_strong_jwt_secret(self) -> Self:
@@ -56,6 +83,10 @@ class Settings(BaseSettings):
             raise ValueError(
                 "JWT_SECRET_KEY must be a strong secret of at least "
                 f"{_MIN_JWT_SECRET_LENGTH} characters when APP_ENV is not development"
+            )
+        if not self.tenant_base_domains:
+            raise ValueError(
+                "ALLOWED_TENANT_BASE_DOMAINS must be set when APP_ENV is not development"
             )
         return self
 

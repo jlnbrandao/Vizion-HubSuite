@@ -48,6 +48,7 @@ UowFactory = Callable[[], AbstractAsyncContextManager[UnitOfWork]]
 def _to_dto(user: User) -> UserDto:
     return UserDto(
         id=user.id,
+        tenant_id=user.tenant_id,
         email=user.email.value,
         username=user.username.value,
         full_name=user.full_name.value,
