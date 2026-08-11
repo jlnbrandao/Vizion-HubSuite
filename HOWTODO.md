@@ -2,7 +2,9 @@
 
 Playbook operacional para autorizar páginas, módulos API (vertical slices), widgets de dashboard e ações de UI no Lanstar.
 
-Autorização é **baseada em códigos de permissão** (`resource.action`). Roles são apenas bolsas de permissões. Nunca proteja feature com `if role == "ADMIN"`.
+Autorização é **baseada em códigos de permissão** (`resource.action`). Roles são apenas bolsas de permissões. Nunca proteja feature com `if role == "ADMIN"` ou `if role == "PLATFORM"`.
+
+Contexto multi-tenant (Host → slug, RLS, cookies HttpOnly): ver [README.md](README.md). Este playbook cobre **AuthZ de features**.
 
 ---
 
@@ -12,9 +14,9 @@ Autorização é **baseada em códigos de permissão** (`resource.action`). Role
 PermissionCode (resource.action)
         │
         ▼
-seed ROLE_PERMISSIONS ──► Postgres (permissions → roles → users)
+seed por tenant ──► Postgres (permissions → roles → users)  [RLS por tenant_id]
                                     ▲
-JWT carrega só role_ids ────────────┘
+JWT/cookie carrega só role_ids ─────┘
         │
         ▼
 ResolveEffectiveAccessQuery
@@ -33,9 +35,44 @@ CurrentUser.permissions
 2. Manter espelhados o catálogo backend e o frontend (mesmos códigos).
 3. Formato obrigatório: `resource.action` — regex `^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$`.
 4. Usar constantes `PermissionCode.*` — nunca string solta em rotas/UI.
-5. O JWT **não** embute permissões; elas são resolvidas a cada request a partir dos `role_ids`.
+5. O token **não** embute permissões; elas são resolvidas a cada request a partir dos `role_ids` (e o usuário é revalidado no banco).
 6. Além do código, registrar **metadados** (resource, action, name, description) no catálogo.
 7. Preferir **actions padronizadas** — não inventar verbos.
+8. Decidir cedo: permissão de **produto** (tenant app) vs **platform-only** (`PermissionCode.platform_only_codes()`).
+
+---
+
+## Multi-tenant e platform-only
+
+O seed cria dois tenants:
+
+| Tenant | Host local | Roles | Escopo de permissões |
+|--------|------------|-------|----------------------|
+| `universe` | `universe.localhost` | `ADMIN`…`VIEWER` | Catálogo **sem** `platform_only_codes()` |
+| `bigbang` | `bigbang.localhost` | `PLATFORM` | Só `platform_only_codes()` |
+
+`PermissionCode.platform_only_codes()` hoje:
+
+- `dashboard.platform`
+- `system.settings`
+- `tenants.create|read|update|activate|deactivate`
+
+Esses códigos **não** entram no RBAC de tenant de produto (`universe`). O seed valida que **ADMIN** não os recebe (`FORBIDDEN_FOR_ADMIN` inclui `platform_only_codes()`).
+
+### Quando a feature é platform-only
+
+1. Incluir o código em `PermissionCode` **e** em `platform_only_codes()`.
+2. Mapear na role `PLATFORM` (`PLATFORM_PERMISSIONS` no seed), não em `ROLE_PERMISSIONS` de produto.
+3. Proteger rotas/UI como de costume (`require_permission` / `meta.permissions` / `can`).
+4. Se a query precisar enxergar dados cross-tenant, seguir o padrão do módulo `tenants` / `PlatformDashboardProvider` (`bind_rls_bypass`) — não espalhar bypass sem necessidade.
+
+### Hierarquia de roles
+
+Arquivo: [`backend/src/shared/infrastructure/security/role_hierarchy.py`](backend/src/shared/infrastructure/security/role_hierarchy.py)
+
+Ranks: `PLATFORM` > `ADMIN` > `MANAGER` > `OPERATOR` > `CLIENT` > `VIEWER`.
+
+Quem tem `users.assign` / `roles.assign` / `users.update` **ainda** é limitado pela hierarquia: não gerencia pares ou superiores. Atribuir permissões platform-only a roles de produto é bloqueado pelos guards. Continua valendo a regra de ouro: feature gate por **código**, não por rank.
 
 ---
 
@@ -75,7 +112,7 @@ Evite inventar verbos. Use `PermissionAction` (backend) / `PermissionAction` (fr
 | `link` / `unlink` | Associar / desassociar |
 | `activate` / `deactivate` | Ativar / desativar |
 
-**Exceções de seção:** `dashboard.admin|manager|operator|client|viewer` e `system.settings` são chaves de seção/feature, não verbos CRUD. Não use esse padrão para recursos de domínio novos.
+**Exceções de seção:** `dashboard.admin|manager|operator|client|viewer|platform` e `system.settings` são chaves de seção/feature, não verbos CRUD. Não use esse padrão para recursos de domínio novos (ex.: use `reports.read`, não `dashboard.reports` só por comodidade — `dashboard.*` é para seções do composer).
 
 ---
 
@@ -114,6 +151,8 @@ PermissionDefinition(
 
 `PermissionCode.all_codes()` coleta atributos `UPPER` string. O seed usa `PermissionCode.definition_for(code)` para name/description.
 
+Se for feature de ops cross-tenant, acrescente o código em `platform_only_codes()` também.
+
 ### 2. Frontend — espelho
 
 Arquivo: [`frontend/src/constants/permissions.ts`](frontend/src/constants/permissions.ts)
@@ -131,7 +170,9 @@ Para actions novas, reutilize `PermissionAction` (`create`, `export`, …).
 
 ### 3. Seed — mapear para roles
 
-Arquivo: [`backend/scripts/seed.py`](backend/scripts/seed.py) — dict `ROLE_PERMISSIONS`.
+Arquivo: [`backend/scripts/seed.py`](backend/scripts/seed.py).
+
+**Produto** (`universe`) — dict `ROLE_PERMISSIONS`:
 
 ```python
 "MANAGER": frozenset(
@@ -150,7 +191,9 @@ Arquivo: [`backend/scripts/seed.py`](backend/scripts/seed.py) — dict `ROLE_PER
 ),
 ```
 
-**ADMIN é especial:** só CRUD de identity/RBAC + `dashboard.admin`. Não receba `dashboard.manager|operator|client|viewer` nem `system.settings`. O seed valida isso (`FORBIDDEN_FOR_ADMIN`). Se a feature não for administração RBAC, **não** coloque no ADMIN por padrão.
+**ADMIN é especial:** só CRUD de identity/RBAC + `dashboard.admin` (`PermissionCode.admin_role_codes()`). Não receba `dashboard.manager|operator|client|viewer` nem nada de `platform_only_codes()`. O seed valida isso (`FORBIDDEN_FOR_ADMIN`). Se a feature não for administração RBAC, **não** coloque no ADMIN por padrão.
+
+**Platform** (`bigbang`) — `PLATFORM_PERMISSIONS` / role `PLATFORM`. Não misture códigos de produto nesse mapa.
 
 ### 4. Aplicar seed
 
@@ -159,7 +202,7 @@ cd backend
 python -m scripts.seed
 ```
 
-Idempotente: cria permissões faltantes, sincroniza name/description do catálogo e substitui o conjunto de permissões de cada role.
+Idempotente: cria permissões faltantes **por tenant**, sincroniza name/description do catálogo e substitui o conjunto de permissões de cada role. Fora de `APP_ENV=development`, o seed recusa a senha demo salvo `SEED_ALLOW_INSECURE=true`.
 
 ### Alternativa em runtime (admin UI / API)
 
@@ -169,7 +212,7 @@ Idempotente: cria permissões faltantes, sincroniza name/description do catálog
 | Atribuir a role | `PUT /api/v1/roles/{id}/permissions` | `roles.assign` |
 | Atribuir role a usuário | `PUT /api/v1/users/{id}/roles` | `users.assign` |
 
-Features de produto ainda devem entrar no **catálogo + seed**, para o ambiente ser reproduzível.
+Features de produto ainda devem entrar no **catálogo + seed**, para o ambiente ser reproduzível. Permissões platform-only tipicamente só existem no tenant `bigbang`.
 
 ---
 
@@ -198,6 +241,8 @@ Arquivo: [`frontend/src/router/index.ts`](frontend/src/router/index.ts)
 ```
 
 O guard exige **todas** as permissões listadas em `meta.permissions`. Sem elas, redireciona para `dashboard`. Rotas filhas do layout já herdam `requiresAuth: true`.
+
+Referências reais platform: `/platform` → `DASHBOARD_PLATFORM`; `/tenants` → `TENANTS_READ`.
 
 ### Controle fino na página
 
@@ -230,6 +275,7 @@ A página pode exigir só `reports.read` no router; create/export ficam só no b
 ```typescript
 // ERRADO
 if (auth.user?.roleNames.includes('ADMIN')) { ... }
+if (auth.user?.roleNames.includes('PLATFORM')) { ... }
 ```
 
 ---
@@ -240,12 +286,13 @@ O Lanstar é um **monólito modular**. Um “microsserviço” interno = novo sl
 
 ### Checklist
 
-1. Passo zero (códigos `resource.action`).
-2. Criar módulo: commands, queries, handlers, routes, schemas (seguir `users` / `roles` / `permissions`).
+1. Passo zero (códigos `resource.action`; decidir se é platform-only).
+2. Criar módulo: commands, queries, handlers, routes, schemas (seguir `users` / `roles` / `permissions` ou `tenants` se for ops).
 3. Gate em **cada** endpoint com `Depends(require_permission(...))`.
-4. Registrar handler no DI + `register_module_handlers`.
-5. Montar router em `main.py`.
-6. Espelhar códigos no frontend se a UI chamar a API.
+4. Isolamento de dados: repositórios com `tenant_id` / `apply_tenant_scope` (defense-in-depth além do RLS).
+5. Registrar handler no DI + `register_module_handlers`.
+6. Montar router em `main.py`.
+7. Espelhar códigos no frontend se a UI chamar a API.
 
 ### Gate nas rotas
 
@@ -305,7 +352,7 @@ O menu e os widgets são **compostos no backend**. A UI renderiza o que a API de
 
 ### Checklist
 
-1. Passo zero — tipicamente `dashboard.<section>` (ex.: `dashboard.reports`), **ou** reutilizar um `dashboard.*` existente.
+1. Passo zero — tipicamente `dashboard.<section>` (ex.: `dashboard.reports`), **ou** reutilizar um `dashboard.*` existente. Se for ops: `dashboard.platform` (já platform-only).
 2. Implementar `DashboardSectionProvider`.
 3. Registrar no `DashboardComposer` (container).
 4. Se `widget_type` for novo: componente Vue + entrada no registry.
@@ -315,7 +362,7 @@ O menu e os widgets são **compostos no backend**. A UI renderiza o que a API de
 
 Contrato: [`backend/src/modules/dashboard/providers/base.py`](backend/src/modules/dashboard/providers/base.py)
 
-Referência: [`backend/src/modules/dashboard/providers/admin_provider.py`](backend/src/modules/dashboard/providers/admin_provider.py)
+Referências: [`admin_provider.py`](backend/src/modules/dashboard/providers/admin_provider.py), [`platform_provider.py`](backend/src/modules/dashboard/providers/platform_provider.py).
 
 ```python
 class ReportsDashboardProvider(DashboardSectionProvider):
@@ -360,6 +407,7 @@ dashboard_composer: providers.Singleton[DashboardComposer] = providers.Singleton
     DashboardComposer,
     providers=providers.List(
         admin_dashboard_provider,
+        platform_dashboard_provider,
         # ...
         reports_dashboard_provider,
     ),
@@ -392,9 +440,9 @@ Quando a página já existe e você precisa proteger uma ação pontual.
 
 ### Checklist
 
-1. Passo zero — permissão específica (ex.: `users.assign`, `reports.export`).
+1. Passo zero — permissão específica (ex.: `users.assign`, `reports.export`, `tenants.activate`).
 2. Endpoint backend com o **mesmo** código.
-3. Router da página continua com a permissão de leitura (ex.: `users.read`).
+3. Router da página continua com a permissão de leitura (ex.: `users.read`, `tenants.read`).
 4. Botão: `v-if="can(PermissionCode.…)"`.
 
 ### Padrão real (Users)
@@ -408,6 +456,15 @@ Quando a página já existe e você precisa proteger uma ação pontual.
 | Botão excluir | `can(USERS_DELETE)` |
 | API | cada rota com o `require_permission` correspondente |
 
+### Padrão real (Tenants — platform)
+
+| Camada | Código |
+|--------|--------|
+| Router | `meta.permissions: [TENANTS_READ]` |
+| Criar / rename | `tenants.create` / `tenants.update` |
+| Activate / deactivate | `tenants.activate` / `tenants.deactivate` |
+| Overview | `dashboard.platform` |
+
 Esconder o botão **não** substitui o gate no backend. Sempre os dois.
 
 ---
@@ -416,13 +473,17 @@ Esconder o botão **não** substitui o gate no backend. Sempre os dois.
 
 | Peça | Caminho |
 |------|---------|
-| Catálogo backend (+ metadados / actions) | `backend/src/shared/infrastructure/security/permission_codes.py` |
+| Catálogo backend (+ metadados / actions / platform-only) | `backend/src/shared/infrastructure/security/permission_codes.py` |
 | Catálogo frontend (+ `PermissionAction`) | `frontend/src/constants/permissions.ts` |
-| Seed / mapa role→perms | `backend/scripts/seed.py` |
+| Seed / mapa role→perms (por tenant) | `backend/scripts/seed.py` |
+| Hierarquia de roles | `backend/src/shared/infrastructure/security/role_hierarchy.py` |
+| Guards users/roles | `backend/src/shared/infrastructure/security/user_management_guards.py`, `role_management_guards.py`, `role_permission_guards.py` |
 | CurrentUser | `backend/src/shared/infrastructure/security/current_user.py` |
 | Depends AuthZ | `backend/src/shared/infrastructure/security/dependencies.py` |
 | Resolução efetiva | `backend/src/modules/authentication/handlers/access_handlers.py` |
+| Módulo tenants (platform) | `backend/src/modules/tenants/` |
 | Provider dashboard | `backend/src/modules/dashboard/providers/base.py` |
+| Provider platform | `backend/src/modules/dashboard/providers/platform_provider.py` |
 | Composer | `backend/src/modules/dashboard/services/dashboard_composer.py` |
 | DI / providers | `backend/src/shared/infrastructure/di/container.py` |
 | Register handlers | `backend/src/shared/infrastructure/di/register_handlers.py` |
@@ -438,15 +499,17 @@ Esconder o botão **não** substitui o gate no backend. Sempre os dois.
 
 ### Permissões canônicas
 
-| Resource | Actions |
-|----------|---------|
-| `users` | `create`, `read`, `update`, `delete`, `assign` |
-| `roles` | `create`, `read`, `update`, `delete`, `assign` |
-| `permissions` | `create`, `read`, `update`, `delete` |
-| `dashboard` | `admin`, `manager`, `operator`, `client`, `viewer` |
-| `system` | `settings` (no catálogo; **não** atribuída a nenhuma role do seed) |
+| Resource | Actions | Escopo |
+|----------|---------|--------|
+| `users` | `create`, `read`, `update`, `delete`, `assign` | Produto |
+| `roles` | `create`, `read`, `update`, `delete`, `assign` | Produto |
+| `permissions` | `create`, `read`, `update`, `delete` | Produto |
+| `dashboard` | `admin`, `manager`, `operator`, `client`, `viewer` | Produto |
+| `dashboard` | `platform` | Platform-only |
+| `tenants` | `create`, `read`, `update`, `activate`, `deactivate` | Platform-only |
+| `system` | `settings` | Platform-only |
 
-### Mapa seed (resumo)
+### Tenant `universe` (produto)
 
 | Role | Escopo |
 |------|--------|
@@ -466,15 +529,25 @@ Demo users (password `123Mudar.`):
 | `user` | `user@lanstar.com.br` | `CLIENT` |
 | `viewer` | `viewer@lanstar.com.br` | `VIEWER` |
 
+### Tenant `bigbang` (ops / platform)
+
+| username | email | role |
+|---|---|---|
+| `galileu` | `galileu@lanstar.com.br` | `PLATFORM` |
+
+**PLATFORM:** `tenants.create|read|update|activate|deactivate`, `system.settings`, `dashboard.platform`. Sem role `ADMIN` neste tenant.
+
 ---
 
 ## Checklist pós-implementação
 
 - [ ] Código adicionado em `permission_codes.py` **e** `permissions.ts` (mesmos valores).
 - [ ] Metadados em `PERMISSION_CATALOG` (name + description); action preferencialmente de `PermissionAction`.
-- [ ] Código incluído em `ROLE_PERMISSIONS` nas roles corretas (respeitar regra do ADMIN).
+- [ ] Se for ops cross-tenant: código em `platform_only_codes()` + mapa `PLATFORM` (não no ADMIN de produto).
+- [ ] Código incluído em `ROLE_PERMISSIONS` nas roles corretas (respeitar regra do ADMIN / `FORBIDDEN_FOR_ADMIN`).
 - [ ] `python -m scripts.seed` executado no ambiente.
 - [ ] Endpoints API com `Depends(require_permission(...))` (ou `require_any_permission`).
+- [ ] Repositório / queries respeitam isolamento de tenant (salvo bypass platform justificado).
 - [ ] Página Vue com `meta.permissions` (se for rota nova).
 - [ ] Botões/ações com `v-if="can(...)"` — sem `if` por nome de role.
 - [ ] Provider de dashboard registrado no `DashboardComposer` (se menu/widgets).
@@ -482,7 +555,8 @@ Demo users (password `123Mudar.`):
 - [ ] Router do módulo montado em `main.py` + handlers no DI/buses (módulo novo).
 - [ ] Teste manual:
   - usuário **com** permissão → 200 / página / botão visível;
-  - usuário **sem** permissão → 403 na API, redirect no router, botão oculto.
+  - usuário **sem** permissão → 403 na API, redirect no router, botão oculto;
+  - se platform-only: validar em `bigbang.*` e ausência no RBAC de `universe`.
 
 ---
 
@@ -490,9 +564,9 @@ Demo users (password `123Mudar.`):
 
 Para um recurso novo de ponta a ponta (ex.: Relatórios):
 
-1. Definir códigos (`reports.read`, `reports.create`, … + opcional `dashboard.reports`).
-2. Seed nas roles.
-3. Módulo API + gates.
+1. Definir códigos (`reports.read`, `reports.create`, … + opcional `dashboard.reports`) — ou platform-only se for ops.
+2. Seed nas roles do tenant certo (`ROLE_PERMISSIONS` vs `PLATFORM`).
+3. Módulo API + gates + escopo de tenant.
 4. Página Vue + `meta` + `can()`.
 5. Provider de menu/widgets.
-6. Seed + login com role de teste + validar positivo/negativo.
+6. Seed + login no host do tenant de teste + validar positivo/negativo.
