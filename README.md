@@ -59,6 +59,12 @@ Event Bus e Dependency Injection.
 
 Rotacione as senhas padrão (`lanstar_app` / `lanstar_migrate`) em produção.
 
+### Exposição de rede (Docker)
+
+No `docker-compose.yml`, **Postgres (`5432`) e Redis (`6379`) publicam só em `127.0.0.1`** — não na internet. A API do host (`lanstar-api`) e o nginx usam `localhost`. Containers na rede Compose continuam se falando pelos nomes `postgres` / `redis`.
+
+Não use `"5432:5432"` / `"6379:6379"` (bind em `0.0.0.0`): scanners (ex.: DigitalOcean/Shadowserver) tratam isso como serviço aberto. Em nuvem, complemente com Cloud Firewall bloqueando 5432/6379 de fora.
+
 ### Platform Administrator
 
 - Permissões `tenants.*` + `system.settings` existem só no tenant **`bigbang`** (não no RBAC comum).
@@ -121,7 +127,10 @@ Exemplo `/etc/hosts` (ajuste o IP do servidor):
 
 ```bash
 docker compose up -d postgres redis
+# ou: sudo systemctl start lanstar-infra
 ```
+
+Portas no host: `127.0.0.1:5432` (Postgres) e `127.0.0.1:6379` (Redis).
 
 ## Backend (desenvolvimento local)
 
