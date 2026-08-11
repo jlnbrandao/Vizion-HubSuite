@@ -16,6 +16,7 @@ class UserDto:
     full_name: str
     role_ids: tuple[UUID, ...] = field(default_factory=tuple)
     is_active: bool = True
+    credentials_version: int = 0
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -32,6 +33,7 @@ class UserAuthDto:
     hashed_password: str
     role_ids: tuple[UUID, ...] = field(default_factory=tuple)
     is_active: bool = True
+    credentials_version: int = 0
 
 
 @dataclass(frozen=True, kw_only=True)

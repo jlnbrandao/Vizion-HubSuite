@@ -30,6 +30,9 @@ from src.shared.infrastructure.di.container import Container
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.security.dependencies import require_permission
 from src.shared.infrastructure.security.permission_codes import PermissionCode
+from src.shared.infrastructure.security.role_permission_guards import (
+    ensure_can_edit_role_permissions,
+)
 from src.shared.infrastructure.tenant_context import require_current_tenant_id
 
 router = APIRouter(prefix="/roles", tags=["roles"])
@@ -119,12 +122,20 @@ async def assign_permissions(
     role_id: UUID,
     body: PermissionIdsRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN)),
+    query_bus: QueryBus = Depends(Provide[Container.query_bus]),
+    actor: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN)),
 ) -> None:
+    permission_ids = frozenset(body.permission_ids)
+    await ensure_can_edit_role_permissions(
+        actor=actor,
+        role_id=role_id,
+        permission_ids=permission_ids,
+        query_bus=query_bus,
+    )
     await command_bus.execute(
         AssignPermissionsToRoleCommand(
             role_id=role_id,
-            permission_ids=frozenset(body.permission_ids),
+            permission_ids=permission_ids,
         )
     )
 
@@ -135,12 +146,20 @@ async def revoke_permissions(
     role_id: UUID,
     body: PermissionIdsRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN)),
+    query_bus: QueryBus = Depends(Provide[Container.query_bus]),
+    actor: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN)),
 ) -> None:
+    permission_ids = frozenset(body.permission_ids)
+    await ensure_can_edit_role_permissions(
+        actor=actor,
+        role_id=role_id,
+        permission_ids=frozenset(),
+        query_bus=query_bus,
+    )
     await command_bus.execute(
         RevokePermissionsFromRoleCommand(
             role_id=role_id,
-            permission_ids=frozenset(body.permission_ids),
+            permission_ids=permission_ids,
         )
     )
 
@@ -151,11 +170,19 @@ async def replace_permissions(
     role_id: UUID,
     body: PermissionIdsRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
-    _: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN)),
+    query_bus: QueryBus = Depends(Provide[Container.query_bus]),
+    actor: CurrentUser = Depends(require_permission(PermissionCode.ROLES_ASSIGN)),
 ) -> None:
+    permission_ids = frozenset(body.permission_ids)
+    await ensure_can_edit_role_permissions(
+        actor=actor,
+        role_id=role_id,
+        permission_ids=permission_ids,
+        query_bus=query_bus,
+    )
     await command_bus.execute(
         ReplaceRolePermissionsCommand(
             role_id=role_id,
-            permission_ids=frozenset(body.permission_ids),
+            permission_ids=permission_ids,
         )
     )

@@ -38,6 +38,7 @@ from src.modules.users.commands.user_commands import (
 )
 from src.modules.users.value_objects.email import Email
 from src.modules.users.value_objects.username import Username
+from src.config.settings import get_settings
 from src.shared.infrastructure.di.container import Container, create_container
 from src.shared.infrastructure.di.register_handlers import register_module_handlers
 from src.shared.infrastructure.security.permission_codes import PermissionCode
@@ -435,6 +436,13 @@ async def _seed_tenant(
 
 
 async def seed() -> None:
+    settings = get_settings()
+    if not settings.is_development and not settings.seed_allow_insecure:
+        raise RuntimeError(
+            "Refusing to seed demo password outside development. "
+            "Set SEED_ALLOW_INSECURE=true only for controlled non-prod environments."
+        )
+
     validate_role_permissions_map()
     container = create_container()
     register_module_handlers(container)

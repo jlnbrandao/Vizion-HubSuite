@@ -94,7 +94,7 @@ class LoginHandler(CommandHandler[LoginCommand, TokenPairDto]):
         if not user.is_active:
             raise UnauthorizedError("Invalid credentials")
         try:
-            plain = PlainPassword.from_primitive(password)
+            plain = PlainPassword.from_login_attempt(password)
         except ValueError as exc:
             raise UnauthorizedError("Invalid credentials") from exc
 
@@ -115,6 +115,7 @@ class LoginHandler(CommandHandler[LoginCommand, TokenPairDto]):
             tenant_id=tenant_id,
             tenant_slug=tenant_slug,
             role_ids=user.role_ids,
+            credentials_version=user.credentials_version,
         )
         access = self._token_service.create_access_token(claims)
         refresh = RefreshToken.generate()
@@ -215,6 +216,7 @@ class RefreshTokenHandler(CommandHandler[RefreshTokenCommand, TokenPairDto]):
             tenant_id=session.tenant_id,
             tenant_slug=session.tenant_slug,
             role_ids=user.role_ids,
+            credentials_version=user.credentials_version,
         )
         access = self._token_service.create_access_token(claims)
         new_refresh = RefreshToken.generate()

@@ -110,7 +110,7 @@ async def test_create_user_with_roles(
             email="admin@lanstar.io",
             username="admin",
             full_name="System Admin",
-            password="Secret123",
+            password="Secret123!",
             role_ids=frozenset({role_id}),
         )
     )
@@ -131,7 +131,7 @@ async def test_create_user_duplicate_email(
             email="a@b.com",
             username="user_a",
             full_name="A B",
-            password="Secret123",
+            password="Secret123!",
         )
     )
 
@@ -141,7 +141,7 @@ async def test_create_user_duplicate_email(
                 email="A@B.com",
                 username="user_b",
                 full_name="Other",
-                password="Secret123",
+                password="Secret123!",
             )
         )
 
@@ -156,7 +156,7 @@ async def test_create_user_duplicate_username(
             email="a@b.com",
             username="shared",
             full_name="A B",
-            password="Secret123",
+            password="Secret123!",
         )
     )
 
@@ -166,7 +166,7 @@ async def test_create_user_duplicate_username(
                 email="c@d.com",
                 username="Shared",
                 full_name="Other",
-                password="Secret123",
+                password="Secret123!",
             )
         )
 
@@ -183,7 +183,7 @@ async def test_assign_rejects_unknown_roles(
             email="u@x.com",
             username="user_x",
             full_name="User X",
-            password="Secret123",
+            password="Secret123!",
         )
     )
 
@@ -215,7 +215,7 @@ async def test_update_password_list_replace_delete(
             email="m@x.com",
             username="mgr",
             full_name="Mgr",
-            password="Secret123",
+            password="Secret123!",
         )
     )
 
@@ -227,7 +227,7 @@ async def test_update_password_list_replace_delete(
         )
     )
     await change_pwd.handle(
-        ChangeUserPasswordCommand(user_id=user_id, new_password="NewSecret1")
+        ChangeUserPasswordCommand(user_id=user_id, new_password="NewSecret1!")
     )
     await replace.handle(
         ReplaceUserRolesCommand(user_id=user_id, role_ids=frozenset({r1, r2}))
@@ -242,7 +242,7 @@ async def test_update_password_list_replace_delete(
     auth = await get_by_email.handle(
         GetUserByEmailQuery(tenant_id=UNIVERSE_TENANT_ID, email="m@x.com")
     )
-    assert auth.hashed_password.startswith("hashed::NewSecret1")
+    assert auth.hashed_password.startswith("hashed::NewSecret1!")
     assert auth.username == "manager"
 
     await delete.handle(DeleteUserCommand(user_id=user_id))
@@ -270,7 +270,7 @@ async def test_password_change_and_deactivate_revoke_refresh_sessions(
             email="s@x.com",
             username="sess",
             full_name="Session User",
-            password="Secret123",
+            password="Secret123!",
         )
     )
     token = RefreshToken.generate()
@@ -289,7 +289,7 @@ async def test_password_change_and_deactivate_revoke_refresh_sessions(
     assert await refresh_store.get(token) is not None
 
     await change_pwd.handle(
-        ChangeUserPasswordCommand(user_id=user_id, new_password="NewSecret1")
+        ChangeUserPasswordCommand(user_id=user_id, new_password="NewSecret1!")
     )
     assert await refresh_store.get(token) is None
 

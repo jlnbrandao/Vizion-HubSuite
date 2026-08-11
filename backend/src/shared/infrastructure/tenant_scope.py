@@ -11,11 +11,13 @@ from src.shared.infrastructure.tenant_context import get_current_tenant_id, get_
 
 
 def matches_tenant_scope(tenant_id: UUID) -> bool:
-    """In-memory scope: allow when unbound/bypass, else require matching tenant."""
+    """In-memory scope: allow when bypass, else require matching bound tenant."""
     if get_rls_bypass():
         return True
     current = get_current_tenant_id()
-    return current is None or tenant_id == current
+    if current is None:
+        return False
+    return tenant_id == current
 
 
 def apply_tenant_scope(stmt: Select, column: ColumnElement[UUID]) -> Select:

@@ -16,8 +16,12 @@ from src.modules.users.commands.user_commands import (
     RevokeRolesFromUserCommand,
     UpdateUserCommand,
 )
-from src.modules.users.dtos.user_dtos import UserDto
-from src.modules.users.queries.user_queries import GetUserByIdQuery, ListUsersQuery
+from src.modules.users.dtos.user_dtos import UserAuthDto, UserDto
+from src.modules.users.queries.user_queries import (
+    GetUserByIdQuery,
+    GetUserByUsernameQuery,
+    ListUsersQuery,
+)
 from src.modules.users.routes.schemas import (
     ChangePasswordRequest,
     CreateUserRequest,
@@ -26,9 +30,13 @@ from src.modules.users.routes.schemas import (
     UserIdResponse,
     UserResponse,
 )
+from src.modules.users.services.password_hasher import PasswordHasher
+from src.modules.users.value_objects.hashed_password import HashedPassword
+from src.modules.users.value_objects.plain_password import PlainPassword
 from src.shared.application.command_bus import CommandBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.di.container import Container
+from src.shared.infrastructure.exceptions import UnauthorizedError, ValidationError
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.security.dependencies import require_permission
 from src.shared.infrastructure.security.permission_codes import PermissionCode
@@ -132,14 +140,33 @@ async def change_password(
     body: ChangePasswordRequest,
     command_bus: CommandBus = Depends(Provide[Container.command_bus]),
     query_bus: QueryBus = Depends(Provide[Container.query_bus]),
+    password_hasher: PasswordHasher = Depends(Provide[Container.password_hasher]),
     actor: CurrentUser = Depends(require_permission(PermissionCode.USERS_UPDATE)),
 ) -> None:
-    await ensure_can_manage_user(
+    target = await ensure_can_manage_user(
         actor=actor,
         target_user_id=user_id,
         query_bus=query_bus,
         allow_self=True,
     )
+    if actor.id == user_id:
+        if not body.current_password:
+            raise ValidationError("current_password is required to change your own password")
+        auth_user: UserAuthDto = await query_bus.ask(
+            GetUserByUsernameQuery(
+                tenant_id=target.tenant_id,
+                username=target.username,
+            )
+        )
+        try:
+            plain = PlainPassword.from_login_attempt(body.current_password)
+        except ValueError as exc:
+            raise UnauthorizedError("Invalid current password") from exc
+        if not password_hasher.verify(
+            plain, HashedPassword.from_primitive(auth_user.hashed_password)
+        ):
+            raise UnauthorizedError("Invalid current password")
+
     await command_bus.execute(
         ChangeUserPasswordCommand(user_id=user_id, new_password=body.new_password)
     )

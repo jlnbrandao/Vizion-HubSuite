@@ -33,6 +33,7 @@ class User(AggregateRoot):
     hashed_password: HashedPassword
     role_ids: set[UUID] = field(default_factory=set)
     is_active: bool = True
+    credentials_version: int = 0
 
     @classmethod
     def create(
@@ -50,6 +51,7 @@ class User(AggregateRoot):
             username=username,
             full_name=full_name,
             hashed_password=hashed_password,
+            credentials_version=0,
         )
         user.raise_event(UserCreatedEvent(aggregate_id=user.id, email=email.value))
         return user
@@ -77,17 +79,21 @@ class User(AggregateRoot):
 
     def change_password(self, hashed_password: HashedPassword) -> None:
         self.hashed_password = hashed_password
-        self.touch()
+        self.bump_credentials_version()
         self.raise_event(
             UserPasswordChangedEvent(aggregate_id=self.id, email=self.email.value)
         )
+
+    def bump_credentials_version(self) -> None:
+        self.credentials_version += 1
+        self.touch()
 
     def assign_roles(self, role_ids: set[UUID]) -> None:
         new_ids = role_ids - self.role_ids
         if not new_ids:
             return
         self.role_ids |= new_ids
-        self.touch()
+        self.bump_credentials_version()
         self.raise_event(
             RolesAssignedToUserEvent(
                 aggregate_id=self.id,
@@ -101,7 +107,7 @@ class User(AggregateRoot):
         if not removed:
             return
         self.role_ids -= removed
-        self.touch()
+        self.bump_credentials_version()
         self.raise_event(
             RolesRevokedFromUserEvent(
                 aggregate_id=self.id,
@@ -129,7 +135,7 @@ class User(AggregateRoot):
         if not self.is_active:
             return
         self.is_active = False
-        self.touch()
+        self.bump_credentials_version()
         self.raise_event(UserUpdatedEvent(aggregate_id=self.id, email=self.email.value))
 
     def mark_deleted(self) -> None:

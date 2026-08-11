@@ -37,6 +37,7 @@ def _to_entity(model: UserModel, role_ids: set[UUID]) -> User:
         hashed_password=HashedPassword(value=model.hashed_password),
         role_ids=role_ids,
         is_active=model.is_active,
+        credentials_version=model.credentials_version,
     )
 
 
@@ -90,6 +91,7 @@ class SqlAlchemyUserRepository(UserRepository):
             full_name=entity.full_name.value,
             hashed_password=entity.hashed_password.value,
             is_active=entity.is_active,
+            credentials_version=entity.credentials_version,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
         )
@@ -111,6 +113,7 @@ class SqlAlchemyUserRepository(UserRepository):
         row.full_name = entity.full_name.value
         row.hashed_password = entity.hashed_password.value
         row.is_active = entity.is_active
+        row.credentials_version = entity.credentials_version
         row.updated_at = entity.updated_at
         await self._sync_roles(entity)
 

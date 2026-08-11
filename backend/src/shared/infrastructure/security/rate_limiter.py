@@ -11,7 +11,13 @@ from src.config.settings import Settings
 
 class RateLimiter(ABC):
     @abstractmethod
-    async def is_allowed(self, key: str) -> tuple[bool, int]:
+    async def is_allowed(
+        self,
+        key: str,
+        *,
+        limit: int | None = None,
+        window_seconds: int | None = None,
+    ) -> tuple[bool, int]:
         """Return (allowed, remaining). remaining is -1 when unlimited."""
 
 
@@ -21,13 +27,21 @@ class RedisRateLimiter(RateLimiter):
         self._limit = settings.rate_limit_requests
         self._window = settings.rate_limit_window_seconds
 
-    async def is_allowed(self, key: str) -> tuple[bool, int]:
+    async def is_allowed(
+        self,
+        key: str,
+        *,
+        limit: int | None = None,
+        window_seconds: int | None = None,
+    ) -> tuple[bool, int]:
+        max_requests = self._limit if limit is None else limit
+        window = self._window if window_seconds is None else window_seconds
         redis_key = f"rate:{key}"
         count = await self._redis.incr(redis_key)
         if count == 1:
-            await self._redis.expire(redis_key, self._window)
-        remaining = max(self._limit - count, 0)
-        return count <= self._limit, remaining
+            await self._redis.expire(redis_key, window)
+        remaining = max(max_requests - count, 0)
+        return count <= max_requests, remaining
 
 
 class InMemoryRateLimiter(RateLimiter):
@@ -38,11 +52,18 @@ class InMemoryRateLimiter(RateLimiter):
         self._window = window_seconds
         self._counts: dict[str, int] = {}
 
-    async def is_allowed(self, key: str) -> tuple[bool, int]:
+    async def is_allowed(
+        self,
+        key: str,
+        *,
+        limit: int | None = None,
+        window_seconds: int | None = None,
+    ) -> tuple[bool, int]:
+        max_requests = self._limit if limit is None else limit
         self._counts[key] = self._counts.get(key, 0) + 1
         count = self._counts[key]
-        remaining = max(self._limit - count, 0)
-        return count <= self._limit, remaining
+        remaining = max(max_requests - count, 0)
+        return count <= max_requests, remaining
 
     def reset(self) -> None:
         self._counts.clear()

@@ -68,11 +68,18 @@ def create_app(container: Container | None = None) -> FastAPI:
     settings = get_settings()
     container = container or create_container()
 
+    docs_url = "/docs" if settings.is_development else None
+    redoc_url = "/redoc" if settings.is_development else None
+    openapi_url = "/openapi.json" if settings.is_development else None
+
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
         debug=settings.app_debug,
         lifespan=lifespan,
+        docs_url=docs_url,
+        redoc_url=redoc_url,
+        openapi_url=openapi_url,
     )
     app.state.container = container
     container.wire(modules=_WIRE_MODULES)
@@ -85,7 +92,11 @@ def create_app(container: Container | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     # Last added runs first: Tenant → RateLimit → CORS → routes
-    app.add_middleware(RateLimitMiddleware, rate_limiter=container.rate_limiter())
+    app.add_middleware(
+        RateLimitMiddleware,
+        rate_limiter=container.rate_limiter(),
+        settings=settings,
+    )
     app.add_middleware(
         TenantMiddleware,
         query_bus=container.query_bus(),

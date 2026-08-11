@@ -24,6 +24,12 @@ class UpdateUserRequest(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=128)
+    current_password: str | None = Field(
+        default=None,
+        min_length=8,
+        max_length=128,
+        description="Required when changing your own password",
+    )
 
 
 class RoleIdsRequest(BaseModel):

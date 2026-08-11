@@ -81,13 +81,16 @@ Rotacione as senhas padrão (`lanstar_app` / `lanstar_migrate`) em produção.
 | Frontend | Access só em **memória** (não persiste em `localStorage`); bootstrap/refresh usam o cookie |
 | AuthZ | `Depends(require_permission(...))` no backend; UI espelha com `can()` / `meta.permissions` |
 | Hierarquia | Roles ranqueadas (`PLATFORM` > `ADMIN` > `MANAGER` > …): quem tem `users.update` **não** gerencia pares ou superiores |
-| Sessões | Refresh recarrega `role_ids` / `is_active` do banco; senha, desativação, delete ou troca de roles invalida todos os refresh tokens do usuário |
-| Rate limit | Chave `tenant:IP` (respeita `X-Forwarded-For` / `X-Real-IP`) |
+| Rate limit | Chave `tenant:IP` (respeita `X-Real-IP`; auth login/refresh com limite mais baixo) |
+| Sessões | Refresh recarrega `role_ids` / `is_active` do banco; senha, desativação, delete ou troca de roles invalida refresh **e** access (`credentials_version` no JWT) |
 
 Em produção (`APP_ENV` ≠ `development`):
 
 - `JWT_SECRET_KEY` ≥ 32 caracteres (placeholders rejeitados)
 - `ALLOWED_TENANT_BASE_DOMAINS` obrigatório
+- Senhas default de banco (`lanstar` / `lanstar_app` / `lanstar_migrate`) rejeitadas na URL
+- Seed demo recusado (exceto `SEED_ALLOW_INSECURE=true`)
+- `/docs` / OpenAPI desabilitados
 
 ## Stack completa (Docker)
 

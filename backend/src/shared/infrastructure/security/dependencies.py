@@ -72,6 +72,9 @@ async def get_current_user(
     if not user.is_active or user.tenant_id != host_tenant_id:
         raise UnauthorizedError("Invalid or expired credentials")
 
+    if claims.credentials_version != user.credentials_version:
+        raise UnauthorizedError("Invalid or expired credentials")
+
     access: EffectiveAccessDto = await query_bus.ask(
         ResolveEffectiveAccessQuery(role_ids=frozenset(user.role_ids))
     )

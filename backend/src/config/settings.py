@@ -44,6 +44,11 @@ class Settings(BaseSettings):
 
     rate_limit_requests: int = 100
     rate_limit_window_seconds: int = 60
+    auth_rate_limit_requests: int = 20
+    auth_rate_limit_window_seconds: int = 60
+
+    # Allow demo seed password outside development (default: refuse).
+    seed_allow_insecure: bool = False
 
     # Comma-separated base domains for Host validation (empty = any suffix in development).
     # Examples: "localhost,lanstar.com.br,lanstar.local"
@@ -88,6 +93,17 @@ class Settings(BaseSettings):
         if not self.tenant_base_domains:
             raise ValueError(
                 "ALLOWED_TENANT_BASE_DOMAINS must be set when APP_ENV is not development"
+            )
+        weak_db_markers = (
+            "://lanstar:lanstar@",
+            "://lanstar_app:lanstar_app@",
+            "://lanstar_migrate:lanstar_migrate@",
+        )
+        urls = (self.database_url, self.migrate_database_url)
+        if any(marker in url for url in urls for marker in weak_db_markers):
+            raise ValueError(
+                "Default database credentials are not allowed when APP_ENV is not "
+                "development — rotate lanstar / lanstar_app / lanstar_migrate passwords"
             )
         return self
 

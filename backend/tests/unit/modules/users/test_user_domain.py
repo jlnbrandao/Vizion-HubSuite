@@ -85,3 +85,4 @@ def test_user_assign_roles_and_change_password() -> None:
     user.change_password(HashedPassword(value="new" + ("y" * 57)))
     pwd_events = user.pull_domain_events()
     assert isinstance(pwd_events[0], UserPasswordChangedEvent)
+    assert user.credentials_version == 2  # assign_roles + change_password

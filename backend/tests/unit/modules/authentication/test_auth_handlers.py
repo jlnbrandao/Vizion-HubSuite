@@ -117,7 +117,7 @@ async def seeded_user(users_repo, uow_factory, password_hasher, query_bus):
             email="admin@lanstar.io",
             username="admin",
             full_name="Admin User",
-            password="Secret123",
+            password="Secret123!",
         )
     )
     return user_id
@@ -141,7 +141,7 @@ def refresh_handler(token_service, refresh_store, event_bus, query_bus):
 @pytest.mark.asyncio
 async def test_login_success_with_email(seeded_user, login_handler, token_service) -> None:
     pair = await login_handler.handle(
-        LoginCommand(login="admin@lanstar.io", password="Secret123")
+        LoginCommand(login="admin@lanstar.io", password="Secret123!")
     )
     assert pair.email == "admin@lanstar.io"
     assert pair.user_id == seeded_user
@@ -152,14 +152,14 @@ async def test_login_success_with_email(seeded_user, login_handler, token_servic
 
 @pytest.mark.asyncio
 async def test_login_success_with_username(seeded_user, login_handler) -> None:
-    pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123"))
+    pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123!"))
     assert pair.email == "admin@lanstar.io"
     assert pair.user_id == seeded_user
 
 
 @pytest.mark.asyncio
 async def test_login_username_is_case_insensitive(seeded_user, login_handler) -> None:
-    pair = await login_handler.handle(LoginCommand(login="Admin", password="Secret123"))
+    pair = await login_handler.handle(LoginCommand(login="Admin", password="Secret123!"))
     assert pair.user_id == seeded_user
 
 
@@ -175,7 +175,7 @@ async def test_login_wrong_password(seeded_user, login_handler) -> None:
 async def test_login_unknown_user(login_handler) -> None:
     with pytest.raises(UnauthorizedError, match="Invalid credentials"):
         await login_handler.handle(
-            LoginCommand(login="nobody@lanstar.io", password="Secret123")
+            LoginCommand(login="nobody@lanstar.io", password="Secret123!")
         )
 
 
@@ -184,7 +184,7 @@ async def test_refresh_rotates_token(
     seeded_user, login_handler, refresh_handler, refresh_store
 ) -> None:
     pair = await login_handler.handle(
-        LoginCommand(login="admin", password="Secret123")
+        LoginCommand(login="admin", password="Secret123!")
     )
     old_refresh = pair.refresh_token
 
@@ -203,7 +203,7 @@ async def test_logout_invalidates_refresh(
     seeded_user, login_handler, logout_handler, refresh_handler
 ) -> None:
     pair = await login_handler.handle(
-        LoginCommand(login="admin@lanstar.io", password="Secret123")
+        LoginCommand(login="admin@lanstar.io", password="Secret123!")
     )
     await logout_handler.handle(LogoutCommand(refresh_token=pair.refresh_token))
 
@@ -219,7 +219,7 @@ async def test_refresh_reloads_role_ids_from_db(
 ) -> None:
     from uuid import uuid4
 
-    pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123"))
+    pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123!"))
     new_role_id = uuid4()
 
     async with uow_factory() as uow:
@@ -241,7 +241,7 @@ async def test_refresh_reloads_role_ids_from_db(
 async def test_refresh_rejects_inactive_user(
     seeded_user, login_handler, refresh_handler, users_repo, uow_factory
 ) -> None:
-    pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123"))
+    pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123!"))
 
     async with uow_factory() as uow:
         user = await users_repo.get_by_id(seeded_user)

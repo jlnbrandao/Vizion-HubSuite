@@ -26,14 +26,19 @@ def _request(headers: dict[str, str] | None = None, client: str | None = "9.9.9.
     return Request(scope)
 
 
-def test_prefers_x_forwarded_for() -> None:
-    req = _request({"x-forwarded-for": "1.2.3.4, 10.0.0.1"})
-    assert client_ip_from_request(req) == "1.2.3.4"
-
-
-def test_falls_back_to_x_real_ip() -> None:
-    req = _request({"x-real-ip": "5.6.7.8"})
+def test_prefers_x_real_ip_over_xff() -> None:
+    req = _request(
+        {
+            "x-forwarded-for": "1.2.3.4, 10.0.0.1",
+            "x-real-ip": "5.6.7.8",
+        }
+    )
     assert client_ip_from_request(req) == "5.6.7.8"
+
+
+def test_xff_uses_last_hop_when_no_x_real_ip() -> None:
+    req = _request({"x-forwarded-for": "1.2.3.4, 10.0.0.1"})
+    assert client_ip_from_request(req) == "10.0.0.1"
 
 
 def test_falls_back_to_socket_peer() -> None:

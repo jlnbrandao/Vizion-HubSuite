@@ -31,6 +31,7 @@ class JoseTokenService(TokenService):
             "tenant_id": str(claims.tenant_id),
             "tenant_slug": claims.tenant_slug,
             "role_ids": [str(rid) for rid in claims.role_ids],
+            "cv": claims.credentials_version,
             "iat": int(now.timestamp()),
             "exp": int(exp.timestamp()),
         }

@@ -1,7 +1,8 @@
-"""In-memory refresh token store for unit tests."""
+"""In-memory refresh token store for unit tests (stores SHA-256 digests only)."""
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -9,6 +10,11 @@ from src.config.settings import Settings
 from src.modules.authentication.dtos.auth_dtos import RefreshSessionDto
 from src.modules.authentication.services.refresh_token_store import RefreshTokenStore
 from src.modules.authentication.value_objects.refresh_token import RefreshToken
+
+
+def _token_digest(token: RefreshToken | str) -> str:
+    raw = token.value if isinstance(token, RefreshToken) else token
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 class InMemoryRefreshTokenStore(RefreshTokenStore):
@@ -28,23 +34,25 @@ class InMemoryRefreshTokenStore(RefreshTokenStore):
 
     async def save(self, token: RefreshToken, session: RefreshSessionDto) -> None:
         self._purge_expired()
+        digest = _token_digest(token)
         expires_at = datetime.now(UTC) + self._ttl
-        self._sessions[token.value] = (session, expires_at)
-        self._by_user.setdefault(session.user_id, set()).add(token.value)
+        self._sessions[digest] = (session, expires_at)
+        self._by_user.setdefault(session.user_id, set()).add(digest)
 
     async def get(self, token: RefreshToken) -> RefreshSessionDto | None:
         self._purge_expired()
-        entry = self._sessions.get(token.value)
+        entry = self._sessions.get(_token_digest(token))
         return entry[0] if entry else None
 
     async def delete(self, token: RefreshToken) -> None:
-        entry = self._sessions.pop(token.value, None)
+        digest = _token_digest(token)
+        entry = self._sessions.pop(digest, None)
         if entry:
-            self._by_user.get(entry[0].user_id, set()).discard(token.value)
+            self._by_user.get(entry[0].user_id, set()).discard(digest)
 
     async def delete_all_for_user(self, user_id: object) -> None:
         uid = user_id if isinstance(user_id, UUID) else UUID(str(user_id))
-        tokens = list(self._by_user.get(uid, set()))
-        for value in tokens:
-            self._sessions.pop(value, None)
+        digests = list(self._by_user.get(uid, set()))
+        for digest in digests:
+            self._sessions.pop(digest, None)
         self._by_user.pop(uid, None)

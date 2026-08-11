@@ -55,6 +55,7 @@ def _to_dto(user: User) -> UserDto:
         full_name=user.full_name.value,
         role_ids=tuple(sorted(user.role_ids, key=str)),
         is_active=user.is_active,
+        credentials_version=user.credentials_version,
         created_at=user.created_at,
         updated_at=user.updated_at,
     )
@@ -70,6 +71,7 @@ def _to_auth_dto(user: User) -> UserAuthDto:
         hashed_password=user.hashed_password.value,
         role_ids=tuple(sorted(user.role_ids, key=str)),
         is_active=user.is_active,
+        credentials_version=user.credentials_version,
     )
 
 
