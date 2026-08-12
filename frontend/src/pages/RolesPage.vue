@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useQuasar, type QTableColumn } from 'quasar'
+import AssignPermissionsDialog from '@/components/roles/AssignPermissionsDialog.vue'
 import { usePermissions } from '@/composables/usePermissions'
 import { PermissionCode } from '@/constants/permissions'
 import {
@@ -33,38 +34,6 @@ const editForm = reactive({
   is_active: true,
 })
 
-const permsForm = reactive({
-  permission_ids: [] as string[],
-})
-
-const permissionOptions = computed(() =>
-  permissions.value.map((permission) => ({
-    label: `${permission.resource}.${permission.action} — ${permission.name}`,
-    value: permission.id,
-  })),
-)
-
-const filteredPermissionOptions = ref<Array<{ label: string; value: string }>>([])
-
-watch(
-  permissionOptions,
-  (opts) => {
-    filteredPermissionOptions.value = opts
-  },
-  { immediate: true },
-)
-
-function filterPermissions(val: string, update: (fn: () => void) => void) {
-  update(() => {
-    const needle = val.toLowerCase()
-    filteredPermissionOptions.value = needle
-      ? permissionOptions.value.filter((opt) =>
-          opt.label.toLowerCase().includes(needle),
-        )
-      : permissionOptions.value
-  })
-}
-
 const columns: QTableColumn[] = [
   { name: 'name', label: 'Name', field: 'name', align: 'left', sortable: true },
   { name: 'description', label: 'Description', field: 'description', align: 'left' },
@@ -91,7 +60,6 @@ function openEdit(role: RoleResponse) {
 
 function openPermissions(role: RoleResponse) {
   selected.value = role
-  permsForm.permission_ids = [...role.permission_ids]
   permsOpen.value = true
 }
 
@@ -146,11 +114,11 @@ async function submitEdit() {
   }
 }
 
-async function submitPermissions() {
+async function submitPermissions(permissionIds: string[]) {
   if (!selected.value) return
   saving.value = true
   try {
-    await rolesApi.replacePermissions(selected.value.id, permsForm.permission_ids)
+    await rolesApi.replacePermissions(selected.value.id, permissionIds)
     permsOpen.value = false
     $q.notify({ type: 'positive', message: 'Permissions updated' })
     await load()
@@ -405,58 +373,14 @@ onMounted(() => {
       </q-card>
     </q-dialog>
 
-    <q-dialog
+    <AssignPermissionsDialog
       v-model="permsOpen"
-      persistent
-    >
-      <q-card class="app-page__dialog app-page__dialog--wide">
-        <q-card-section>
-          <div
-            class="text-h6"
-            style="color: #111827"
-          >
-            Assign permissions
-          </div>
-          <div class="app-page__dialog-sub">{{ selected?.name }}</div>
-        </q-card-section>
-        <q-form @submit.prevent="submitPermissions">
-          <q-card-section>
-            <q-select
-              v-model="permsForm.permission_ids"
-              :options="filteredPermissionOptions"
-              label="Permissions"
-              outlined
-              dense
-              multiple
-              emit-value
-              map-options
-              use-chips
-              clearable
-              use-input
-              input-debounce="0"
-              @filter="filterPermissions"
-            />
-          </q-card-section>
-          <q-card-actions align="right">
-            <q-btn
-              flat
-              no-caps
-              label="Cancel"
-              color="primary"
-              @click="permsOpen = false"
-            />
-            <q-btn
-              type="submit"
-              unelevated
-              no-caps
-              color="primary"
-              label="Save"
-              :loading="saving"
-            />
-          </q-card-actions>
-        </q-form>
-      </q-card>
-    </q-dialog>
+      :role="selected"
+      :roles="roles"
+      :permissions="permissions"
+      :saving="saving"
+      @save="submitPermissions"
+    />
   </q-page>
 </template>
 
