@@ -31,7 +31,6 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
 def _to_response(dto: TokenPairDto) -> TokenResponse:
-    assert dto.user_id is not None
     return TokenResponse(
         access_token=dto.access_token,
         token_type=dto.token_type,
@@ -39,6 +38,8 @@ def _to_response(dto: TokenPairDto) -> TokenResponse:
         user_id=dto.user_id,
         email=dto.email,
         full_name=dto.full_name,
+        mfa_required=dto.mfa_required,
+        mfa_token=dto.mfa_token,
     )
 
 
@@ -60,7 +61,8 @@ async def login(
     result: TokenPairDto = await command_bus.execute(
         LoginCommand(login=body.login, password=body.password)
     )
-    set_refresh_cookie(response, result.refresh_token, settings)
+    if not result.mfa_required:
+        set_refresh_cookie(response, result.refresh_token, settings)
     return _to_response(result)
 
 

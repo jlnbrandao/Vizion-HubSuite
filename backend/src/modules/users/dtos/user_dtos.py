@@ -34,6 +34,10 @@ class UserAuthDto:
     role_ids: tuple[UUID, ...] = field(default_factory=tuple)
     is_active: bool = True
     credentials_version: int = 0
+    must_change_password: bool = False
+    locked_until: datetime | None = None
+    failed_login_count: int = 0
+    password_changed_at: datetime | None = None
 
 
 @dataclass(frozen=True, kw_only=True)

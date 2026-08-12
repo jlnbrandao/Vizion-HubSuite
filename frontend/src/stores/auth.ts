@@ -30,11 +30,15 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     try {
       const { data } = await authApi.login(loginId, password)
+      if (data.mfa_required && data.mfa_token) {
+        sessionStorage.setItem('lanstar_mfa_token', data.mfa_token)
+        throw new Error('mfa_required')
+      }
       persistAccess(data.access_token)
 
       // Minimal identity from login response — ensures isAuthenticated before hydrate.
       user.value = {
-        id: data.user_id,
+        id: data.user_id || '',
         email: data.email,
         fullName: data.full_name,
         tenantId: null,
@@ -51,12 +55,37 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       bootstrapped.value = true
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.message === 'mfa_required') {
+        throw err
+      }
       error.value = 'Invalid credentials'
       clearSession()
       throw new Error('login_failed')
     } finally {
       loading.value = false
+    }
+  }
+
+  function setSession(payload: {
+    accessToken: string
+    user: {
+      id: string
+      email: string
+      full_name: string
+      permissions: string[]
+    }
+  }) {
+    persistAccess(payload.accessToken)
+    user.value = {
+      id: payload.user.id,
+      email: payload.user.email,
+      fullName: payload.user.full_name,
+      tenantId: null,
+      tenantSlug: '',
+      tenantName: '',
+      roleNames: [],
+      permissions: payload.user.permissions,
     }
   }
 
@@ -107,5 +136,6 @@ export const useAuthStore = defineStore('auth', () => {
     bootstrap,
     hydrateFromDashboard,
     clearSession,
+    setSession,
   }
 })

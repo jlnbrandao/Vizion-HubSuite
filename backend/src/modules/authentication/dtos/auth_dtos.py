@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
@@ -16,6 +16,8 @@ class TokenPairDto:
     user_id: UUID | None = None
     email: str = ""
     full_name: str = ""
+    mfa_required: bool = False
+    mfa_token: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -29,3 +31,5 @@ class RefreshSessionDto:
     tenant_slug: str
     role_ids: tuple[UUID, ...]
     created_at: datetime
+    session_id: UUID | None = None
+    amr: tuple[str, ...] = field(default_factory=tuple)

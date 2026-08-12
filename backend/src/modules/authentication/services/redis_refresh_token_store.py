@@ -49,6 +49,8 @@ class RedisRefreshTokenStore(RefreshTokenStore):
                 "tenant_slug": session.tenant_slug,
                 "role_ids": [str(rid) for rid in session.role_ids],
                 "created_at": session.created_at.isoformat(),
+                "session_id": str(session.session_id) if session.session_id else None,
+                "amr": list(session.amr),
             }
         )
         key = self._token_key(digest)
@@ -64,6 +66,8 @@ class RedisRefreshTokenStore(RefreshTokenStore):
         if raw is None:
             return None
         data = json.loads(raw)
+        sid = data.get("session_id")
+        amr_raw = data.get("amr") or []
         return RefreshSessionDto(
             user_id=UUID(data["user_id"]),
             email=data["email"],
@@ -72,6 +76,8 @@ class RedisRefreshTokenStore(RefreshTokenStore):
             tenant_slug=str(data["tenant_slug"]),
             role_ids=tuple(UUID(rid) for rid in data["role_ids"]),
             created_at=datetime.fromisoformat(data["created_at"]),
+            session_id=UUID(str(sid)) if sid else None,
+            amr=tuple(str(item) for item in amr_raw),
         )
 
     async def delete(self, token: RefreshToken) -> None:

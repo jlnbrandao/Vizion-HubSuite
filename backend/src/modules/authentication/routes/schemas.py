@@ -31,9 +31,11 @@ class LogoutRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    access_token: str
+    access_token: str = ""
     token_type: str = "bearer"
-    expires_in: int
-    user_id: UUID
-    email: str
-    full_name: str
+    expires_in: int = 0
+    user_id: UUID | None = None
+    email: str = ""
+    full_name: str = ""
+    mfa_required: bool = False
+    mfa_token: str | None = None

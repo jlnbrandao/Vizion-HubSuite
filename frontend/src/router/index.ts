@@ -121,7 +121,36 @@ const routes: RouteRecordRaw[] = [
         name: 'account-profile',
         component: () => import('@/pages/stuff/AccountProfilePage.vue'),
       },
+      {
+        path: 'iam/audit',
+        name: 'iam-audit',
+        component: () => import('@/pages/iam/AuditPage.vue'),
+        meta: { permissions: [PermissionCode.AUDIT_READ] },
+      },
+      {
+        path: 'iam/mfa',
+        name: 'iam-mfa',
+        component: () => import('@/pages/iam/MfaSetupPage.vue'),
+      },
+      {
+        path: 'iam/oauth-clients',
+        name: 'iam-oauth-clients',
+        component: () => import('@/pages/iam/OAuthClientsPage.vue'),
+        meta: { permissions: [PermissionCode.OAUTH_CLIENTS_READ] },
+      },
     ],
+  },
+  {
+    path: '/reset-password',
+    name: 'reset-password',
+    component: () => import('@/pages/iam/ResetPasswordPage.vue'),
+    meta: { public: true },
+  },
+  {
+    path: '/mfa',
+    name: 'mfa-challenge',
+    component: () => import('@/pages/iam/MfaChallengePage.vue'),
+    meta: { public: true },
   },
   {
     path: '/:pathMatch(.*)*',
@@ -158,7 +187,11 @@ router.beforeEach(async (to) => {
     await auth.bootstrap()
   }
 
-  const isPublic = Boolean(to.meta.public) || to.name === 'login'
+  const isPublic =
+    Boolean(to.meta.public) ||
+    to.name === 'login' ||
+    to.name === 'reset-password' ||
+    to.name === 'mfa-challenge'
 
   if (isPublic) {
     if (auth.isAuthenticated) {

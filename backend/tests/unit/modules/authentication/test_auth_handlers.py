@@ -124,18 +124,86 @@ async def seeded_user(users_repo, uow_factory, password_hasher, query_bus):
 
 
 @pytest.fixture
-def login_handler(query_bus, password_hasher, token_service, refresh_store, event_bus):
-    return LoginHandler(query_bus, password_hasher, token_service, refresh_store, event_bus)
+def login_handler(
+    query_bus, password_hasher, token_service, refresh_store, event_bus, uow_factory, settings
+):
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    class FakeSessions:
+        async def create(self, **kwargs):
+            return uuid4()
+
+        async def revoke(self, *args, **kwargs):
+            return True
+
+    class FakeMfa:
+        async def has_confirmed_mfa(self, user_id):
+            return False
+
+        def issue_mfa_token(self, **kwargs):
+            return "mfa-token"
+
+    class FakePolicies:
+        async def get_or_create(self):
+            return SimpleNamespace(
+                password_login_enabled=True,
+                mfa_required="optional",
+                max_failed_attempts=5,
+                lockout_minutes=15,
+            )
+
+        async def assert_not_locked(self, user_id):
+            return None
+
+        async def record_failed_login(self, user_id, policy):
+            return None
+
+        async def clear_failed_login(self, user_id):
+            return None
+
+    return LoginHandler(
+        query_bus,
+        password_hasher,
+        token_service,
+        refresh_store,
+        event_bus,
+        uow_factory,
+        FakeSessions(),
+        FakeMfa(),
+        FakePolicies(),
+        settings,
+    )
 
 
 @pytest.fixture
-def logout_handler(refresh_store, event_bus):
-    return LogoutHandler(refresh_store, event_bus)
+def logout_handler(refresh_store, event_bus, uow_factory):
+    from uuid import uuid4
+
+    class FakeSessions:
+        async def revoke(self, *args, **kwargs):
+            return True
+
+    return LogoutHandler(refresh_store, event_bus, uow_factory, FakeSessions())
 
 
 @pytest.fixture
-def refresh_handler(token_service, refresh_store, event_bus, query_bus):
-    return RefreshTokenHandler(token_service, refresh_store, event_bus, query_bus)
+def refresh_handler(token_service, refresh_store, event_bus, query_bus, uow_factory, settings):
+    from uuid import uuid4
+
+    class FakeSessions:
+        async def create(self, **kwargs):
+            return uuid4()
+
+    return RefreshTokenHandler(
+        token_service,
+        refresh_store,
+        event_bus,
+        query_bus,
+        uow_factory,
+        FakeSessions(),
+        settings,
+    )
 
 
 @pytest.mark.asyncio

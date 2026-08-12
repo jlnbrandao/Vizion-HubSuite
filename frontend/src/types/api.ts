@@ -2,9 +2,11 @@ export interface TokenResponse {
   access_token: string
   token_type: string
   expires_in: number
-  user_id: string
+  user_id: string | null
   email: string
   full_name: string
+  mfa_required?: boolean
+  mfa_token?: string | null
 }
 
 export interface DashboardMenuItem {

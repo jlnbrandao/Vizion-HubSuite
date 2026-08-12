@@ -82,6 +82,34 @@ export function useLayoutConfig() {
         active: currentPath.startsWith('/account'),
         link: '/account/profile',
       })
+      menuItems.push({
+        id: 'nav-mfa',
+        label: 'MFA setup',
+        icon: 'phonelink_lock',
+        active: currentPath.startsWith('/iam/mfa'),
+        link: '/iam/mfa',
+      })
+    }
+
+    if (can(PermissionCode.AUDIT_READ)) {
+      menuItems.push({
+        id: 'nav-audit',
+        label: 'Audit',
+        icon: 'policy',
+        active: currentPath.startsWith('/iam/audit'),
+        link: '/iam/audit',
+        required_permission: PermissionCode.AUDIT_READ,
+      })
+    }
+    if (can(PermissionCode.OAUTH_CLIENTS_READ)) {
+      menuItems.push({
+        id: 'nav-oauth',
+        label: 'OAuth clients',
+        icon: 'vpn_key',
+        active: currentPath.startsWith('/iam/oauth-clients'),
+        link: '/iam/oauth-clients',
+        required_permission: PermissionCode.OAUTH_CLIENTS_READ,
+      })
     }
 
     const navMenuOptions: NavMenuOption[] = [

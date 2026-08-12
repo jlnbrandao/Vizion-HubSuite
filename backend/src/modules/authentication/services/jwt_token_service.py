@@ -25,7 +25,7 @@ class JwtTokenService(TokenService):
     def create_access_token(self, claims: AccessTokenClaims) -> str:
         now = datetime.now(UTC)
         exp = now + timedelta(minutes=self._expire_minutes)
-        payload = {
+        payload: dict[str, object] = {
             "sub": str(claims.user_id),
             "email": claims.email,
             "full_name": claims.full_name,
@@ -33,9 +33,15 @@ class JwtTokenService(TokenService):
             "tenant_slug": claims.tenant_slug,
             "role_ids": [str(rid) for rid in claims.role_ids],
             "cv": claims.credentials_version,
+            "amr": list(claims.amr),
+            "token_use": claims.token_use,
             "iat": int(now.timestamp()),
             "exp": int(exp.timestamp()),
         }
+        if claims.acr is not None:
+            payload["acr"] = claims.acr
+        if claims.sid is not None:
+            payload["sid"] = str(claims.sid)
         return jwt.encode(payload, self._secret, algorithm=self._algorithm)
 
     def decode_access_token(self, token: str) -> AccessTokenClaims:

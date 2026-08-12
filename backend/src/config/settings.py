@@ -59,6 +59,30 @@ class Settings(BaseSettings):
     # IP form universe.134.x.x.x is always allowed (base is an IPv4).
     allowed_tenant_base_domains: str = "localhost,lanstar.com.br,lanstar.local"
 
+    # IAM platform feature flags
+    iam_oidc_enabled: bool = True
+    iam_mfa_enabled: bool = True
+    iam_mfa_required_roles: str = "ADMIN,PLATFORM"
+    iam_scim_enabled: bool = True
+    iam_federation_enabled: bool = True
+    iam_abac_enabled: bool = True
+
+    # SMTP for invitations / password reset (optional in development — tokens logged)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "noreply@lanstar.local"
+    smtp_use_tls: bool = True
+
+    # OIDC Authorization Server (RS256). Empty private key → ephemeral key in development.
+    oidc_issuer_template: str = "https://{tenant_slug}.{base_domain}"
+    oidc_jwt_private_key_pem: str = ""
+    oidc_jwt_public_key_pem: str = ""
+    mfa_token_expire_minutes: int = 5
+    invitation_expire_hours: int = 72
+    password_reset_expire_hours: int = 1
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"
@@ -78,6 +102,14 @@ class Settings(BaseSettings):
         return tuple(
             part.strip().lower()
             for part in self.allowed_tenant_base_domains.split(",")
+            if part.strip()
+        )
+
+    @property
+    def mfa_required_role_names(self) -> frozenset[str]:
+        return frozenset(
+            part.strip().upper()
+            for part in self.iam_mfa_required_roles.split(",")
             if part.strip()
         )
 

@@ -94,6 +94,30 @@ class PermissionCode:
     TENANTS_ACTIVATE = "tenants.activate"
     TENANTS_DEACTIVATE = "tenants.deactivate"
 
+    # IAM platform
+    AUDIT_READ = "audit.read"
+    SESSIONS_REVOKE = "sessions.revoke"
+    OAUTH_CLIENTS_CREATE = "oauth_clients.create"
+    OAUTH_CLIENTS_READ = "oauth_clients.read"
+    OAUTH_CLIENTS_UPDATE = "oauth_clients.update"
+    OAUTH_CLIENTS_DELETE = "oauth_clients.delete"
+    SERVICE_ACCOUNTS_CREATE = "service_accounts.create"
+    SERVICE_ACCOUNTS_READ = "service_accounts.read"
+    SERVICE_ACCOUNTS_UPDATE = "service_accounts.update"
+    SERVICE_ACCOUNTS_DELETE = "service_accounts.delete"
+    API_KEYS_CREATE = "api_keys.create"
+    API_KEYS_READ = "api_keys.read"
+    API_KEYS_DELETE = "api_keys.delete"
+    FEDERATION_CREATE = "federation.create"
+    FEDERATION_READ = "federation.read"
+    FEDERATION_UPDATE = "federation.update"
+    FEDERATION_DELETE = "federation.delete"
+    POLICIES_CREATE = "policies.create"
+    POLICIES_READ = "policies.read"
+    POLICIES_UPDATE = "policies.update"
+    POLICIES_DELETE = "policies.delete"
+    SCIM_PROVISION = "scim.provision"
+
     @classmethod
     def platform_only_codes(cls) -> frozenset[str]:
         """Codes that must not be granted inside ordinary tenant RBAC."""
@@ -111,7 +135,7 @@ class PermissionCode:
 
     @classmethod
     def admin_role_codes(cls) -> frozenset[str]:
-        """Default ADMIN role: identity/RBAC CRUD + admin dashboard only."""
+        """Default ADMIN role: identity/RBAC CRUD + IAM admin + admin dashboard."""
         return frozenset(
             {
                 cls.USERS_CREATE,
@@ -129,6 +153,28 @@ class PermissionCode:
                 cls.PERMISSIONS_UPDATE,
                 cls.PERMISSIONS_DELETE,
                 cls.DASHBOARD_ADMIN,
+                cls.AUDIT_READ,
+                cls.SESSIONS_REVOKE,
+                cls.OAUTH_CLIENTS_CREATE,
+                cls.OAUTH_CLIENTS_READ,
+                cls.OAUTH_CLIENTS_UPDATE,
+                cls.OAUTH_CLIENTS_DELETE,
+                cls.SERVICE_ACCOUNTS_CREATE,
+                cls.SERVICE_ACCOUNTS_READ,
+                cls.SERVICE_ACCOUNTS_UPDATE,
+                cls.SERVICE_ACCOUNTS_DELETE,
+                cls.API_KEYS_CREATE,
+                cls.API_KEYS_READ,
+                cls.API_KEYS_DELETE,
+                cls.FEDERATION_CREATE,
+                cls.FEDERATION_READ,
+                cls.FEDERATION_UPDATE,
+                cls.FEDERATION_DELETE,
+                cls.POLICIES_CREATE,
+                cls.POLICIES_READ,
+                cls.POLICIES_UPDATE,
+                cls.POLICIES_DELETE,
+                cls.SCIM_PROVISION,
             }
         )
 
@@ -279,6 +325,116 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         code=PermissionCode.TENANTS_DEACTIVATE,
         name="Deactivate tenants",
         description="Allows suspending tenants (platform)",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.AUDIT_READ,
+        name="Read audit events",
+        description="Allows viewing the audit trail",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.SESSIONS_REVOKE,
+        name="Revoke sessions",
+        description="Allows revoking user sessions",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.OAUTH_CLIENTS_CREATE,
+        name="Create OAuth clients",
+        description="Allows registering OAuth/OIDC clients",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.OAUTH_CLIENTS_READ,
+        name="Read OAuth clients",
+        description="Allows listing OAuth/OIDC clients",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.OAUTH_CLIENTS_UPDATE,
+        name="Update OAuth clients",
+        description="Allows updating OAuth/OIDC clients",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.OAUTH_CLIENTS_DELETE,
+        name="Delete OAuth clients",
+        description="Allows deleting OAuth/OIDC clients",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.SERVICE_ACCOUNTS_CREATE,
+        name="Create service accounts",
+        description="Allows creating non-human identities",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.SERVICE_ACCOUNTS_READ,
+        name="Read service accounts",
+        description="Allows listing service accounts",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.SERVICE_ACCOUNTS_UPDATE,
+        name="Update service accounts",
+        description="Allows updating service accounts",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.SERVICE_ACCOUNTS_DELETE,
+        name="Delete service accounts",
+        description="Allows deleting service accounts",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.API_KEYS_CREATE,
+        name="Create API keys",
+        description="Allows issuing API keys",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.API_KEYS_READ,
+        name="Read API keys",
+        description="Allows listing API keys",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.API_KEYS_DELETE,
+        name="Delete API keys",
+        description="Allows revoking API keys",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.FEDERATION_CREATE,
+        name="Create identity providers",
+        description="Allows configuring SSO/federation IdPs",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.FEDERATION_READ,
+        name="Read identity providers",
+        description="Allows listing SSO/federation IdPs",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.FEDERATION_UPDATE,
+        name="Update identity providers",
+        description="Allows updating SSO/federation IdPs",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.FEDERATION_DELETE,
+        name="Delete identity providers",
+        description="Allows removing SSO/federation IdPs",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.POLICIES_CREATE,
+        name="Create access policies",
+        description="Allows creating ABAC/auth policies",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.POLICIES_READ,
+        name="Read access policies",
+        description="Allows viewing ABAC/auth policies",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.POLICIES_UPDATE,
+        name="Update access policies",
+        description="Allows updating ABAC/auth policies",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.POLICIES_DELETE,
+        name="Delete access policies",
+        description="Allows deleting ABAC/auth policies",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.SCIM_PROVISION,
+        name="SCIM provision",
+        description="Allows SCIM user/group provisioning",
     ),
 )
 

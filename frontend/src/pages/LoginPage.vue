@@ -49,11 +49,7 @@ function persistRememberMe(loginId: string) {
 }
 
 function onForgotPassword() {
-  $q.dialog({
-    title: 'Forgot password?',
-    message: 'Please contact an administrator to reset your password.',
-    ok: { label: 'Got it', flat: true, color: 'primary' },
-  })
+  void router.push({ name: 'reset-password' })
 }
 
 function onCreateAccount() {
@@ -74,7 +70,11 @@ async function onSubmit() {
     $q.notify({ type: 'positive', message: 'Welcome to Lanstar', position: 'top' })
     await router.replace(postLoginPath())
     void dashboard.load()
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message === 'mfa_required') {
+      await router.push({ name: 'mfa-challenge' })
+      return
+    }
     $q.notify({
       type: 'negative',
       message: auth.error ?? 'Login failed',

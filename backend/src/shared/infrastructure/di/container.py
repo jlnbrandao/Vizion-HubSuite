@@ -83,6 +83,16 @@ from src.modules.users.handlers.user_handlers import (
 )
 from src.modules.users.repositories.sqlalchemy_user_repository import SqlAlchemyUserRepository
 from src.modules.users.services.bcrypt_password_hasher import BcryptPasswordHasher
+from src.modules.iam.abac.service import AbacService
+from src.modules.iam.audit.service import AuditService
+from src.modules.iam.email_sender import EmailSender
+from src.modules.iam.federation.service import FederationService
+from src.modules.iam.lifecycle.service import LifecycleService
+from src.modules.iam.machine.service import MachineIdentityService
+from src.modules.iam.mfa.service import MfaService
+from src.modules.iam.oauth.service import OAuthService, OidcKeyStore
+from src.modules.iam.policies.service import AuthPolicyService
+from src.modules.iam.sessions.service import SessionService
 from src.shared.application.command_bus import CommandBus
 from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
@@ -100,6 +110,9 @@ class Container(containers.DeclarativeContainer):
             "src.modules.users.routes.user_routes",
             "src.modules.authentication.routes.auth_routes",
             "src.modules.dashboard.routes.dashboard_routes",
+            "src.modules.iam.routes",
+            "src.modules.iam.scim.routes",
+            "src.modules.tenants.routes.tenant_routes",
             "src.shared.infrastructure.security.dependencies",
         ],
     )
@@ -406,6 +419,49 @@ class Container(containers.DeclarativeContainer):
         tenants=tenant_repository,
     )
 
+    # --- IAM platform (before auth handlers that depend on these) ---
+    email_sender: providers.Singleton[EmailSender] = providers.Singleton(
+        EmailSender,
+        settings=config,
+    )
+    session_service: providers.Singleton[SessionService] = providers.Singleton(SessionService)
+    audit_service: providers.Singleton[AuditService] = providers.Singleton(AuditService)
+    auth_policy_service: providers.Singleton[AuthPolicyService] = providers.Singleton(
+        AuthPolicyService
+    )
+    mfa_service: providers.Singleton[MfaService] = providers.Singleton(
+        MfaService,
+        settings=config,
+    )
+    oidc_key_store: providers.Singleton[OidcKeyStore] = providers.Singleton(
+        OidcKeyStore,
+        settings=config,
+    )
+    oauth_service: providers.Singleton[OAuthService] = providers.Singleton(
+        OAuthService,
+        settings=config,
+        keys=oidc_key_store,
+        password_hasher=password_hasher,
+    )
+    lifecycle_service: providers.Factory[LifecycleService] = providers.Factory(
+        LifecycleService,
+        settings=config,
+        email_sender=email_sender,
+        command_bus=command_bus,
+        query_bus=query_bus,
+        password_hasher=password_hasher,
+        auth_policies=auth_policy_service,
+    )
+    machine_identity_service: providers.Singleton[MachineIdentityService] = providers.Singleton(
+        MachineIdentityService
+    )
+    federation_service: providers.Singleton[FederationService] = providers.Singleton(
+        FederationService,
+        command_bus=command_bus,
+        query_bus=query_bus,
+    )
+    abac_service: providers.Singleton[AbacService] = providers.Singleton(AbacService)
+
     # --- Authentication handlers ---
     login_handler: providers.Factory[LoginHandler] = providers.Factory(
         LoginHandler,
@@ -414,11 +470,18 @@ class Container(containers.DeclarativeContainer):
         token_service=token_service,
         refresh_store=refresh_token_store,
         event_bus=event_bus,
+        uow_factory=unit_of_work.provider,
+        session_service=session_service,
+        mfa_service=mfa_service,
+        auth_policy_service=auth_policy_service,
+        settings=config,
     )
     logout_handler: providers.Factory[LogoutHandler] = providers.Factory(
         LogoutHandler,
         refresh_store=refresh_token_store,
         event_bus=event_bus,
+        uow_factory=unit_of_work.provider,
+        session_service=session_service,
     )
     refresh_token_handler: providers.Factory[RefreshTokenHandler] = providers.Factory(
         RefreshTokenHandler,
@@ -426,6 +489,9 @@ class Container(containers.DeclarativeContainer):
         refresh_store=refresh_token_store,
         event_bus=event_bus,
         query_bus=query_bus,
+        uow_factory=unit_of_work.provider,
+        session_service=session_service,
+        settings=config,
     )
     resolve_effective_access_handler: providers.Factory[ResolveEffectiveAccessHandler] = (
         providers.Factory(
