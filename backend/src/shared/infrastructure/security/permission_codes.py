@@ -118,6 +118,15 @@ class PermissionCode:
     POLICIES_DELETE = "policies.delete"
     SCIM_PROVISION = "scim.provision"
 
+    # Integration hub
+    INTEGRATION_READ = "integration.read"
+    INTEGRATION_CREATE = "integration.create"
+    INTEGRATION_UPDATE = "integration.update"
+    INTEGRATION_DELETE = "integration.delete"
+    INTEGRATION_TEST = "integration.test"
+    INTEGRATION_SYNC = "integration.sync"
+    INTEGRATION_LOGS_READ = "integration.read_logs"
+
     @classmethod
     def platform_only_codes(cls) -> frozenset[str]:
         """Codes that must not be granted inside ordinary tenant RBAC."""
@@ -130,6 +139,13 @@ class PermissionCode:
                 cls.TENANTS_UPDATE,
                 cls.TENANTS_ACTIVATE,
                 cls.TENANTS_DEACTIVATE,
+                cls.INTEGRATION_READ,
+                cls.INTEGRATION_CREATE,
+                cls.INTEGRATION_UPDATE,
+                cls.INTEGRATION_DELETE,
+                cls.INTEGRATION_TEST,
+                cls.INTEGRATION_SYNC,
+                cls.INTEGRATION_LOGS_READ,
             }
         )
 
@@ -435,6 +451,41 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         code=PermissionCode.SCIM_PROVISION,
         name="SCIM provision",
         description="Allows SCIM user/group provisioning",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.INTEGRATION_READ,
+        name="Read integrations",
+        description="Allows viewing integrations",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.INTEGRATION_CREATE,
+        name="Create integrations",
+        description="Allows creating integrations",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.INTEGRATION_UPDATE,
+        name="Update integrations",
+        description="Allows updating integrations",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.INTEGRATION_DELETE,
+        name="Delete integrations",
+        description="Allows deleting integrations",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.INTEGRATION_TEST,
+        name="Test integrations",
+        description="Allows testing integration connections",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.INTEGRATION_SYNC,
+        name="Sync integrations",
+        description="Allows running integration synchronization",
+    ),
+    PermissionDefinition(
+        code=PermissionCode.INTEGRATION_LOGS_READ,
+        name="Read integration logs",
+        description="Allows viewing integration sync/test logs",
     ),
 )
 

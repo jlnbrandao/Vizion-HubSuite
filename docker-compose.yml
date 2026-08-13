@@ -35,6 +35,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: enterprise-template-api
     container_name: lanstar-api
     environment:
       APP_NAME: Lanstar
@@ -83,6 +84,8 @@ services:
 
   seed:
     profiles: ["seed"]
+    # Share the API image so seed never drifts from permission_codes / providers.
+    image: enterprise-template-api
     build:
       context: ./backend
       dockerfile: Dockerfile

@@ -35,6 +35,13 @@ class PlatformDashboardProvider(DashboardSectionProvider):
                 icon="domain",
                 required_permission=PermissionCode.TENANTS_READ,
             ),
+            DashboardMenuItem(
+                id="platform-integrations",
+                label="Integrações",
+                route="/integrations",
+                icon="hub",
+                required_permission=PermissionCode.INTEGRATION_READ,
+            ),
         ]
 
     async def build_widgets(self, user: CurrentUser) -> list[DashboardWidget]:

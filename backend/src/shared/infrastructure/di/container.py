@@ -26,6 +26,18 @@ from src.modules.dashboard.providers.operator_provider import OperatorDashboardP
 from src.modules.dashboard.providers.platform_provider import PlatformDashboardProvider
 from src.modules.dashboard.providers.viewer_provider import ViewerDashboardProvider
 from src.modules.dashboard.services.dashboard_composer import DashboardComposer
+from src.modules.iam.abac.service import AbacService
+from src.modules.iam.audit.service import AuditService
+from src.modules.iam.email_sender import EmailSender
+from src.modules.iam.federation.service import FederationService
+from src.modules.iam.lifecycle.service import LifecycleService
+from src.modules.iam.machine.service import MachineIdentityService
+from src.modules.iam.mfa.service import MfaService
+from src.modules.iam.oauth.service import OAuthService, OidcKeyStore
+from src.modules.iam.policies.service import AuthPolicyService
+from src.modules.iam.sessions.service import SessionService
+from src.modules.integrations.layer import IntegrationLayer
+from src.modules.integrations.service import IntegrationService
 from src.modules.permissions.handlers.permission_handlers import (
     CheckPermissionsExistHandler,
     CountPermissionsHandler,
@@ -83,16 +95,6 @@ from src.modules.users.handlers.user_handlers import (
 )
 from src.modules.users.repositories.sqlalchemy_user_repository import SqlAlchemyUserRepository
 from src.modules.users.services.bcrypt_password_hasher import BcryptPasswordHasher
-from src.modules.iam.abac.service import AbacService
-from src.modules.iam.audit.service import AuditService
-from src.modules.iam.email_sender import EmailSender
-from src.modules.iam.federation.service import FederationService
-from src.modules.iam.lifecycle.service import LifecycleService
-from src.modules.iam.machine.service import MachineIdentityService
-from src.modules.iam.mfa.service import MfaService
-from src.modules.iam.oauth.service import OAuthService, OidcKeyStore
-from src.modules.iam.policies.service import AuthPolicyService
-from src.modules.iam.sessions.service import SessionService
 from src.shared.application.command_bus import CommandBus
 from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
@@ -112,6 +114,7 @@ class Container(containers.DeclarativeContainer):
             "src.modules.dashboard.routes.dashboard_routes",
             "src.modules.iam.routes",
             "src.modules.iam.scim.routes",
+            "src.modules.integrations.routes",
             "src.modules.tenants.routes.tenant_routes",
             "src.shared.infrastructure.security.dependencies",
         ],
@@ -461,6 +464,13 @@ class Container(containers.DeclarativeContainer):
         query_bus=query_bus,
     )
     abac_service: providers.Singleton[AbacService] = providers.Singleton(AbacService)
+
+    integration_layer: providers.Singleton[IntegrationLayer] = providers.Singleton(IntegrationLayer)
+    integration_service: providers.Singleton[IntegrationService] = providers.Singleton(
+        IntegrationService,
+        settings=config,
+        layer=integration_layer,
+    )
 
     # --- Authentication handlers ---
     login_handler: providers.Factory[LoginHandler] = providers.Factory(

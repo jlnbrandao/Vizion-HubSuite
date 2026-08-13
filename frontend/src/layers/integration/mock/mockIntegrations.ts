@@ -1,0 +1,163 @@
+import type { Integration } from '../models/Integration'
+import type { IntegrationLogEntry } from '../types/IntegrationTypes'
+
+/** In-memory demo data for ETAPA 1 — no backend / no third-party calls. */
+export const MOCK_TENANT_ID = 'tenant-demo-001'
+
+export function createMockIntegrations(): Integration[] {
+  const now = new Date().toISOString()
+  return [
+    {
+      id: 'int-rest-001',
+      tenantId: MOCK_TENANT_ID,
+      name: 'Addresses REST',
+      description: 'Catálogo de endereços via API REST',
+      type: 'rest',
+      status: 'ACTIVE',
+      secretsConfigured: true,
+      configuration: {
+        baseUrl: 'https://api.example.com',
+        endpoint: '/v1/addresses',
+        httpMethod: 'GET',
+        authType: 'bearer',
+        timeoutMs: 30_000,
+        rateLimitPerMinute: 60,
+        pagination: 'cursor',
+      },
+      createdAt: '2026-07-01T10:00:00.000Z',
+      updatedAt: now,
+      lastSyncAt: '2026-08-11T08:30:00.000Z',
+      lastError: null,
+    },
+    {
+      id: 'int-oauth-001',
+      tenantId: MOCK_TENANT_ID,
+      name: 'Partner OAuth API',
+      description: 'Integração com Client Credentials',
+      type: 'oauth2',
+      status: 'NEVER_SYNCED',
+      secretsConfigured: true,
+      configuration: {
+        tokenUrl: 'https://auth.partner.example/oauth/token',
+        clientId: 'partner-public-client',
+        scope: 'addresses:read',
+        grantType: 'client_credentials',
+        endpoint: 'https://api.partner.example/v1/addresses',
+        secretsConfigured: true,
+      },
+      createdAt: '2026-08-01T12:00:00.000Z',
+      updatedAt: '2026-08-01T12:00:00.000Z',
+      lastSyncAt: null,
+      lastError: null,
+    },
+    {
+      id: 'int-webhook-001',
+      tenantId: MOCK_TENANT_ID,
+      name: 'Address events webhook',
+      description: 'Recebe address.created/updated/deleted',
+      type: 'webhook',
+      status: 'ACTIVE',
+      secretsConfigured: true,
+      configuration: {
+        eventTypes: ['address.created', 'address.updated', 'address.deleted'],
+        signatureHeader: 'X-Signature',
+        secretsConfigured: true,
+      },
+      createdAt: '2026-06-15T09:00:00.000Z',
+      updatedAt: now,
+      lastSyncAt: '2026-08-12T14:00:00.000Z',
+      lastError: null,
+    },
+    {
+      id: 'int-sftp-001',
+      tenantId: MOCK_TENANT_ID,
+      name: 'Nightly CSV drop',
+      description: 'Importação SFTP de arquivos CSV',
+      type: 'sftp',
+      status: 'ERROR',
+      secretsConfigured: true,
+      configuration: {
+        host: 'sftp.example.com',
+        port: 22,
+        username: 'lanstar_ingest',
+        authType: 'private_key',
+        remotePath: '/outbound/addresses',
+        filenamePattern: 'addresses_*.csv',
+        encoding: 'utf-8',
+        delimiter: ',',
+        scheduleCron: '0 2 * * *',
+        secretsConfigured: true,
+      },
+      createdAt: '2026-05-20T08:00:00.000Z',
+      updatedAt: now,
+      lastSyncAt: '2026-08-10T02:00:00.000Z',
+      lastError: 'Remote path not found (mock)',
+    },
+    {
+      id: 'int-db-001',
+      tenantId: MOCK_TENANT_ID,
+      name: 'Legacy DB replica',
+      description: 'Acesso somente leitura — não recomendado',
+      type: 'database',
+      status: 'INACTIVE',
+      secretsConfigured: true,
+      configuration: {
+        host: 'db.legacy.example',
+        port: 5432,
+        database: 'addresses',
+        username: 'readonly_app',
+        schema: 'public',
+        table: 'addresses',
+        query: '',
+        rowLimit: 1000,
+        timeoutMs: 15_000,
+        readOnly: true,
+        secretsConfigured: true,
+      },
+      createdAt: '2026-04-01T08:00:00.000Z',
+      updatedAt: '2026-07-01T08:00:00.000Z',
+      lastSyncAt: '2026-07-01T08:00:00.000Z',
+      lastError: null,
+    },
+  ]
+}
+
+export function createMockLogs(): IntegrationLogEntry[] {
+  return [
+    {
+      id: 'log-1',
+      integrationId: 'int-rest-001',
+      level: 'info',
+      message: 'Sync completed — 12 records',
+      createdAt: '2026-08-11T08:30:05.000Z',
+    },
+    {
+      id: 'log-2',
+      integrationId: 'int-rest-001',
+      level: 'info',
+      message: 'Connection test OK (142 ms)',
+      createdAt: '2026-08-11T08:29:50.000Z',
+    },
+    {
+      id: 'log-3',
+      integrationId: 'int-sftp-001',
+      level: 'error',
+      message: 'Remote path not found (mock)',
+      createdAt: '2026-08-10T02:00:12.000Z',
+    },
+    {
+      id: 'log-4',
+      integrationId: 'int-webhook-001',
+      level: 'info',
+      message: 'Received address.updated event',
+      createdAt: '2026-08-12T14:00:00.000Z',
+    },
+    {
+      id: 'log-5',
+      integrationId: 'int-oauth-001',
+      level: 'warning',
+      message: 'Never synced — awaiting first run',
+      createdAt: '2026-08-01T12:00:00.000Z',
+    },
+  ]
+}

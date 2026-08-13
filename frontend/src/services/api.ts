@@ -124,7 +124,13 @@ export function apiErrorMessage(error: unknown, fallback = 'Operation failed'): 
   if (!axios.isAxiosError(error)) {
     return error instanceof Error ? error.message : fallback
   }
-  const detail = error.response?.data?.detail
+  const data = error.response?.data as
+    | { detail?: unknown; error?: { message?: string } }
+    | undefined
+  if (typeof data?.error?.message === 'string' && data.error.message) {
+    return data.error.message
+  }
+  const detail = data?.detail
   if (typeof detail === 'string') {
     return detail
   }

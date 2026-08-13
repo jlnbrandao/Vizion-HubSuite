@@ -138,6 +138,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/iam/OAuthClientsPage.vue'),
         meta: { permissions: [PermissionCode.OAUTH_CLIENTS_READ] },
       },
+      {
+        path: 'integrations',
+        name: 'integrations',
+        component: () => import('@/pages/IntegrationPage.vue'),
+        meta: { permissions: [PermissionCode.INTEGRATION_READ] },
+      },
     ],
   },
   {

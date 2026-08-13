@@ -78,6 +78,14 @@ export const PermissionCode = {
   POLICIES_UPDATE: 'policies.update',
   POLICIES_DELETE: 'policies.delete',
   SCIM_PROVISION: 'scim.provision',
+
+  INTEGRATION_READ: 'integration.read',
+  INTEGRATION_CREATE: 'integration.create',
+  INTEGRATION_UPDATE: 'integration.update',
+  INTEGRATION_DELETE: 'integration.delete',
+  INTEGRATION_TEST: 'integration.test',
+  INTEGRATION_SYNC: 'integration.sync',
+  INTEGRATION_LOGS_READ: 'integration.read_logs',
 } as const
 
 export type PermissionCodeValue = (typeof PermissionCode)[keyof typeof PermissionCode]

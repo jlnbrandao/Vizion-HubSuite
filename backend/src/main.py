@@ -17,6 +17,7 @@ from src.modules.authentication.routes.auth_routes import router as auth_router
 from src.modules.dashboard.routes.dashboard_routes import router as dashboard_router
 from src.modules.iam.routes import router as iam_router
 from src.modules.iam.scim.routes import router as scim_router
+from src.modules.integrations.routes import router as integrations_router
 from src.modules.permissions.routes.permission_routes import router as permissions_router
 from src.modules.roles.routes.role_routes import router as roles_router
 from src.modules.tenants.routes.tenant_routes import router as tenants_router
@@ -52,6 +53,7 @@ _WIRE_MODULES = [
     "src.modules.dashboard.routes.dashboard_routes",
     "src.modules.iam.routes",
     "src.modules.iam.scim.routes",
+    "src.modules.integrations.routes",
     "src.shared.infrastructure.security.dependencies",
 ]
 
@@ -139,6 +141,7 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.include_router(tenants_router, prefix="/api/v1")
     app.include_router(iam_router, prefix="/api/v1")
     app.include_router(scim_router, prefix="/api/v1")
+    app.include_router(integrations_router, prefix="/api/v1")
 
     return app
 

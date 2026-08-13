@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     invitation_expire_hours: int = 72
     password_reset_expire_hours: int = 1
 
+    # Fernet key material for integration secrets (falls back to JWT_SECRET_KEY).
+    integration_secrets_key: str = ""
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"

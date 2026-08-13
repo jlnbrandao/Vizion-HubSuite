@@ -38,3 +38,5 @@ def test_platform_permissions_are_forbidden_for_admin() -> None:
     assert PermissionCode.platform_only_codes().issubset(FORBIDDEN_FOR_ADMIN)
     assert ROLE_PERMISSIONS["ADMIN"].isdisjoint(PermissionCode.platform_only_codes())
     assert PermissionCode.DASHBOARD_PLATFORM in PermissionCode.platform_only_codes()
+    assert PermissionCode.INTEGRATION_READ in PermissionCode.platform_only_codes()
+    assert PermissionCode.INTEGRATION_READ not in ROLE_PERMISSIONS["ADMIN"]
