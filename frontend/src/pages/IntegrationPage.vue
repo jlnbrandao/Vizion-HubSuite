@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useQuasar, type QTableColumn } from 'quasar'
 import { usePermissions } from '@/composables/usePermissions'
 import { PermissionCode } from '@/constants/permissions'
@@ -37,9 +37,8 @@ const selected = ref<Integration | null>(null)
 const selectedMethod = ref<IntegrationMethodType | null>(null)
 const formOpen = ref(false)
 const editing = ref<Integration | null>(null)
-/** Comparative method table — shown by "Nova integração" instead of opening the form. */
+/** Comparative method table modal — opened by "Nova integração". */
 const methodPickerOpen = ref(false)
-const methodPickerCard = ref<HTMLElement | null>(null)
 
 const testResult = ref<IntegrationTestResult | null>(null)
 const lastSync = ref<IntegrationSyncResult | null>(null)
@@ -108,11 +107,9 @@ function onTableSelected(rows: readonly Integration[]) {
   if (row) selectRow(row)
 }
 
-async function openMethodPicker() {
+function openMethodPicker() {
   if (!can(PermissionCode.INTEGRATION_CREATE)) return
   methodPickerOpen.value = true
-  await nextTick()
-  methodPickerCard.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function closeMethodPicker() {
@@ -123,6 +120,7 @@ function openCreate(type: IntegrationMethodType) {
   if (!can(PermissionCode.INTEGRATION_CREATE)) return
   selectedMethod.value = type
   editing.value = null
+  methodPickerOpen.value = false
   formOpen.value = true
 }
 
@@ -347,36 +345,6 @@ onMounted(() => {
           </q-card-section>
         </q-card>
 
-        <div
-          v-if="methodPickerOpen && can(PermissionCode.INTEGRATION_CREATE)"
-          ref="methodPickerCard"
-        >
-          <q-card flat bordered class="app-page__card">
-            <q-card-section>
-              <div class="row items-center justify-between q-mb-sm">
-                <div>
-                  <div class="text-h6">Tabela comparativa</div>
-                  <div class="text-caption text-grey-7">
-                    Escolha um método e clique em Usar para configurar a nova integração.
-                  </div>
-                </div>
-                <q-btn
-                  flat
-                  dense
-                  round
-                  icon="close"
-                  color="grey-8"
-                  aria-label="Fechar tabela comparativa"
-                  @click="closeMethodPicker"
-                />
-              </div>
-              <IntegrationMethodTable
-                :rows="METHOD_COMPARISON"
-                @select="openCreate"
-              />
-            </q-card-section>
-          </q-card>
-        </div>
       </div>
 
       <div class="col-12 col-lg-4">
@@ -434,6 +402,47 @@ onMounted(() => {
       </div>
     </div>
 
+    <q-dialog
+      v-model="methodPickerOpen"
+      persistent
+      transition-show="fade"
+      transition-hide="fade"
+      class="integration-hub-dialog"
+    >
+      <q-card flat class="integration-hub-modal">
+        <header class="integration-hub-modal__titlebar">
+          <div>
+            <h2 class="integration-hub-modal__title">Tabela comparativa</h2>
+            <p class="integration-hub-modal__lead">
+              Escolha um método e clique em Usar para configurar a nova integração.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="integration-hub-modal__close-x"
+            aria-label="Fechar"
+            @click="closeMethodPicker"
+          >
+            <q-icon name="close" size="18px" />
+          </button>
+        </header>
+
+        <div class="integration-hub-modal__body">
+          <IntegrationMethodTable
+            :rows="METHOD_COMPARISON"
+            @select="openCreate"
+          />
+        </div>
+
+        <footer class="integration-hub-modal__footer">
+          <span class="integration-hub-modal__footer-hint">
+            Classificações indicativas para orientação arquitetural.
+          </span>
+          <q-btn outline color="grey-8" label="Fechar" @click="closeMethodPicker" />
+        </footer>
+      </q-card>
+    </q-dialog>
+
     <IntegrationForm
       v-model="formOpen"
       :method-type="selectedMethod"
@@ -443,3 +452,4 @@ onMounted(() => {
     />
   </q-page>
 </template>
+

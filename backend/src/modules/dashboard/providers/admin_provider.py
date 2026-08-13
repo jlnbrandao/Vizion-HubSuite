@@ -50,6 +50,20 @@ class AdminDashboardProvider(DashboardSectionProvider):
                 icon="key",
                 required_permission=PermissionCode.PERMISSIONS_READ,
             ),
+            DashboardMenuItem(
+                id="admin-federation",
+                label="Federation / SSO",
+                route="/iam/federation",
+                icon="login",
+                required_permission=PermissionCode.FEDERATION_READ,
+            ),
+            DashboardMenuItem(
+                id="admin-api-keys",
+                label="API keys",
+                route="/iam/api-keys",
+                icon="vpn_key",
+                required_permission=PermissionCode.API_KEYS_READ,
+            ),
         ]
 
     async def build_widgets(self, user: CurrentUser) -> list[DashboardWidget]:

@@ -247,17 +247,30 @@ const cfg = computed(() => form.configuration)
   <q-dialog
     :model-value="modelValue"
     persistent
+    transition-show="fade"
+    transition-hide="fade"
+    class="integration-hub-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card class="app-page__dialog integration-form-dialog" style="min-width: min(560px, 96vw)">
-      <q-card-section>
-        <div class="text-h6">{{ title }}</div>
-        <div v-if="effectiveType" class="text-caption text-grey-7">
-          Método: {{ methodLabel(effectiveType) }}
+    <q-card flat class="integration-hub-modal">
+      <header class="integration-hub-modal__titlebar">
+        <div>
+          <h2 class="integration-hub-modal__title">{{ title }}</h2>
+          <p v-if="effectiveType" class="integration-hub-modal__lead">
+            Método: {{ methodLabel(effectiveType) }}
+          </p>
         </div>
-      </q-card-section>
+        <button
+          type="button"
+          class="integration-hub-modal__close-x"
+          aria-label="Fechar"
+          @click="close"
+        >
+          <q-icon name="close" size="18px" />
+        </button>
+      </header>
 
-      <q-card-section class="q-pt-none">
+      <div class="integration-hub-modal__body">
         <q-banner
           v-if="effectiveType === 'database'"
           dense
@@ -267,7 +280,11 @@ const cfg = computed(() => form.configuration)
           {{ DATABASE_WARNING }}
         </q-banner>
 
-        <q-form class="q-gutter-md" @submit.prevent="onSubmit">
+        <q-form
+          id="integration-form"
+          class="q-gutter-md"
+          @submit.prevent="onSubmit"
+        >
           <q-input
             v-model="form.name"
             label="Nome"
@@ -933,18 +950,25 @@ const cfg = computed(() => form.configuration)
             </q-banner>
           </template>
 
-          <div class="row justify-end q-gutter-sm q-mt-md">
-            <q-btn flat label="Cancelar" color="grey-8" @click="close" />
-            <q-btn
-              type="submit"
-              unelevated
-              color="primary"
-              :label="isEdit ? 'Salvar' : 'Criar'"
-              :loading="saving"
-            />
-          </div>
         </q-form>
-      </q-card-section>
+      </div>
+
+      <footer class="integration-hub-modal__footer">
+        <span class="integration-hub-modal__footer-hint">
+          Segredos ficam só no backend e nunca são devolvidos pela API.
+        </span>
+        <div class="integration-hub-modal__footer-actions">
+          <q-btn outline color="grey-8" label="Cancelar" @click="close" />
+          <q-btn
+            form="integration-form"
+            type="submit"
+            unelevated
+            color="primary"
+            :label="isEdit ? 'Salvar' : 'Criar'"
+            :loading="saving"
+          />
+        </div>
+      </footer>
     </q-card>
   </q-dialog>
 </template>

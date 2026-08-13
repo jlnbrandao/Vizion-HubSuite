@@ -7,7 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, Depends, Form, Query, Request, Response
+from fastapi import APIRouter, Depends, Form, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, EmailStr, Field
 
@@ -128,6 +128,16 @@ class IdpCreate(BaseModel):
     issuer: str | None = None
     metadata_url: str | None = None
     attribute_mapping: dict[str, Any] | None = None
+
+
+class IdpUpdate(BaseModel):
+    name: str | None = None
+    client_id: str | None = None
+    client_secret: str | None = None
+    issuer: str | None = None
+    metadata_url: str | None = None
+    attribute_mapping: dict[str, Any] | None = None
+    enabled: bool | None = None
 
 
 class PolicyCreate(BaseModel):
@@ -736,6 +746,10 @@ async def list_api_keys(
                 "name": r.name,
                 "prefix": r.prefix,
                 "scopes": r.scopes,
+                "service_account_id": str(r.service_account_id),
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "last_used_at": r.last_used_at.isoformat() if r.last_used_at else None,
+                "expires_at": r.expires_at.isoformat() if r.expires_at else None,
                 "revoked_at": r.revoked_at.isoformat() if r.revoked_at else None,
             }
             for r in rows
@@ -773,6 +787,21 @@ async def public_sso_providers(
         ]
 
 
+def _idp_to_dict(row: Any) -> dict[str, Any]:
+    return {
+        "id": str(row.id),
+        "name": row.name,
+        "provider_type": row.provider_type,
+        "client_id": row.client_id,
+        "issuer": row.issuer,
+        "metadata_url": row.metadata_url,
+        "attribute_mapping": row.attribute_mapping or {},
+        "enabled": row.enabled,
+        "has_client_secret": bool(row.client_secret_encrypted),
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
 @router.get("/identity-providers")
 @inject
 async def list_idps(
@@ -783,19 +812,10 @@ async def list_idps(
     async with uow_factory as uow:
         rows = await federation.list_providers()
         await uow.commit()
-        return [
-            {
-                "id": str(r.id),
-                "name": r.name,
-                "provider_type": r.provider_type,
-                "issuer": r.issuer,
-                "enabled": r.enabled,
-            }
-            for r in rows
-        ]
+        return [_idp_to_dict(r) for r in rows]
 
 
-@router.post("/identity-providers")
+@router.post("/identity-providers", status_code=status.HTTP_201_CREATED)
 @inject
 async def create_idp(
     body: IdpCreate,
@@ -806,7 +826,40 @@ async def create_idp(
     async with uow_factory as uow:
         row = await federation.create_provider(**body.model_dump())
         await uow.commit()
-        return {"id": str(row.id), "name": row.name}
+        return _idp_to_dict(row)
+
+
+@router.patch("/identity-providers/{provider_id}")
+@inject
+async def update_idp(
+    provider_id: UUID,
+    body: IdpUpdate,
+    _: CurrentUser = Depends(require_permission(PermissionCode.FEDERATION_UPDATE)),
+    uow_factory: Any = Depends(Provide[Container.unit_of_work]),
+    federation: FederationService = Depends(Provide[Container.federation_service]),
+) -> dict[str, Any]:
+    payload = body.model_dump(exclude_unset=True)
+    if "client_secret" in payload:
+        secret = payload.pop("client_secret")
+        if secret is not None and str(secret).strip():
+            payload["client_secret_encrypted"] = str(secret).strip()
+    async with uow_factory as uow:
+        row = await federation.update_provider(provider_id, **payload)
+        await uow.commit()
+        return _idp_to_dict(row)
+
+
+@router.delete("/identity-providers/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
+@inject
+async def delete_idp(
+    provider_id: UUID,
+    _: CurrentUser = Depends(require_permission(PermissionCode.FEDERATION_DELETE)),
+    uow_factory: Any = Depends(Provide[Container.unit_of_work]),
+    federation: FederationService = Depends(Provide[Container.federation_service]),
+) -> None:
+    async with uow_factory as uow:
+        await federation.delete_provider(provider_id)
+        await uow.commit()
 
 
 @router.get("/auth/sso/{provider_id}/start")

@@ -31,6 +31,16 @@ function pathMatches(current: string, target: string): boolean {
   if (target.startsWith('/account')) {
     return current.startsWith('/account')
   }
+  // Platform overview represents the platform section in the sidebar.
+  if (target === '/platform') {
+    return (
+      current === '/platform' ||
+      current === '/tenants' ||
+      current.startsWith('/tenants/') ||
+      current === '/integrations' ||
+      current.startsWith('/integrations/')
+    )
+  }
   // Exact match only — avoids /reports activating on /reports/indicators
   return current === target
 }
@@ -105,7 +115,7 @@ export function useLayoutConfig() {
       menuItems.push({
         id: 'nav-oauth',
         label: 'OAuth clients',
-        icon: 'vpn_key',
+        icon: 'apps',
         active: currentPath.startsWith('/iam/oauth-clients'),
         link: '/iam/oauth-clients',
         required_permission: PermissionCode.OAUTH_CLIENTS_READ,

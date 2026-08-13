@@ -907,10 +907,10 @@ function printMatrix() {
 
   display: flex;
   flex-direction: column;
-  width: calc(100vw - 1.5rem);
+  width: min(1100px, calc(100vw - 1.5rem));
+  /* Fixed height so filters/collapse don't resize the dialog shell. */
   height: calc(100vh - 1.5rem);
-  max-width: none;
-  max-height: none;
+  max-height: calc(100vh - 1.5rem);
   border-radius: 12px;
   background: #fff;
   color: var(--ap-ink);

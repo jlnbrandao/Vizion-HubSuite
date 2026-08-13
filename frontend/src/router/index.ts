@@ -139,6 +139,18 @@ const routes: RouteRecordRaw[] = [
         meta: { permissions: [PermissionCode.OAUTH_CLIENTS_READ] },
       },
       {
+        path: 'iam/federation',
+        name: 'iam-federation',
+        component: () => import('@/pages/iam/FederationPage.vue'),
+        meta: { permissions: [PermissionCode.FEDERATION_READ] },
+      },
+      {
+        path: 'iam/api-keys',
+        name: 'iam-api-keys',
+        component: () => import('@/pages/iam/MachineIdentitiesPage.vue'),
+        meta: { permissions: [PermissionCode.API_KEYS_READ] },
+      },
+      {
         path: 'integrations',
         name: 'integrations',
         component: () => import('@/pages/IntegrationPage.vue'),
