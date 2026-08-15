@@ -102,13 +102,6 @@ async def test_admin_dashboard_includes_rbac_sections(composer: DashboardCompose
     assert "admin-permission-mgmt" in widget_ids
     assert "manager-kpis" not in widget_ids
     assert "admin-settings" not in widget_ids
-    menu_ids = {m.id for m in result.menu}
-    assert menu_ids == {
-        "admin-overview",
-        "admin-users",
-        "admin-roles",
-        "admin-permissions",
-    }
 
 
 @pytest.mark.asyncio
@@ -212,5 +205,4 @@ async def test_no_dashboard_permissions_yields_empty(composer: DashboardComposer
             permissions=frozenset({PermissionCode.USERS_READ}),
         )
     )
-    assert result.menu == ()
     assert result.widgets == ()

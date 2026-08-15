@@ -1,12 +1,9 @@
-"""Unit tests for role privilege hierarchy."""
+"""Unit tests for role privilege hierarchy (rank table + engine policy)."""
 
 from __future__ import annotations
 
-from src.shared.infrastructure.security.role_hierarchy import (
-    can_grant_roles,
-    can_manage,
-    role_rank,
-)
+from src.shared.infrastructure.security.authorization import HierarchyPolicy
+from src.shared.infrastructure.security.role_hierarchy import role_rank
 
 
 def test_role_rank_ordering() -> None:
@@ -18,17 +15,17 @@ def test_role_rank_ordering() -> None:
 
 
 def test_can_manage_strictly_outranks() -> None:
-    assert can_manage(["ADMIN"], ["MANAGER"])
-    assert can_manage(["MANAGER"], ["OPERATOR"])
-    assert not can_manage(["MANAGER"], ["ADMIN"])
-    assert not can_manage(["ADMIN"], ["ADMIN"])
-    assert not can_manage(["MANAGER"], ["MANAGER"])
+    assert HierarchyPolicy.can_manage(["ADMIN"], ["MANAGER"])
+    assert HierarchyPolicy.can_manage(["MANAGER"], ["OPERATOR"])
+    assert not HierarchyPolicy.can_manage(["MANAGER"], ["ADMIN"])
+    assert not HierarchyPolicy.can_manage(["ADMIN"], ["ADMIN"])
+    assert not HierarchyPolicy.can_manage(["MANAGER"], ["MANAGER"])
 
 
-def test_can_grant_roles_requires_strictly_higher() -> None:
-    assert can_grant_roles(["ADMIN"], ["MANAGER", "OPERATOR"])
-    assert can_grant_roles(["PLATFORM"], ["ADMIN", "MANAGER"])
-    assert not can_grant_roles(["ADMIN"], ["ADMIN"])
-    assert not can_grant_roles(["MANAGER"], ["ADMIN"])
-    assert not can_grant_roles(["MANAGER"], ["MANAGER"])
-    assert can_grant_roles(["MANAGER"], ["OPERATOR", "VIEWER"])
+def test_can_grant_requires_strictly_higher() -> None:
+    assert HierarchyPolicy.can_grant(["ADMIN"], ["MANAGER", "OPERATOR"])
+    assert HierarchyPolicy.can_grant(["PLATFORM"], ["ADMIN", "MANAGER"])
+    assert not HierarchyPolicy.can_grant(["ADMIN"], ["ADMIN"])
+    assert not HierarchyPolicy.can_grant(["MANAGER"], ["ADMIN"])
+    assert not HierarchyPolicy.can_grant(["MANAGER"], ["MANAGER"])
+    assert HierarchyPolicy.can_grant(["MANAGER"], ["OPERATOR", "VIEWER"])

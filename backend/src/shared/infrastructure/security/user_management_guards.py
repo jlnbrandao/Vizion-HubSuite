@@ -14,8 +14,8 @@ from src.modules.users.dtos.user_dtos import UserDto
 from src.modules.users.queries.user_queries import GetUserByIdQuery
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.exceptions import ForbiddenError
+from src.shared.infrastructure.security.authorization import HierarchyPolicy
 from src.shared.infrastructure.security.current_user import CurrentUser
-from src.shared.infrastructure.security.role_hierarchy import can_grant_roles, can_manage
 
 
 async def _role_names_for_ids(query_bus: QueryBus, role_ids: frozenset[UUID]) -> frozenset[str]:
@@ -39,7 +39,7 @@ async def ensure_can_manage_user(
         return user
 
     target_roles = await _role_names_for_ids(query_bus, frozenset(user.role_ids))
-    if not can_manage(actor.role_names, target_roles):
+    if not HierarchyPolicy.can_manage(actor.role_names, target_roles):
         raise ForbiddenError("Cannot manage a user with equal or higher privilege")
     return user
 
@@ -59,5 +59,5 @@ async def ensure_can_grant_roles(
     if found_ids != set(role_ids):
         # Let the command handler surface unknown IDs; hierarchy only checks known roles.
         pass
-    if names and not can_grant_roles(actor.role_names, names):
+    if names and not HierarchyPolicy.can_grant(actor.role_names, names):
         raise ForbiddenError("Cannot assign a role with equal or higher privilege")

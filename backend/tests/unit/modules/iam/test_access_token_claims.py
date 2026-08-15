@@ -11,8 +11,6 @@ def test_claims_roundtrip_with_amr_sid() -> None:
     sid = uuid4()
     claims = AccessTokenClaims(
         user_id=uuid4(),
-        email="a@b.c",
-        full_name="A",
         tenant_id=uuid4(),
         tenant_slug="universe",
         amr=("pwd", "otp"),

@@ -85,7 +85,8 @@ Não use `"5432:5432"` / `"6379:6379"` (bind em `0.0.0.0`): scanners (ex.: Digit
 | Access token | **PyJWT** HS256 (~15 min), header `Authorization: Bearer`; claim `cv` = `credentials_version` |
 | Refresh token | Opaco (`secrets`), Redis guarda só **SHA-256** (TTL 7 dias), cookie **httpOnly** (`lanstar_refresh_token`, `SameSite=lax`, `Secure` fora de development) |
 | Frontend | Access só em **memória** (não persiste em `localStorage`); bootstrap/refresh usam o cookie |
-| AuthZ | `Depends(require_permission(...))` no backend; UI espelha com `can()` / `meta.permissions` |
+| AuthZ | `Depends(require_permission(...))` no backend, resolvido pelo `AuthorizationService` (tenant > entitlement > ACL deny > ACL allow > RBAC > ABAC); UI espelha com `can()` / `meta.permissions` |
+| Revogação | Logout e revogação de sessão gravam o `sid` na denylist do Redis — o access token morre na hora, não em 15 min |
 | Hierarquia | Roles ranqueadas (`PLATFORM` > `ADMIN` > `MANAGER` > …): quem tem `users.update` / `roles.assign` **não** gerencia pares ou superiores; permissões platform-only não são atribuíveis sem bypass |
 | Rate limit | Chave `tenant:IP` via `X-Real-IP` (nginx); login/refresh usam limite mais baixo (`AUTH_RATE_LIMIT_*`) |
 | Sessões | Refresh recarrega `role_ids` / `is_active` do banco; senha, desativação, delete ou troca de roles invalida refresh **e** access (`credentials_version`) |
@@ -200,8 +201,15 @@ python -m scripts.seed
 
 ```bash
 cd backend
-pytest -v
+pytest -v                                  # tudo
+pytest -v -m "not integration"             # só unitários
+pytest -v -m integration                   # HTTP + RLS + matriz de autorização (precisa de Postgres e Redis)
+pytest --cov=src --cov-report=term-missing # cobertura
+python -m bandit -c pyproject.toml -r src  # SAST
+pip-audit                                  # dependências
 ```
+
+Os testes de integração **skipam** automaticamente quando o stack (Postgres/Redis) não está de pé.
 
 ## Arquitetura (resumo)
 
@@ -222,3 +230,13 @@ Módulos em `src/modules/*` são Vertical Slices independentes.
 Comunicação entre módulos: Commands, Queries, Domain Events e Interfaces — nunca imports internos.
 
 Para adicionar páginas, módulos, widgets ou ações protegidas pelo RBAC, siga o playbook em [HOWTODO.md](HOWTODO.md).
+
+## Documentação
+
+| Documento | Conteúdo |
+|-----------|----------|
+| [document/AUTHORIZATION.md](document/AUTHORIZATION.md) | Precedência do engine, códigos, bundles, regras para quem escreve rota |
+| [document/ACL.md](document/ACL.md) | ACL por recurso: modelo, avaliação, API, boas práticas |
+| [document/SERVICE_HUB.md](document/SERVICE_HUB.md) | Contrato de Service Slice, entitlements, quotas, medição |
+| [document/SECURITY.md](document/SECURITY.md) | Tokens, denylist, headers, isolamento, segredos, auditoria, supply chain |
+| [document/0002-sistema-iam.md](document/0002-sistema-iam.md) | Panorama do IAM e histórico do roadmap |

@@ -28,7 +28,12 @@ from src.modules.permissions.value_objects.permission_code import PermissionCode
 from src.modules.permissions.value_objects.permission_name import PermissionName
 from src.shared.application.handler import CommandHandler, QueryHandler
 from src.shared.application.unit_of_work import UnitOfWork
-from src.shared.infrastructure.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from src.shared.infrastructure.exceptions import (
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+)
 from src.shared.infrastructure.security.permission_codes import (
     PermissionCode as CatalogPermissionCode,
 )
@@ -38,9 +43,12 @@ UowFactory = Callable[[], AbstractAsyncContextManager[UnitOfWork]]
 
 
 def _to_dto(permission: Permission) -> PermissionDto:
+    code = permission.code.value
     return PermissionDto(
         id=permission.id,
-        code=permission.code.value,
+        code=code,
+        legacy_code=CatalogPermissionCode.legacy(code),
+        service=permission.code.service or CatalogPermissionCode.service_of(code),
         resource=permission.code.resource,
         action=permission.code.action,
         name=permission.name.value,
@@ -58,7 +66,10 @@ class CreatePermissionHandler(CommandHandler[CreatePermissionCommand, UUID]):
 
     async def handle(self, command: CreatePermissionCommand) -> UUID:
         try:
-            code = PermissionCode.from_primitive(command.code)
+            # Catalog codes are stored namespaced; legacy input is canonicalized here.
+            code = PermissionCode.from_primitive(
+                CatalogPermissionCode.canonical(command.code.strip().lower())
+            )
             name = PermissionName.from_primitive(command.name)
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc

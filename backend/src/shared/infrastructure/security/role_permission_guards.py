@@ -10,9 +10,9 @@ from src.modules.roles.dtos.role_dtos import RoleDto
 from src.modules.roles.queries.role_queries import GetRoleByIdQuery
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.exceptions import ForbiddenError
+from src.shared.infrastructure.security.authorization import HierarchyPolicy
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.security.permission_codes import PermissionCode
-from src.shared.infrastructure.security.role_hierarchy import can_manage
 from src.shared.infrastructure.tenant_context import get_rls_bypass
 
 
@@ -25,7 +25,7 @@ async def ensure_can_edit_role_permissions(
 ) -> RoleDto:
     """Actor must outrank the role; platform-only codes require RLS bypass."""
     role: RoleDto = await query_bus.ask(GetRoleByIdQuery(role_id=role_id))
-    if not can_manage(actor.role_names, (role.name,)):
+    if not HierarchyPolicy.can_manage(actor.role_names, (role.name,)):
         raise ForbiddenError("Cannot modify permissions on a role with equal or higher privilege")
 
     if permission_ids and not get_rls_bypass():

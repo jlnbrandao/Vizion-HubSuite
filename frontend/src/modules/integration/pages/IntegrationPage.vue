@@ -4,12 +4,12 @@ import { useQuasar, type QTableColumn } from 'quasar'
 import { usePermissions } from '@/composables/usePermissions'
 import { PermissionCode } from '@/constants/permissions'
 import { apiErrorMessage } from '@/services/api'
-import IntegrationForm from '@/components/integrations/IntegrationForm.vue'
-import IntegrationLogs from '@/components/integrations/IntegrationLogs.vue'
-import IntegrationMethodTable from '@/components/integrations/IntegrationMethodTable.vue'
-import IntegrationStatus from '@/components/integrations/IntegrationStatus.vue'
-import IntegrationSyncStatus from '@/components/integrations/IntegrationSyncStatus.vue'
-import IntegrationTestResultPanel from '@/components/integrations/IntegrationTestResult.vue'
+import IntegrationForm from '@/modules/integration/components/IntegrationForm.vue'
+import IntegrationLogs from '@/modules/integration/components/IntegrationLogs.vue'
+import IntegrationMethodTable from '@/modules/integration/components/IntegrationMethodTable.vue'
+import IntegrationStatus from '@/modules/integration/components/IntegrationStatus.vue'
+import IntegrationSyncStatus from '@/modules/integration/components/IntegrationSyncStatus.vue'
+import IntegrationTestResultPanel from '@/modules/integration/components/IntegrationTestResult.vue'
 import {
   METHOD_COMPARISON,
   integrationService,
@@ -21,7 +21,7 @@ import {
   type IntegrationSyncResult,
   type IntegrationTestResult,
   type UpdateIntegrationInput,
-} from '@/layers/integration'
+} from '@/modules/integration/data'
 
 const $q = useQuasar()
 const { can } = usePermissions()

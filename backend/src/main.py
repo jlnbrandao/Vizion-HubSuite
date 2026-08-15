@@ -18,8 +18,14 @@ from src.modules.dashboard.routes.dashboard_routes import router as dashboard_ro
 from src.modules.iam.routes import router as iam_router
 from src.modules.iam.scim.routes import router as scim_router
 from src.modules.integrations.routes import router as integrations_router
+from src.modules.navigation.routes import router as navigation_router
+from src.modules.permissions.routes.permission_group_routes import (
+    router as permission_bundles_router,
+)
 from src.modules.permissions.routes.permission_routes import router as permissions_router
 from src.modules.roles.routes.role_routes import router as roles_router
+from src.modules.services.routes import router as services_router
+from src.modules.services.usage_routes import router as usage_router
 from src.modules.tenants.routes.tenant_routes import router as tenants_router
 from src.modules.users.routes.user_routes import router as users_router
 from src.shared.infrastructure.audit_handlers import register_audit_handlers
@@ -33,7 +39,12 @@ from src.shared.infrastructure.exceptions import (
     UnauthorizedError,
     ValidationError,
 )
+from src.shared.infrastructure.request_context import REQUEST_ID_HEADER
+from src.shared.infrastructure.request_id_middleware import RequestIdMiddleware
 from src.shared.infrastructure.security.rate_limit_middleware import RateLimitMiddleware
+from src.shared.infrastructure.security.security_headers_middleware import (
+    SecurityHeadersMiddleware,
+)
 from src.shared.infrastructure.security.tenant_middleware import TenantMiddleware
 
 
@@ -46,11 +57,15 @@ def _error_response(status_code: int, exc: ApplicationError) -> JSONResponse:
 
 _WIRE_MODULES = [
     "src.modules.permissions.routes.permission_routes",
+    "src.modules.permissions.routes.permission_group_routes",
     "src.modules.roles.routes.role_routes",
     "src.modules.users.routes.user_routes",
     "src.modules.tenants.routes.tenant_routes",
     "src.modules.authentication.routes.auth_routes",
     "src.modules.dashboard.routes.dashboard_routes",
+    "src.modules.navigation.routes",
+    "src.modules.services.routes",
+    "src.modules.services.usage_routes",
     "src.modules.iam.routes",
     "src.modules.iam.scim.routes",
     "src.modules.integrations.routes",
@@ -96,8 +111,10 @@ def create_app(container: Container | None = None) -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=[REQUEST_ID_HEADER],
     )
-    # Last added runs first: Tenant → RateLimit → CORS → routes
+    # Last added runs first: RequestId → Tenant → RateLimit → SecurityHeaders → CORS
+    app.add_middleware(SecurityHeadersMiddleware, settings=settings)
     app.add_middleware(
         RateLimitMiddleware,
         rate_limiter=container.rate_limiter(),
@@ -108,6 +125,9 @@ def create_app(container: Container | None = None) -> FastAPI:
         query_bus=container.query_bus(),
         settings=settings,
     )
+    # Outermost: every audit event of the request, tenant resolution included,
+    # must be able to reference the same correlation id.
+    app.add_middleware(RequestIdMiddleware)
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_: Request, exc: NotFoundError) -> JSONResponse:
@@ -135,7 +155,11 @@ def create_app(container: Container | None = None) -> FastAPI:
 
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(dashboard_router, prefix="/api/v1")
+    app.include_router(navigation_router, prefix="/api/v1")
+    app.include_router(services_router, prefix="/api/v1")
+    app.include_router(usage_router, prefix="/api/v1")
     app.include_router(permissions_router, prefix="/api/v1")
+    app.include_router(permission_bundles_router, prefix="/api/v1")
     app.include_router(roles_router, prefix="/api/v1")
     app.include_router(users_router, prefix="/api/v1")
     app.include_router(tenants_router, prefix="/api/v1")

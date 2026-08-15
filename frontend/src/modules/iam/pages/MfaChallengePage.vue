@@ -27,7 +27,7 @@ async function verify() {
       user: { id: data.user_id, email: data.email, full_name: data.full_name, permissions: [] },
     })
     sessionStorage.removeItem('lanstar_mfa_token')
-    await auth.hydrateFromDashboard()
+    await auth.hydrateIdentity()
     await router.push('/')
   } catch {
     error.value = 'Invalid MFA code'

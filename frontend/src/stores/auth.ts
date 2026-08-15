@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { authApi, dashboardApi, tokenStorage } from '@/services/api'
+import { authApi, tokenStorage } from '@/services/api'
 import type { AuthUser } from '@/types/api'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -13,6 +13,11 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(
     () => Boolean(accessToken.value && user.value),
   )
+
+  /** Entitlement gate for a whole service slice (menu + routes). */
+  function isEntitled(service: string): boolean {
+    return user.value?.services.includes(service) ?? false
+  }
 
   function persistAccess(access: string) {
     tokenStorage.setAccess(access)
@@ -46,10 +51,11 @@ export const useAuthStore = defineStore('auth', () => {
         tenantName: '',
         roleNames: [],
         permissions: [],
+        services: [],
       }
 
       try {
-        await hydrateFromDashboard()
+        await hydrateIdentity()
       } catch {
         // Token is valid; permissions can be loaded after navigation.
       }
@@ -86,13 +92,15 @@ export const useAuthStore = defineStore('auth', () => {
       tenantName: '',
       roleNames: [],
       permissions: payload.user.permissions,
+      services: [],
     }
   }
 
-  async function hydrateFromDashboard() {
-    const { data } = await dashboardApi.me()
+  /** Identity + effective access. The JWT carries none of this. */
+  async function hydrateIdentity() {
+    const { data } = await authApi.me()
     user.value = {
-      id: data.user_id,
+      id: data.id,
       email: data.email,
       fullName: data.full_name,
       tenantId: data.tenant_id ?? null,
@@ -100,6 +108,7 @@ export const useAuthStore = defineStore('auth', () => {
       tenantName: data.tenant_name ?? '',
       roleNames: data.role_names,
       permissions: data.permissions,
+      services: data.services ?? [],
     }
   }
 
@@ -108,7 +117,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const { data } = await authApi.refresh()
       persistAccess(data.access_token)
-      await hydrateFromDashboard()
+      await hydrateIdentity()
     } catch {
       clearSession()
     } finally {
@@ -131,10 +140,11 @@ export const useAuthStore = defineStore('auth', () => {
     loading,
     error,
     isAuthenticated,
+    isEntitled,
     login,
     logout,
     bootstrap,
-    hydrateFromDashboard,
+    hydrateIdentity,
     clearSession,
     setSession,
   }

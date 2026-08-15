@@ -8,14 +8,6 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
-class DashboardMenuItemResponse(BaseModel):
-    id: str
-    label: str
-    route: str
-    icon: str
-    required_permission: str
-
-
 class DashboardWidgetResponse(BaseModel):
     id: str
     title: str
@@ -32,5 +24,4 @@ class DashboardResponse(BaseModel):
     tenant_name: str = ""
     role_names: list[str]
     permissions: list[str]
-    menu: list[DashboardMenuItemResponse]
     widgets: list[DashboardWidgetResponse]

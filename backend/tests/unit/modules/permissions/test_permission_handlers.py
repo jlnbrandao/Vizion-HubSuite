@@ -59,7 +59,10 @@ async def test_create_and_get_permission(permissions_repo, uow_factory) -> None:
     )
     dto = await get_one.handle(GetPermissionByIdQuery(permission_id=permission_id))
 
-    assert dto.code == "users.create"
+    # Catalog codes are stored namespaced, with the legacy alias attached.
+    assert dto.code == "iam.users.create"
+    assert dto.legacy_code == "users.create"
+    assert dto.service == "iam"
     assert dto.resource == "users"
     assert dto.action == "create"
     assert dto.name == "Create User"
@@ -77,13 +80,13 @@ async def test_list_permissions_filters_by_resource_and_action(
     await create.handle(CreatePermissionCommand(tenant_id=UNIVERSE_TENANT_ID,code="roles.read", name="Read Role"))
 
     by_users = await list_all.handle(ListPermissionsQuery(resource="users"))
-    assert [item.code for item in by_users] == ["users.create", "users.read"]
+    assert [item.code for item in by_users] == ["iam.users.create", "iam.users.read"]
 
     by_read = await list_all.handle(ListPermissionsQuery(action="read"))
-    assert [item.code for item in by_read] == ["roles.read", "users.read"]
+    assert [item.code for item in by_read] == ["iam.roles.read", "iam.users.read"]
 
     by_both = await list_all.handle(ListPermissionsQuery(resource="users", action="create"))
-    assert [item.code for item in by_both] == ["users.create"]
+    assert [item.code for item in by_both] == ["iam.users.create"]
 
 
 @pytest.mark.asyncio

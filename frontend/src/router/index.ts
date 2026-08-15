@@ -5,16 +5,81 @@ import {
   type RouteRecordRaw,
 } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { PermissionCode } from '@/constants/permissions'
+import { hasPermissionCode, PermissionCode } from '@/constants/permissions'
+import { iamPublicRoutes, iamRoutes } from '@/modules/iam/routes'
+import { integrationRoutes } from '@/modules/integration/routes'
+import { platformRoutes } from '@/modules/platform/routes'
 import { resolveHomeRoute, resolveHomeRouteName } from '@/utils/homeRoute'
 
 declare module 'vue-router' {
   interface RouteMeta {
     public?: boolean
     requiresAuth?: boolean
+    /** Service that owns the route; must be entitled for the tenant. */
+    service?: string
+    /** All of these codes are required. */
     permissions?: string[]
+    /** At least one of these codes is required. */
+    anyPermissions?: string[]
   }
 }
+
+/** Cross-service shell routes: dashboards and per-profile landing pages. */
+const shellRoutes: RouteRecordRaw[] = [
+  {
+    path: '',
+    redirect: () => {
+      const auth = useAuthStore()
+      return resolveHomeRoute(auth.user?.permissions)
+    },
+  },
+  {
+    path: 'dashboard',
+    name: 'dashboard',
+    component: () => import('@/pages/DashboardPage.vue'),
+  },
+  {
+    path: 'admin',
+    name: 'admin-overview',
+    component: () => import('@/pages/stuff/AdminOverviewPage.vue'),
+    meta: { permissions: [PermissionCode.DASHBOARD_ADMIN] },
+  },
+  {
+    path: 'reports/indicators',
+    name: 'manager-indicators',
+    component: () => import('@/pages/stuff/ManagerIndicatorsPage.vue'),
+    meta: { permissions: [PermissionCode.DASHBOARD_MANAGER] },
+  },
+  {
+    path: 'reports',
+    name: 'manager-reports',
+    component: () => import('@/pages/stuff/ManagerReportsPage.vue'),
+    meta: { permissions: [PermissionCode.DASHBOARD_MANAGER] },
+  },
+  {
+    path: 'operations/today',
+    name: 'operator-operations',
+    component: () => import('@/pages/stuff/OperatorOperationsPage.vue'),
+    meta: { permissions: [PermissionCode.DASHBOARD_OPERATOR] },
+  },
+  {
+    path: 'me',
+    name: 'client-profile',
+    component: () => import('@/pages/stuff/ClientProfilePage.vue'),
+    meta: { permissions: [PermissionCode.DASHBOARD_CLIENT] },
+  },
+  {
+    path: 'dashboard/readonly',
+    name: 'viewer-readonly',
+    component: () => import('@/pages/stuff/ViewerReadonlyPage.vue'),
+    meta: { permissions: [PermissionCode.DASHBOARD_VIEWER] },
+  },
+  {
+    path: 'account/profile',
+    name: 'account-profile',
+    component: () => import('@/pages/stuff/AccountProfilePage.vue'),
+  },
+]
 
 const routes: RouteRecordRaw[] = [
   {
@@ -37,139 +102,9 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     meta: { requiresAuth: true },
-    children: [
-      {
-        path: '',
-        redirect: () => {
-          const auth = useAuthStore()
-          return resolveHomeRoute(auth.user?.permissions)
-        },
-      },
-      {
-        path: 'dashboard',
-        name: 'dashboard',
-        component: () => import('@/pages/DashboardPage.vue'),
-      },
-      {
-        path: 'admin',
-        name: 'admin-overview',
-        component: () => import('@/pages/stuff/AdminOverviewPage.vue'),
-        meta: { permissions: [PermissionCode.DASHBOARD_ADMIN] },
-      },
-      {
-        path: 'users',
-        name: 'users',
-        component: () => import('@/pages/UsersPage.vue'),
-        meta: { permissions: [PermissionCode.USERS_READ] },
-      },
-      {
-        path: 'roles',
-        name: 'roles',
-        component: () => import('@/pages/RolesPage.vue'),
-        meta: { permissions: [PermissionCode.ROLES_READ] },
-      },
-      {
-        path: 'permissions',
-        name: 'permissions',
-        component: () => import('@/pages/PermissionsPage.vue'),
-        meta: { permissions: [PermissionCode.PERMISSIONS_READ] },
-      },
-      {
-        path: 'platform',
-        name: 'platform-overview',
-        component: () => import('@/pages/stuff/PlatformOverviewPage.vue'),
-        meta: { permissions: [PermissionCode.DASHBOARD_PLATFORM] },
-      },
-      {
-        path: 'tenants',
-        name: 'tenants',
-        component: () => import('@/pages/TenantsPage.vue'),
-        meta: { permissions: [PermissionCode.TENANTS_READ] },
-      },
-      {
-        path: 'reports/indicators',
-        name: 'manager-indicators',
-        component: () => import('@/pages/stuff/ManagerIndicatorsPage.vue'),
-        meta: { permissions: [PermissionCode.DASHBOARD_MANAGER] },
-      },
-      {
-        path: 'reports',
-        name: 'manager-reports',
-        component: () => import('@/pages/stuff/ManagerReportsPage.vue'),
-        meta: { permissions: [PermissionCode.DASHBOARD_MANAGER] },
-      },
-      {
-        path: 'operations/today',
-        name: 'operator-operations',
-        component: () => import('@/pages/stuff/OperatorOperationsPage.vue'),
-        meta: { permissions: [PermissionCode.DASHBOARD_OPERATOR] },
-      },
-      {
-        path: 'me',
-        name: 'client-profile',
-        component: () => import('@/pages/stuff/ClientProfilePage.vue'),
-        meta: { permissions: [PermissionCode.DASHBOARD_CLIENT] },
-      },
-      {
-        path: 'dashboard/readonly',
-        name: 'viewer-readonly',
-        component: () => import('@/pages/stuff/ViewerReadonlyPage.vue'),
-        meta: { permissions: [PermissionCode.DASHBOARD_VIEWER] },
-      },
-      {
-        path: 'account/profile',
-        name: 'account-profile',
-        component: () => import('@/pages/stuff/AccountProfilePage.vue'),
-      },
-      {
-        path: 'iam/audit',
-        name: 'iam-audit',
-        component: () => import('@/pages/iam/AuditPage.vue'),
-        meta: { permissions: [PermissionCode.AUDIT_READ] },
-      },
-      {
-        path: 'iam/mfa',
-        name: 'iam-mfa',
-        component: () => import('@/pages/iam/MfaSetupPage.vue'),
-      },
-      {
-        path: 'iam/oauth-clients',
-        name: 'iam-oauth-clients',
-        component: () => import('@/pages/iam/OAuthClientsPage.vue'),
-        meta: { permissions: [PermissionCode.OAUTH_CLIENTS_READ] },
-      },
-      {
-        path: 'iam/federation',
-        name: 'iam-federation',
-        component: () => import('@/pages/iam/FederationPage.vue'),
-        meta: { permissions: [PermissionCode.FEDERATION_READ] },
-      },
-      {
-        path: 'iam/api-keys',
-        name: 'iam-api-keys',
-        component: () => import('@/pages/iam/MachineIdentitiesPage.vue'),
-        meta: { permissions: [PermissionCode.API_KEYS_READ] },
-      },
-      {
-        path: 'integrations',
-        name: 'integrations',
-        component: () => import('@/pages/IntegrationPage.vue'),
-        meta: { permissions: [PermissionCode.INTEGRATION_READ] },
-      },
-    ],
+    children: [...shellRoutes, ...iamRoutes, ...platformRoutes, ...integrationRoutes],
   },
-  {
-    path: '/reset-password',
-    name: 'reset-password',
-    component: () => import('@/pages/iam/ResetPasswordPage.vue'),
-    meta: { public: true },
-  },
-  {
-    path: '/mfa',
-    name: 'mfa-challenge',
-    component: () => import('@/pages/iam/MfaChallengePage.vue'),
-    meta: { public: true },
-  },
+  ...iamPublicRoutes,
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
@@ -226,10 +161,21 @@ router.beforeEach(async (to) => {
     }
   }
 
+  // Service entitlement first: an unlicensed service is never reachable, even
+  // when the user happens to hold its permissions.
+  const service = to.meta.service
+  if (service && !auth.isEntitled(service)) {
+    return resolveHomeRoute(auth.user?.permissions)
+  }
+
   const required = to.meta.permissions ?? []
-  if (required.length) {
+  const anyRequired = to.meta.anyPermissions ?? []
+  if (required.length || anyRequired.length) {
     const granted = new Set(auth.user?.permissions ?? [])
-    const allowed = required.every((code) => granted.has(code))
+    const allowed =
+      required.every((code) => hasPermissionCode(granted, code)) &&
+      (anyRequired.length === 0 ||
+        anyRequired.some((code) => hasPermissionCode(granted, code)))
     if (!allowed) {
       return resolveHomeRoute(auth.user?.permissions)
     }

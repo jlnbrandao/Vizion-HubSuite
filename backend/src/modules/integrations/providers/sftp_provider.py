@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import csv
 import fnmatch
+import hashlib
+import hmac
 import io
 import time
 from datetime import UTC, datetime
@@ -291,7 +294,7 @@ def _open_client(
         _cfg(configuration, "auth_type", "authType") or "private_key"
     ).strip().lower()
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    _apply_host_key_policy(client, configuration)
     connect_kwargs: dict[str, Any] = {
         "hostname": host,
         "port": port,
@@ -332,9 +335,67 @@ def _open_client(
         client.connect(**connect_kwargs)
     except paramiko.AuthenticationException as exc:
         raise _SFTPError("Autenticação SFTP rejeitada.") from exc
+    except paramiko.BadHostKeyException as exc:
+        raise _SFTPError(
+            "Host key do servidor SFTP não corresponde à esperada — conexão abortada."
+        ) from exc
     except (OSError, paramiko.SSHException) as exc:
         raise _SFTPError(f"Falha de conexão SFTP: {_safe_error(exc)}") from exc
+
+    _assert_expected_fingerprint(client, configuration)
     return client
+
+
+def _apply_host_key_policy(client: Any, configuration: dict[str, Any]) -> None:
+    """Fail closed on unknown host keys.
+
+    Trusting any key on first sight makes the transfer trivially interceptable, so
+    the server must be known: either through the system `known_hosts`, or through
+    an expected fingerprint in the integration configuration. Accepting an unknown
+    key stays possible, but only as an explicit, per-integration decision.
+    """
+    import paramiko
+
+    client.load_system_host_keys()
+    trust_unknown = _flag(configuration, "trust_unknown_host_key", "trustUnknownHostKey")
+    expected = _cfg(configuration, "host_key_fingerprint", "hostKeyFingerprint")
+    if trust_unknown or expected:
+        # With an expected fingerprint the key is verified right after the
+        # handshake, which is what actually authenticates the server; without one
+        # the operator asked for first-use trust explicitly.
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
+        return
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+
+
+def _assert_expected_fingerprint(client: Any, configuration: dict[str, Any]) -> None:
+    expected = _cfg(configuration, "host_key_fingerprint", "hostKeyFingerprint")
+    if not expected:
+        return
+
+    key = client.get_transport().get_remote_server_key() if client.get_transport() else None
+    if key is None:
+        client.close()
+        raise _SFTPError("Não foi possível obter a host key do servidor SFTP.")
+
+    digest = hashlib.sha256(key.asbytes()).digest()
+    actual = base64.b64encode(digest).decode().rstrip("=")
+    normalized = expected.removeprefix("SHA256:").strip().rstrip("=")
+    if not hmac.compare_digest(actual, normalized):
+        client.close()
+        raise _SFTPError(
+            "Host key do servidor SFTP não corresponde ao fingerprint configurado."
+        )
+
+
+def _flag(configuration: dict[str, Any], *keys: str) -> bool:
+    for key in keys:
+        value = configuration.get(key)
+        if isinstance(value, bool):
+            return value
+        if value is not None:
+            return str(value).strip().lower() in {"1", "true", "yes", "on"}
+    return False
 
 
 def _count_csv_rows(raw: bytes, *, encoding: str, delimiter: str) -> int:

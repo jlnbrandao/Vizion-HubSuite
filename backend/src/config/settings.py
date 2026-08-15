@@ -46,10 +46,20 @@ class Settings(BaseSettings):
     # Set COOKIE_SECURE=false for HTTP-only deploys until TLS is enabled.
     cookie_secure: bool | None = None
 
+    # HTTP security headers. HSTS only makes sense once TLS terminates in front.
+    security_headers_enabled: bool = True
+    hsts_enabled: bool | None = None
+    hsts_max_age: int = 31_536_000
+    hsts_include_subdomains: bool = True
+    hsts_preload: bool = False
+
     rate_limit_requests: int = 100
     rate_limit_window_seconds: int = 60
     auth_rate_limit_requests: int = 20
     auth_rate_limit_window_seconds: int = 60
+
+    # Audit retention window, in days, applied by scripts/prune_audit.py.
+    audit_retention_days: int = 365
 
     # Allow demo seed password outside development (default: refuse).
     seed_allow_insecure: bool = False
@@ -95,6 +105,16 @@ class Settings(BaseSettings):
         if self.cookie_secure is not None:
             return self.cookie_secure
         return not self.is_development
+
+    @property
+    def hsts_active(self) -> bool:
+        if self.hsts_enabled is not None:
+            return self.hsts_enabled
+        return not self.is_development
+
+    @property
+    def access_token_ttl_seconds(self) -> int:
+        return self.jwt_access_token_expire_minutes * 60
 
     @property
     def migrate_database_url(self) -> str:

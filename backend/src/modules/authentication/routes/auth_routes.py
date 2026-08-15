@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, Depends, Request, Response, status
 
@@ -13,19 +15,24 @@ from src.modules.authentication.commands.auth_commands import (
 )
 from src.modules.authentication.dtos.auth_dtos import TokenPairDto
 from src.modules.authentication.routes.auth_cookies import (
-    REFRESH_COOKIE_NAME,
     clear_refresh_cookie,
+    read_refresh_cookie,
     set_refresh_cookie,
 )
 from src.modules.authentication.routes.schemas import (
     LoginRequest,
     LogoutRequest,
+    MeResponse,
     RefreshRequest,
     TokenResponse,
 )
+from src.modules.services.service import ServiceCatalogService
 from src.shared.application.command_bus import CommandBus
 from src.shared.infrastructure.di.container import Container
 from src.shared.infrastructure.exceptions import UnauthorizedError
+from src.shared.infrastructure.security.current_user import CurrentUser
+from src.shared.infrastructure.security.dependencies import get_current_user
+from src.shared.infrastructure.security.entitlements import entitled_services
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -44,7 +51,7 @@ def _to_response(dto: TokenPairDto) -> TokenResponse:
 
 
 def _refresh_token_from_request(request: Request, body_token: str | None) -> str:
-    token = (body_token or "").strip() or request.cookies.get(REFRESH_COOKIE_NAME)
+    token = (body_token or "").strip() or read_refresh_cookie(request)
     if not token:
         raise UnauthorizedError("Missing refresh token")
     return token
@@ -83,6 +90,29 @@ async def refresh(
     )
     set_refresh_cookie(response, result.refresh_token, settings)
     return _to_response(result)
+
+
+@router.get("/me", response_model=MeResponse)
+@inject
+async def me(
+    actor: CurrentUser = Depends(get_current_user),
+    uow_factory: Any = Depends(Provide[Container.unit_of_work]),
+    catalog: ServiceCatalogService = Depends(Provide[Container.service_catalog]),
+) -> MeResponse:
+    """Identity, effective permissions and entitled services for the SPA."""
+    async with uow_factory:
+        contracted = await catalog.entitled_namespaces(actor.tenant_id)
+    return MeResponse(
+        id=actor.id,
+        email=actor.email,
+        full_name=actor.full_name,
+        tenant_id=actor.tenant_id,
+        tenant_slug=actor.tenant_slug,
+        tenant_name=actor.tenant_name,
+        role_names=sorted(actor.role_names),
+        permissions=sorted(actor.permissions),
+        services=sorted(entitled_services(actor.permissions, contracted)),
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

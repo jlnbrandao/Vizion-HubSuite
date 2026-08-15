@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IntegrationTestResult } from '@/layers/integration'
+import type { IntegrationTestResult } from '@/modules/integration/data'
 
 defineProps<{
   result: IntegrationTestResult | null

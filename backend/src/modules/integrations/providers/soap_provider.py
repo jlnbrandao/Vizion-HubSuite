@@ -8,9 +8,13 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse, urlunparse
-from xml.etree import ElementTree as ET
 
 import httpx
+
+# Responses come from a remote endpoint, so parsing must refuse DTDs, external
+# entities and entity expansion. The stdlib parser does none of that.
+from defusedxml.ElementTree import ParseError
+from defusedxml.ElementTree import fromstring as parse_xml
 
 from src.modules.integrations.providers.base import (
     IntegrationSyncResult,
@@ -318,8 +322,8 @@ def _extract_fault(text: str) -> str | None:
     if not text.strip():
         return None
     try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
+        root = parse_xml(text)
+    except (ParseError, ValueError):
         if "fault" in text.lower():
             return "SOAP Fault (XML inválido na resposta)"
         return None
@@ -347,8 +351,8 @@ def _count_body_records(text: str) -> int:
     if not text.strip():
         return 0
     try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
+        root = parse_xml(text)
+    except (ParseError, ValueError):
         return 0
 
     body = root.find("soap:Body", _SOAP_NS)

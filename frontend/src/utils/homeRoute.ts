@@ -1,5 +1,5 @@
 import type { RouteLocationRaw } from 'vue-router'
-import { PermissionCode } from '@/constants/permissions'
+import { hasPermissionCode, PermissionCode } from '@/constants/permissions'
 
 const COMPOSED_DASHBOARD_PERMISSIONS = [
   PermissionCode.DASHBOARD_ADMIN,
@@ -16,8 +16,8 @@ export function resolveHomeRouteName(
 ): HomeRouteName {
   const granted = new Set(permissions ?? [])
   const isClientMap =
-    granted.has(PermissionCode.DASHBOARD_CLIENT) &&
-    !COMPOSED_DASHBOARD_PERMISSIONS.some((code) => granted.has(code))
+    hasPermissionCode(granted, PermissionCode.DASHBOARD_CLIENT) &&
+    !COMPOSED_DASHBOARD_PERMISSIONS.some((code) => hasPermissionCode(granted, code))
 
   return isClientMap ? 'main' : 'dashboard'
 }

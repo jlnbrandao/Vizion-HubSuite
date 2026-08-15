@@ -129,9 +129,11 @@ class FederationService:
                 GetUserByEmailQuery(tenant_id=tenant_id, email=email)
             )
             user_id = user.id
-        except Exception:
+        except Exception as exc:
             if not jit:
-                raise ValidationError("No local user linked for federated identity")
+                raise ValidationError(
+                    "No local user linked for federated identity"
+                ) from exc
             username = email.split("@")[0][:32]
             user_id = await self._commands.execute(
                 CreateUserCommand(

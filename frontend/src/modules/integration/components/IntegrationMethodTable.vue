@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { QTableColumn } from 'quasar'
-import type { MethodComparisonRow, RecommendationTier } from '@/layers/integration'
+import type { MethodComparisonRow, RecommendationTier } from '@/modules/integration/data'
 
 defineProps<{
   rows: MethodComparisonRow[]

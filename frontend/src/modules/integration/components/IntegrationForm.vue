@@ -8,7 +8,7 @@ import {
   type IntegrationConfiguration,
   type IntegrationMethodType,
   type IntegrationStatus,
-} from '@/layers/integration'
+} from '@/modules/integration/data'
 
 const props = defineProps<{
   modelValue: boolean

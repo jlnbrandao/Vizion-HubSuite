@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Integration } from '@/layers/integration'
-import type { IntegrationSyncResult } from '@/layers/integration'
+import type { Integration } from '@/modules/integration/data'
+import type { IntegrationSyncResult } from '@/modules/integration/data'
 import IntegrationStatus from './IntegrationStatus.vue'
 
 defineProps<{

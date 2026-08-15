@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { QTableColumn } from 'quasar'
-import type { IntegrationLogEntry } from '@/layers/integration'
+import type { IntegrationLogEntry } from '@/modules/integration/data'
 
 defineProps<{
   logs: IntegrationLogEntry[]

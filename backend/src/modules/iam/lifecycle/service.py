@@ -15,7 +15,6 @@ from src.modules.iam.utils import generate_token, sha256_hex
 from src.modules.users.commands.user_commands import (
     ChangeUserPasswordCommand,
     CreateUserCommand,
-    ReplaceUserRolesCommand,
 )
 from src.modules.users.queries.user_queries import GetUserByEmailQuery
 from src.modules.users.repositories.user_model import UserModel

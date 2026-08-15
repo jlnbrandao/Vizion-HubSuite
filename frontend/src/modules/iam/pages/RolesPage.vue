@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useQuasar, type QTableColumn } from 'quasar'
-import AssignPermissionsDialog from '@/components/roles/AssignPermissionsDialog.vue'
+import AssignPermissionsDialog from '@/modules/iam/components/AssignPermissionsDialog.vue'
+import RoleBundlesDialog from '@/modules/iam/components/RoleBundlesDialog.vue'
 import { usePermissions } from '@/composables/usePermissions'
 import { PermissionCode } from '@/constants/permissions'
 import {
   apiErrorMessage,
+  permissionBundlesApi,
   permissionsApi,
   rolesApi,
 } from '@/services/api'
-import type { PermissionResponse, RoleResponse } from '@/types/api'
+import type {
+  PermissionBundleResponse,
+  PermissionResponse,
+  RoleResponse,
+} from '@/types/api'
 
 const $q = useQuasar()
 const { can } = usePermissions()
@@ -18,10 +24,13 @@ const loading = ref(false)
 const saving = ref(false)
 const roles = ref<RoleResponse[]>([])
 const permissions = ref<PermissionResponse[]>([])
+const bundles = ref<PermissionBundleResponse[]>([])
+const roleBundleIds = ref<string[]>([])
 
 const createOpen = ref(false)
 const editOpen = ref(false)
 const permsOpen = ref(false)
+const bundlesOpen = ref(false)
 const selected = ref<RoleResponse | null>(null)
 
 const createForm = reactive({
@@ -63,6 +72,20 @@ function openPermissions(role: RoleResponse) {
   permsOpen.value = true
 }
 
+async function openBundles(role: RoleResponse) {
+  selected.value = role
+  try {
+    const res = await permissionBundlesApi.forRole(role.id)
+    roleBundleIds.value = res.data
+    bundlesOpen.value = true
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: apiErrorMessage(error, 'Failed to load role bundles'),
+    })
+  }
+}
+
 async function load() {
   loading.value = true
   try {
@@ -76,6 +99,17 @@ async function load() {
     $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to load roles') })
   } finally {
     loading.value = false
+  }
+
+  if (!can(PermissionCode.PERMISSION_GROUPS_READ)) return
+  try {
+    const res = await permissionBundlesApi.list()
+    bundles.value = res.data
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: apiErrorMessage(error, 'Failed to load permission bundles'),
+    })
   }
 }
 
@@ -127,6 +161,21 @@ async function submitPermissions(permissionIds: string[]) {
       type: 'negative',
       message: apiErrorMessage(error, 'Failed to assign permissions'),
     })
+  } finally {
+    saving.value = false
+  }
+}
+
+async function submitBundles(groupIds: string[]) {
+  if (!selected.value) return
+  saving.value = true
+  try {
+    await permissionBundlesApi.replaceForRole(selected.value.id, groupIds)
+    roleBundleIds.value = groupIds
+    bundlesOpen.value = false
+    $q.notify({ type: 'positive', message: 'Bundles updated' })
+  } catch (error) {
+    $q.notify({ type: 'negative', message: apiErrorMessage(error, 'Failed to save bundles') })
   } finally {
     saving.value = false
   }
@@ -242,6 +291,17 @@ onMounted(() => {
                   @click="openPermissions(props.row)"
                 >
                   <q-tooltip>Permissions</q-tooltip>
+                </q-btn>
+                <q-btn
+                  v-if="can(PermissionCode.PERMISSION_GROUPS_READ)"
+                  flat
+                  dense
+                  round
+                  icon="widgets"
+                  color="primary"
+                  @click="openBundles(props.row)"
+                >
+                  <q-tooltip>Bundles</q-tooltip>
                 </q-btn>
                 <q-btn
                   v-if="can(PermissionCode.ROLES_DELETE)"
@@ -380,6 +440,15 @@ onMounted(() => {
       :permissions="permissions"
       :saving="saving"
       @save="submitPermissions"
+    />
+
+    <RoleBundlesDialog
+      v-model="bundlesOpen"
+      :role="selected"
+      :bundles="bundles"
+      :selected-ids="roleBundleIds"
+      :saving="saving"
+      @save="submitBundles"
     />
   </q-page>
 </template>

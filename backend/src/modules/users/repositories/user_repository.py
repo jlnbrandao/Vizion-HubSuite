@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from uuid import UUID
 
 from src.modules.users.entities.user import User
 from src.modules.users.value_objects.email import Email

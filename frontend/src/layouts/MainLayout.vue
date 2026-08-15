@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useNavigationStore } from '@/stores/navigation'
 import { useLayoutConfig } from '@/composables/useLayoutConfig'
 import BaseHeader from '@/components/layout/BaseHeader.vue'
 import BaseSidebar from '@/components/layout/BaseSidebar.vue'
@@ -14,6 +15,7 @@ const route = useRoute()
 const $q = useQuasar()
 const auth = useAuthStore()
 const dashboard = useDashboardStore()
+const navigation = useNavigationStore()
 const { layoutConfig } = useLayoutConfig()
 
 const isSmartphone = () => window.innerWidth < 768
@@ -42,6 +44,7 @@ function handleLogout() {
     void (async () => {
       await auth.logout()
       dashboard.clear()
+      navigation.clear()
       await router.push({ name: 'login' })
       $q.notify({ type: 'positive', message: 'Signed out' })
     })()
@@ -58,7 +61,8 @@ function handleResize() {
 
 onMounted(async () => {
   window.addEventListener('resize', handleResize)
-  if (!dashboard.menu.length && !dashboard.widgets.length) {
+  await navigation.ensureLoaded()
+  if (!dashboard.widgets.length) {
     await dashboard.load()
   }
 })

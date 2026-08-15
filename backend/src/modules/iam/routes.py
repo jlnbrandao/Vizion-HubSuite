@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from dependency_injector.wiring import Provide, inject
@@ -19,6 +19,7 @@ from src.modules.authentication.services.token_service import TokenService
 from src.modules.authentication.value_objects.access_token_claims import AccessTokenClaims
 from src.modules.authentication.value_objects.refresh_token import RefreshToken
 from src.modules.iam.abac.service import AbacService
+from src.modules.iam.acl.service import AclService
 from src.modules.iam.audit.service import AuditService
 from src.modules.iam.federation.service import FederationService
 from src.modules.iam.lifecycle.service import LifecycleService
@@ -29,11 +30,12 @@ from src.modules.iam.policies.service import AuthPolicyService
 from src.modules.iam.sessions.service import SessionService
 from src.modules.users.queries.user_queries import GetUserByIdQuery
 from src.shared.application.query_bus import QueryBus
-from src.shared.application.unit_of_work import UnitOfWork
 from src.shared.infrastructure.di.container import Container
+from src.shared.infrastructure.exceptions import NotFoundError
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.security.dependencies import get_current_user, require_permission
 from src.shared.infrastructure.security.permission_codes import PermissionCode
+from src.shared.infrastructure.security.session_denylist import SessionDenylist
 from src.shared.infrastructure.tenant_context import (
     get_current_tenant_slug,
     require_current_tenant_id,
@@ -150,6 +152,16 @@ class PolicyCreate(BaseModel):
     priority: int = 100
 
 
+class AclGrant(BaseModel):
+    subject_type: Literal["user", "role"]
+    subject_id: UUID
+    resource_type: str = Field(min_length=1, max_length=64)
+    resource_id: str = Field(min_length=1, max_length=64)
+    action: str = Field(min_length=1, max_length=120)
+    effect: Literal["allow", "deny"] = "allow"
+    expires_at: datetime | None = None
+
+
 # ---------- helpers ----------
 
 
@@ -180,11 +192,8 @@ async def _issue_session_tokens(
     )
     claims = AccessTokenClaims(
         user_id=user_id,
-        email=email,
-        full_name=full_name,
         tenant_id=tenant_id,
         tenant_slug=tenant_slug,
-        role_ids=role_ids,
         credentials_version=credentials_version,
         amr=amr,
         acr="mfa" if any(x in amr for x in ("otp", "pop", "rck")) else "pwd",
@@ -223,6 +232,7 @@ async def _issue_session_tokens(
 @inject
 async def list_audit_events(
     action: str | None = None,
+    request_id: str | None = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     _: CurrentUser = Depends(require_permission(PermissionCode.AUDIT_READ)),
@@ -230,7 +240,9 @@ async def list_audit_events(
     audit: AuditService = Depends(Provide[Container.audit_service]),
 ) -> list[dict[str, Any]]:
     async with uow_factory as uow:
-        rows = await audit.list_events(action=action, limit=limit, offset=offset)
+        rows = await audit.list_events(
+            action=action, request_id=request_id, limit=limit, offset=offset
+        )
         await uow.commit()
         return [
             {
@@ -240,6 +252,7 @@ async def list_audit_events(
                 "actor_type": r.actor_type,
                 "resource_type": r.resource_type,
                 "resource_id": r.resource_id,
+                "request_id": r.request_id,
                 "payload": r.payload,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
@@ -271,6 +284,23 @@ async def list_my_sessions(
         ]
 
 
+@router.post("/sessions/{session_id}/revoke", status_code=204)
+@inject
+async def revoke_my_session(
+    session_id: UUID,
+    actor: CurrentUser = Depends(get_current_user),
+    uow_factory: Any = Depends(Provide[Container.unit_of_work]),
+    sessions: SessionService = Depends(Provide[Container.session_service]),
+    denylist: SessionDenylist = Depends(Provide[Container.session_denylist]),
+) -> None:
+    async with uow_factory as uow:
+        revoked = await sessions.revoke(session_id, actor.id)
+        await uow.commit()
+    if not revoked:
+        raise NotFoundError("Session not found")
+    await denylist.revoke(session_id)
+
+
 @router.post("/sessions/revoke-all", status_code=204)
 @inject
 async def revoke_my_sessions(
@@ -278,11 +308,13 @@ async def revoke_my_sessions(
     uow_factory: Any = Depends(Provide[Container.unit_of_work]),
     sessions: SessionService = Depends(Provide[Container.session_service]),
     refresh_store: RefreshTokenStore = Depends(Provide[Container.refresh_token_store]),
+    denylist: SessionDenylist = Depends(Provide[Container.session_denylist]),
 ) -> None:
     async with uow_factory as uow:
-        await sessions.revoke_all_for_user(actor.id)
+        revoked_ids = await sessions.revoke_all_for_user(actor.id)
         await refresh_store.delete_all_for_user(actor.id)
         await uow.commit()
+    await denylist.revoke_many(revoked_ids)
 
 
 @router.post("/users/{user_id}/sessions/revoke", status_code=204)
@@ -293,11 +325,13 @@ async def revoke_user_sessions(
     uow_factory: Any = Depends(Provide[Container.unit_of_work]),
     sessions: SessionService = Depends(Provide[Container.session_service]),
     refresh_store: RefreshTokenStore = Depends(Provide[Container.refresh_token_store]),
+    denylist: SessionDenylist = Depends(Provide[Container.session_denylist]),
 ) -> None:
     async with uow_factory as uow:
-        await sessions.revoke_all_for_user(user_id)
+        revoked_ids = await sessions.revoke_all_for_user(user_id)
         await refresh_store.delete_all_for_user(user_id)
         await uow.commit()
+    await denylist.revoke_many(revoked_ids)
 
 
 # ---------- lifecycle / policies ----------
@@ -654,7 +688,6 @@ async def oauth_token(
 
 
 @router.get("/oauth/userinfo")
-@inject
 async def oauth_userinfo(
     actor: CurrentUser = Depends(require_permission(PermissionCode.USERS_READ)),
 ) -> dict[str, Any]:
@@ -946,3 +979,82 @@ async def create_access_policy(
         row = await abac.create_policy(**body.model_dump())
         await uow.commit()
         return {"id": str(row.id), "name": row.name}
+
+
+# ---------- ACL ----------
+
+
+def _acl_to_dict(row: Any) -> dict[str, Any]:
+    return {
+        "id": str(row.id),
+        "subject_type": row.subject_type,
+        "subject_id": str(row.subject_id),
+        "resource_type": row.resource_type,
+        "resource_id": row.resource_id,
+        "action": row.action,
+        "effect": row.effect,
+        "granted_by": str(row.granted_by) if row.granted_by else None,
+        "expires_at": row.expires_at.isoformat() if row.expires_at else None,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+@router.get("/acls")
+@inject
+async def list_acls(
+    resource_type: str | None = None,
+    resource_id: str | None = None,
+    subject_id: UUID | None = None,
+    limit: int = 100,
+    offset: int = 0,
+    _: CurrentUser = Depends(require_permission(PermissionCode.ACL_READ)),
+    uow_factory: Any = Depends(Provide[Container.unit_of_work]),
+    acls: AclService = Depends(Provide[Container.acl_service]),
+) -> list[dict[str, Any]]:
+    async with uow_factory as uow:
+        rows = await acls.list_entries(
+            resource_type=resource_type,
+            resource_id=resource_id,
+            subject_id=subject_id,
+            limit=limit,
+            offset=offset,
+        )
+        await uow.commit()
+        return [_acl_to_dict(row) for row in rows]
+
+
+@router.post("/acls", status_code=201)
+@inject
+async def grant_acl(
+    body: AclGrant,
+    actor: CurrentUser = Depends(require_permission(PermissionCode.ACL_GRANT)),
+    uow_factory: Any = Depends(Provide[Container.unit_of_work]),
+    acls: AclService = Depends(Provide[Container.acl_service]),
+) -> dict[str, Any]:
+    async with uow_factory as uow:
+        row = await acls.grant(
+            subject_type=body.subject_type,
+            subject_id=body.subject_id,
+            resource_type=body.resource_type,
+            resource_id=body.resource_id,
+            action=body.action,
+            effect=body.effect,
+            granted_by=actor.id,
+            expires_at=body.expires_at,
+        )
+        payload = _acl_to_dict(row)
+        await uow.commit()
+        return payload
+
+
+@router.delete("/acls/{acl_id}", status_code=204)
+@inject
+async def revoke_acl(
+    acl_id: UUID,
+    _: CurrentUser = Depends(require_permission(PermissionCode.ACL_REVOKE)),
+    uow_factory: Any = Depends(Provide[Container.unit_of_work]),
+    acls: AclService = Depends(Provide[Container.acl_service]),
+) -> None:
+    async with uow_factory as uow:
+        await acls.revoke(acl_id)
+        await uow.commit()

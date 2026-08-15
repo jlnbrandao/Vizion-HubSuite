@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.modules.dashboard.dtos.dashboard_dtos import DashboardMenuItem, DashboardWidget
+from src.modules.dashboard.dtos.dashboard_dtos import DashboardWidget
 from src.modules.dashboard.providers.base import DashboardSectionProvider
 from src.modules.tenants.queries.tenant_queries import ListTenantsQuery
 from src.shared.application.query_bus import QueryBus
@@ -18,31 +18,6 @@ class PlatformDashboardProvider(DashboardSectionProvider):
     @property
     def required_permission(self) -> str:
         return PermissionCode.DASHBOARD_PLATFORM
-
-    async def build_menu(self, user: CurrentUser) -> list[DashboardMenuItem]:
-        return [
-            DashboardMenuItem(
-                id="platform-overview",
-                label="Platform",
-                route="/platform",
-                icon="cloud",
-                required_permission=PermissionCode.DASHBOARD_PLATFORM,
-            ),
-            DashboardMenuItem(
-                id="platform-tenants",
-                label="Tenants",
-                route="/tenants",
-                icon="domain",
-                required_permission=PermissionCode.TENANTS_READ,
-            ),
-            DashboardMenuItem(
-                id="platform-integrations",
-                label="Integrações",
-                route="/integrations",
-                icon="hub",
-                required_permission=PermissionCode.INTEGRATION_READ,
-            ),
-        ]
 
     async def build_widgets(self, user: CurrentUser) -> list[DashboardWidget]:
         token = bind_rls_bypass(True)

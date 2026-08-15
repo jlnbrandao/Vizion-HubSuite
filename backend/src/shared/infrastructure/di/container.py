@@ -27,6 +27,7 @@ from src.modules.dashboard.providers.platform_provider import PlatformDashboardP
 from src.modules.dashboard.providers.viewer_provider import ViewerDashboardProvider
 from src.modules.dashboard.services.dashboard_composer import DashboardComposer
 from src.modules.iam.abac.service import AbacService
+from src.modules.iam.acl.service import AclService
 from src.modules.iam.audit.service import AuditService
 from src.modules.iam.email_sender import EmailSender
 from src.modules.iam.federation.service import FederationService
@@ -38,6 +39,10 @@ from src.modules.iam.policies.service import AuthPolicyService
 from src.modules.iam.sessions.service import SessionService
 from src.modules.integrations.layer import IntegrationLayer
 from src.modules.integrations.service import IntegrationService
+from src.modules.permissions.groups.service import PermissionGroupService
+from src.modules.permissions.handlers.permission_group_handlers import (
+    ResolveRoleBundleCodesHandler,
+)
 from src.modules.permissions.handlers.permission_handlers import (
     CheckPermissionsExistHandler,
     CountPermissionsHandler,
@@ -65,6 +70,9 @@ from src.modules.roles.handlers.role_handlers import (
     UpdateRoleHandler,
 )
 from src.modules.roles.repositories.sqlalchemy_role_repository import SqlAlchemyRoleRepository
+from src.modules.services.quotas import ServiceQuotaGuard
+from src.modules.services.service import PlatformServiceCatalog, ServiceCatalogService
+from src.modules.services.usage import PlatformUsageService, UsageService
 from src.modules.tenants.handlers.tenant_handlers import (
     ActivateTenantHandler,
     CreateTenantHandler,
@@ -100,7 +108,15 @@ from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.database import create_engine, create_session_factory
 from src.shared.infrastructure.redis import create_redis_client
+from src.shared.infrastructure.security.authorization import AuthorizationService
+from src.shared.infrastructure.security.authorization_adapters import (
+    AbacServiceGate,
+    AclServiceProvider,
+    AuditingAuthorizationSink,
+    CatalogEntitlementProvider,
+)
 from src.shared.infrastructure.security.rate_limiter import RedisRateLimiter
+from src.shared.infrastructure.security.session_denylist import RedisSessionDenylist
 from src.shared.infrastructure.sqlalchemy_unit_of_work import SqlAlchemyUnitOfWork
 
 
@@ -108,6 +124,7 @@ class Container(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
         modules=[
             "src.modules.permissions.routes.permission_routes",
+            "src.modules.permissions.routes.permission_group_routes",
             "src.modules.roles.routes.role_routes",
             "src.modules.users.routes.user_routes",
             "src.modules.authentication.routes.auth_routes",
@@ -165,6 +182,12 @@ class Container(containers.DeclarativeContainer):
 
     rate_limiter: providers.Singleton[RedisRateLimiter] = providers.Singleton(
         RedisRateLimiter,
+        redis=redis,
+        settings=config,
+    )
+
+    session_denylist: providers.Singleton[RedisSessionDenylist] = providers.Singleton(
+        RedisSessionDenylist,
         redis=redis,
         settings=config,
     )
@@ -227,6 +250,18 @@ class Container(containers.DeclarativeContainer):
         CountPermissionsHandler,
         uow_factory=unit_of_work.provider,
         permissions=permission_repository,
+    )
+
+    # --- Permission bundles ---
+    permission_group_service: providers.Singleton[PermissionGroupService] = providers.Singleton(
+        PermissionGroupService
+    )
+    resolve_role_bundle_codes_handler: providers.Factory[ResolveRoleBundleCodesHandler] = (
+        providers.Factory(
+            ResolveRoleBundleCodesHandler,
+            uow_factory=unit_of_work.provider,
+            groups=permission_group_service,
+        )
     )
 
     # --- Role handlers ---
@@ -382,6 +417,27 @@ class Container(containers.DeclarativeContainer):
         uow_factory=unit_of_work.provider,
         tenants=tenant_repository,
     )
+    # --- Service catalog (Hub entitlements; consumed by tenants + authorization) ---
+    service_catalog: providers.Singleton[ServiceCatalogService] = providers.Singleton(
+        ServiceCatalogService
+    )
+    platform_service_catalog: providers.Singleton[PlatformServiceCatalog] = providers.Singleton(
+        PlatformServiceCatalog,
+        catalog=service_catalog,
+    )
+    usage_service: providers.Singleton[UsageService] = providers.Singleton(UsageService)
+    platform_usage_service: providers.Singleton[PlatformUsageService] = providers.Singleton(
+        PlatformUsageService,
+        usage=usage_service,
+    )
+    service_quota_guard: providers.Singleton[ServiceQuotaGuard] = providers.Singleton(
+        ServiceQuotaGuard,
+        catalog=service_catalog,
+        rate_limiter=rate_limiter,
+        uow_factory=unit_of_work.provider,
+        usage=usage_service,
+    )
+
     get_tenant_by_id_handler: providers.Factory[GetTenantByIdHandler] = providers.Factory(
         GetTenantByIdHandler,
         uow_factory=unit_of_work.provider,
@@ -405,6 +461,7 @@ class Container(containers.DeclarativeContainer):
         tenants=tenant_repository,
         command_bus=command_bus,
         query_bus=query_bus,
+        services=service_catalog,
     )
     rename_tenant_handler: providers.Factory[RenameTenantHandler] = providers.Factory(
         RenameTenantHandler,
@@ -465,6 +522,36 @@ class Container(containers.DeclarativeContainer):
     )
     abac_service: providers.Singleton[AbacService] = providers.Singleton(AbacService)
 
+    acl_service: providers.Singleton[AclService] = providers.Singleton(AclService)
+
+    # --- Authorization engine (single decision point: tenant → entitlement → ACL → RBAC → ABAC) ---
+    abac_gate: providers.Singleton[AbacServiceGate] = providers.Singleton(
+        AbacServiceGate,
+        abac_service=abac_service,
+        settings=config,
+    )
+    acl_provider: providers.Singleton[AclServiceProvider] = providers.Singleton(
+        AclServiceProvider,
+        acl_service=acl_service,
+    )
+    authorization_audit_sink: providers.Singleton[AuditingAuthorizationSink] = providers.Singleton(
+        AuditingAuthorizationSink,
+        audit_service=audit_service,
+        uow_factory=unit_of_work.provider,
+    )
+    entitlement_provider: providers.Singleton[CatalogEntitlementProvider] = providers.Singleton(
+        CatalogEntitlementProvider,
+        catalog=service_catalog,
+        uow_factory=unit_of_work.provider,
+    )
+    authorization_service: providers.Singleton[AuthorizationService] = providers.Singleton(
+        AuthorizationService,
+        acl_provider=acl_provider,
+        entitlements=entitlement_provider,
+        abac_gate=abac_gate,
+        audit_sink=authorization_audit_sink,
+    )
+
     integration_layer: providers.Singleton[IntegrationLayer] = providers.Singleton(IntegrationLayer)
     integration_service: providers.Singleton[IntegrationService] = providers.Singleton(
         IntegrationService,
@@ -492,6 +579,7 @@ class Container(containers.DeclarativeContainer):
         event_bus=event_bus,
         uow_factory=unit_of_work.provider,
         session_service=session_service,
+        session_denylist=session_denylist,
     )
     refresh_token_handler: providers.Factory[RefreshTokenHandler] = providers.Factory(
         RefreshTokenHandler,

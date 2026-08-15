@@ -17,6 +17,7 @@ from src.modules.roles.commands.role_commands import (
     CreateRoleCommand,
     ReplaceRolePermissionsCommand,
 )
+from src.modules.services.service import ServiceCatalogService
 from src.modules.tenants.commands.tenant_commands import (
     ActivateTenantCommand,
     CreateTenantCommand,
@@ -194,11 +195,13 @@ class CreateTenantHandler(CommandHandler[CreateTenantCommand, UUID]):
         tenants: TenantRepository,
         command_bus: CommandBus,
         query_bus: QueryBus,
+        services: ServiceCatalogService | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._tenants = tenants
         self._command_bus = command_bus
         self._query_bus = query_bus
+        self._services = services
 
     async def handle(self, command: CreateTenantCommand) -> UUID:
         try:
@@ -221,12 +224,21 @@ class CreateTenantHandler(CommandHandler[CreateTenantCommand, UUID]):
             tenant_id, slug=slug.value, name=command.name
         )
         try:
+            await self._entitle_default_services(tenant_id)
             await self._provision_administrator(tenant_id, command)
         finally:
             unbind_tenant(id_token, slug_token, name_token)
             unbind_rls_bypass(bypass_token)
 
         return tenant_id
+
+    async def _entitle_default_services(self, tenant_id: UUID) -> None:
+        """Without this the new tenant fails the engine's entitlement stage."""
+        if self._services is None:
+            return
+        async with self._uow_factory() as uow:
+            await self._services.ensure_default_services(tenant_id)
+            await uow.commit()
 
     async def _provision_administrator(
         self, tenant_id: UUID, command: CreateTenantCommand
@@ -242,7 +254,7 @@ class CreateTenantHandler(CommandHandler[CreateTenantCommand, UUID]):
         await self._command_bus.execute(
             ReplaceRolePermissionsCommand(
                 role_id=role_id,
-                permission_ids=frozenset(code_to_id[code] for code in code_to_id),
+                permission_ids=frozenset(code_to_id.values()),
             )
         )
         await self._command_bus.execute(
@@ -258,7 +270,12 @@ class CreateTenantHandler(CommandHandler[CreateTenantCommand, UUID]):
 
     async def _ensure_admin_permissions(self, tenant_id: UUID) -> dict[str, UUID]:
         existing: list[PermissionDto] = await self._query_bus.ask(ListPermissionsQuery())
-        code_to_id = {item.code: item.id for item in existing}
+        # Indexed by both code forms: role definitions still use the legacy aliases.
+        code_to_id: dict[str, UUID] = {}
+        for item in existing:
+            code_to_id[item.code] = item.id
+            if item.legacy_code:
+                code_to_id[item.legacy_code] = item.id
         for code in sorted(PermissionCode.admin_role_codes()):
             if code in code_to_id:
                 continue

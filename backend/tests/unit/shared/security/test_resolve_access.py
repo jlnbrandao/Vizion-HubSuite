@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
-
 import pytest
 
 from src.modules.authentication.handlers.access_handlers import ResolveEffectiveAccessHandler
 from src.modules.authentication.queries.access_queries import ResolveEffectiveAccessQuery
 from src.modules.permissions.commands.permission_commands import CreatePermissionCommand
 from src.modules.permissions.handlers.permission_handlers import (
+    CheckPermissionsExistHandler,
     CreatePermissionHandler,
     GetPermissionsByIdsHandler,
 )
-from src.modules.permissions.queries.permission_queries import GetPermissionsByIdsQuery
+from src.modules.permissions.queries.permission_group_queries import (
+    ResolveRoleBundleCodesQuery,
+)
+from src.modules.permissions.queries.permission_queries import (
+    CheckPermissionsExistQuery,
+    GetPermissionsByIdsQuery,
+)
 from src.modules.permissions.repositories.in_memory_permission_repository import (
     InMemoryPermissionRepository,
 )
@@ -29,13 +34,16 @@ from src.modules.roles.handlers.role_handlers import (
 )
 from src.modules.roles.queries.role_queries import CheckRolesExistQuery, GetRolesByIdsQuery
 from src.modules.roles.repositories.in_memory_role_repository import InMemoryRoleRepository
-from src.modules.permissions.handlers.permission_handlers import CheckPermissionsExistHandler
-from src.modules.permissions.queries.permission_queries import CheckPermissionsExistQuery
 from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.security.permission_codes import PermissionCode
 from tests.unit.conftest import UNIVERSE_TENANT_ID
 from tests.unit.shared.in_memory_unit_of_work import InMemoryUnitOfWork
+
+
+class _NoBundlesHandler:
+    async def handle(self, query: ResolveRoleBundleCodesQuery) -> frozenset[str]:
+        return frozenset()
 
 
 @pytest.fixture
@@ -70,6 +78,8 @@ async def test_resolve_effective_access_aggregates_permissions(uow_factory) -> N
         GetRolesByIdsQuery,
         GetRolesByIdsHandler(uow_factory, roles_repo),
     )
+    # No bundle store in unit scope: roles inherit nothing from bundles here.
+    query_bus.register(ResolveRoleBundleCodesQuery, _NoBundlesHandler())
 
     create_perm = CreatePermissionHandler(uow_factory, permissions_repo)
     create_role = CreateRoleHandler(uow_factory, roles_repo)

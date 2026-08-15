@@ -69,32 +69,38 @@ O Lanstar já resolve bem o primeiro nível. O roadmap descrito neste documento 
 | Login | Username **ou** e-mail + senha (bcrypt) |
 | Access token | JWT **HS256**, ~15 min, header `Authorization: Bearer` |
 | Refresh token | Opaco (`secrets`), armazenado no Redis só como **SHA-256**, TTL ~7 dias |
-| Cookie | `lanstar_refresh_token`, **httpOnly**, `SameSite=lax`, `Secure` fora de development |
+| Cookie | `lanstar_refresh_token`, **httpOnly**, `SameSite=lax`, `Secure` fora de development, prefixo `__Host-` em produção |
 | Frontend | Access token **somente em memória** (não vai para `localStorage`) |
-| Logout | Invalida o refresh; access expira naturalmente ou falha por `cv` |
+| Logout | Invalida o refresh **e** grava o `sid` na denylist do Redis — o access morre na hora |
 | Invalidação forte | Campo `credentials_version` (`cv` no JWT): sobe em troca de senha, desativação, delete ou mudança de roles — access antigo é rejeitado e refreshes do usuário são apagados |
 
-**Claims principais do access token:** `sub`, `email`, `full_name`, `tenant_id`, `tenant_slug`, `role_ids`, `cv`, `iat`, `exp`.
+**Claims do access token:** `sub`, `tenant_id`, `tenant_slug`, `cv`, `sid`, `amr`, `acr`, `iat`, `exp`. O token **não** carrega e-mail, nome ou roles: identidade, permissões e serviços contratados vêm de `GET /api/v1/auth/me`.
 
-**Endpoints:** `POST /api/v1/auth/login`, `/refresh`, `/logout`.
+**Endpoints:** `POST /api/v1/auth/login`, `/refresh`, `/logout`; `GET /api/v1/auth/me`.
 
-### 3.2 Autorização (AuthZ) — RBAC
+Detalhes de headers, denylist, segredos e supply chain: [SECURITY.md](SECURITY.md).
 
-Modelo clássico:
+### 3.2 Autorização (AuthZ) — RBAC + ACL + ABAC
+
+Modelo:
 
 ```
-Permission (resource.action)
+Permission (service.resource.action)
         ↑
-   Role ⇄ Permissions
+ PermissionBundle ⇄ Permissions
         ↑
-   User ⇄ Roles
+   Role ⇄ Bundles (+ permissões finas)
+        ↑
+   User ⇄ Roles          ⟂  ACL por recurso (allow/deny)
 ```
 
-- Códigos canônicos em `backend/src/shared/infrastructure/security/permission_codes.py` (espelhados no frontend).
-- Backend: `Depends(require_permission(...))` — valida JWT, tenant do Host, usuário ativo, `cv`, e permissões efetivas.
-- Frontend: `can()` / `canAny()` / `meta.permissions` nas rotas (espelho de UX; a barreira real é o backend).
-- **Hierarquia de roles:** `PLATFORM` > `ADMIN` > `MANAGER` > `OPERATOR` > `CLIENT` > `VIEWER`. Quem gerencia usuários/roles **não** pode gerenciar pares ou superiores.
-- Permissões **platform-only** (`tenants.*`, `system.settings`, `dashboard.platform`) existem só no tenant de operações (`bigbang`), não no RBAC comum de produto.
+- Decisão **única** no `AuthorizationService`, com precedência fixa: tenant > entitlement > ACL deny > ACL allow > RBAC > ABAC. Documento dedicado: [AUTHORIZATION.md](AUTHORIZATION.md).
+- Códigos canônicos em `backend/src/shared/infrastructure/security/permission_codes.py`, namespaced como `service.resource.action`, com alias legado `resource.action` aceito. O espelho do frontend é **gerado** (`python -m scripts.generate_frontend_permissions`).
+- Backend: `Depends(require_permission(...))` — valida JWT, tenant do Host, usuário ativo, `cv`, `sid` não revogado, e delega ao engine.
+- Frontend: `can()` / `canAny()` / `meta.permissions` / `meta.service` nas rotas (espelho de UX; a barreira real é o backend).
+- **Hierarquia de roles:** `PLATFORM` > `ADMIN` > `MANAGER` > `OPERATOR` > `CLIENT` > `VIEWER`, definida em `HierarchyPolicy` dentro do engine. Quem gerencia usuários/roles **não** pode gerenciar pares ou superiores.
+- Permissões **platform-only** (`tenants.*`, `services.*`, `usage.read_all`, `system.settings`, `dashboard.platform`, `integration.*`) existem só no tenant de operações (`bigbang`), não no RBAC comum de produto.
+- Exceções por recurso ficam em `resource_acls` ([ACL.md](ACL.md)); políticas contextuais (Casbin) podem **negar** o que o RBAC concedeu.
 
 ### 3.3 Multi-tenancy e isolamento
 
@@ -102,44 +108,39 @@ Permission (resource.action)
 |----------|---------|
 | Tabela `tenants` | Isolamento lógico; seed cria `universe` (app) e `bigbang` (ops) |
 | Resolução | Primeiro label do Host → slug → tenant (`universe.localhost`, `bigbang.lanstar.com.br`, …) |
-| RLS | `FORCE ROW LEVEL SECURITY` em users, roles, permissions e associações |
+| RLS | `FORCE ROW LEVEL SECURITY` em toda tabela tenant-scoped (users, roles, permissions e associações, audit, sessões, ACLs, bundles, `tenant_services`, `usage_records`, integrações) |
 | Defense-in-depth | Repositórios SQLAlchemy também filtram por `tenant_id` |
 | Roles de banco | `lanstar` (migrate/owner), `lanstar_app` (API, sujeita a RLS), `lanstar_migrate` (opcional, `BYPASSRLS`) |
 
 ### 3.4 Sessões e rate limiting
 
 - Refresh recarrega `role_ids` / `is_active` do banco a cada renovação.
-- Rate limit Redis por `tenant:IP` (`X-Real-IP`); login/refresh com limite mais baixo que a API geral.
-- Eventos de domínio (login, logout, CRUD de users/roles/permissions) alimentam um **audit em stdout** (`lanstar.audit`) — ainda **não** consultável via API.
+- Sessões em `auth_sessions` (`sid` no token), listáveis e revogáveis; revogar grava o `sid` na denylist do Redis.
+- Rate limit Redis por `tenant:IP` (`X-Real-IP`); login/refresh com limite mais baixo que a API geral. Quotas por `tenant+serviço` no `ServiceQuotaGuard`.
+- Eventos de domínio (login, logout, CRUD de users/roles/permissions, `AUTHZ_DENIED`) vão para log estruturado (`lanstar.audit`) **e** para `audit_events`, consultável em `GET /api/v1/audit-events` e correlacionável por `request_id`.
 
-### 3.5 Ciclo de vida parcial
+### 3.5 Ciclo de vida
 
-Já existe:
-
-- CRUD de usuários, roles e permissões
+- CRUD de usuários, roles, permissões e bundles
 - Troca de senha (com `current_password` quando for a própria)
 - Ativar / desativar usuário (com invalidação de sessão)
-- Provisionamento de tenant + admin (`bigbang`)
+- Provisionamento de tenant + admin + entitlements default
+- Convite por e-mail e forgot/reset password (SMTP opcional; em development o token vai para o log)
+- MFA TOTP e WebAuthn com recovery codes
+- SSO/federação (OIDC e SAML SP), SCIM 2.0, service accounts e API keys
+- OAuth/OIDC como provedor, com consent e JWKS RS256
 
-Ainda **não** existe (placeholder ou ausente):
+### 3.6 Catálogo de permissões
 
-- Convite por e-mail
-- Forgot / reset password (UI mostra “contact admin”)
-- MFA
-- SSO / federação
-- Audit consultável
-- OAuth como provedor para apps externas
+Fonte de verdade: `permission_codes.py` (canônico + alias legado), exposto em `GET /api/v1/permissions/catalog`.
 
-### 3.6 Catálogo de permissões (atual)
+| Serviço | Recursos |
+|---------|----------|
+| `iam` | `users`, `roles`, `permissions`, `permission_groups`, `dashboard`, `system`, `audit`, `sessions`, `oauth_clients`, `service_accounts`, `api_keys`, `federation`, `policies`, `acl`, `scim` |
+| `platform` | `tenants`, `services`, `usage` |
+| `integration` | `integration` |
 
-| Recurso | Códigos |
-|---------|---------|
-| users | `create`, `read`, `update`, `delete`, `assign` |
-| roles | `create`, `read`, `update`, `delete`, `assign` |
-| permissions | `create`, `read`, `update`, `delete` |
-| dashboard | `admin`, `manager`, `operator`, `client`, `viewer`, `platform` |
-| system | `settings` (platform) |
-| tenants | `create`, `read`, `update`, `activate`, `deactivate` (platform) |
+Bundles semeados: `iam.admin`, `iam.manager`, `iam.operator`, `iam.client`, `iam.viewer`, `platform.admin`, `integration.admin`. Roles compõem bundles; `role_permissions` continua para exceções finas.
 
 ### 3.7 Roles seed
 
@@ -164,13 +165,14 @@ Usuário → POST /login (Host = tenant)
 
 ```
 Request + Bearer + Host
+  → RequestIdMiddleware liga o request_id
   → TenantMiddleware resolve tenant
   → decode JWT
   → tenant do token == tenant do Host?
-  → user ativo + cv bate?
-  → ResolveEffectiveAccess (roles + permission codes)
-  → require_permission("users.read") ?
-  → handler
+  → user ativo + cv bate + sid não revogado?
+  → ResolveEffectiveAccess (roles + bundles + permission codes)
+  → require_permission("iam.users.read") → AuthorizationService.check(...)
+  → handler (RLS ativa na conexão lanstar_app)
 ```
 
 ### 4.3 Invalidação de credenciais
@@ -188,9 +190,9 @@ O access token antigo falha na próxima request mesmo antes de expirar.
 
 ## 5. Classificação: o Lanstar é um IAM?
 
-**Sim, como IAM de aplicação.** Cobre identidade local, autenticação JWT, autorização RBAC, isolamento multi-tenant e administração de usuários/papéis.
+**Sim, como IAM de aplicação.** Cobre identidade local, autenticação JWT, autorização RBAC/ACL/ABAC, isolamento multi-tenant e administração de usuários/papéis.
 
-**Ainda não, como IAM plataforma.** Faltam os blocos típicos de um IdP enterprise:
+**Sim, como base de IAM plataforma.** Os dez blocos típicos de um IdP enterprise estão no código (ver seção 15) — o que falta é endurecimento operacional, não a capacidade:
 
 1. Federação / SSO (OAuth2/OIDC inbound, SAML, Google/Azure AD)
 2. MFA / 2FA (TOTP, WebAuthn)
@@ -203,7 +205,7 @@ O access token antigo falha na próxima request mesmo antes de expirar.
 9. SCIM / sync com diretórios
 10. Consent / scopes para apps terceiros
 
-Os dez pontos acima são exatamente o escopo do roadmap da seção 7.
+O roadmap da seção 7 é o histórico de como cada bloco entrou; a seção 15 diz onde cada um vive hoje.
 
 ---
 
@@ -440,14 +442,20 @@ Permission codes novos devem ser espelhados em `frontend/src/constants/permissio
 |------|---------------------|
 | Login / refresh / logout | `backend/src/modules/authentication/` |
 | JWT claims / token service | `.../value_objects/access_token_claims.py`, `.../services/jwt_token_service.py` |
-| Refresh Redis | `.../services/redis_refresh_token_store.py` |
+| Refresh Redis / denylist de sessão | `.../services/redis_refresh_token_store.py`, `shared/.../security/session_denylist.py` |
+| Engine de autorização | `backend/src/shared/infrastructure/security/authorization.py` (+ `authorization_adapters.py`) |
 | `require_permission` | `backend/src/shared/infrastructure/security/dependencies.py` |
-| Códigos de permissão | `.../permission_codes.py` |
-| Hierarquia de roles | `.../role_hierarchy.py` |
+| Códigos de permissão e bundles | `.../permission_codes.py`, `backend/src/modules/permissions/groups/` |
+| ACL por recurso | `backend/src/modules/iam/acl/service.py` |
+| Hierarquia de roles | `HierarchyPolicy` em `.../authorization.py` (ranks em `.../role_hierarchy.py`) |
 | Tenant / Host | `.../tenant_middleware.py`, `.../tenant_host.py` |
-| Audit (stdout) | `backend/src/shared/infrastructure/audit_handlers.py` |
+| Audit persistente | `backend/src/modules/iam/audit/service.py`, `shared/.../audit_handlers.py` |
+| Catálogo de serviços / entitlements / quotas | `backend/src/modules/services/` |
+| Medição de uso | `backend/src/modules/services/usage.py`, `usage_routes.py` |
+| Navegação (menu no backend) | `backend/src/modules/navigation/` |
 | Users / Roles / Permissions | `backend/src/modules/{users,roles,permissions}/` |
 | Frontend auth | `frontend/src/stores/auth.ts`, `composables/usePermissions.ts` |
+| Frontend por serviço | `frontend/src/modules/{iam,platform,integration}/` |
 | Visão geral do produto | `README.md` |
 
 ---
@@ -477,3 +485,5 @@ As fases do roadmap foram introduzidas no repositório:
 | 8 | SCIM 2.0 Users/Groups | `/api/v1/scim/v2/*` |
 
 Migration: `backend/alembic/versions/0011_iam_platform.py`. Aplicar com `alembic upgrade head` e re-seed para novas permissões.
+
+Sobre o Hub (evolução posterior ao roadmap acima): ACL (`0014`), namespaces e bundles (`0015`), catálogo de serviços (`0016`/`0018`) e medição de uso (`0017`). Documentos: [AUTHORIZATION.md](AUTHORIZATION.md), [ACL.md](ACL.md), [SERVICE_HUB.md](SERVICE_HUB.md), [SECURITY.md](SECURITY.md).

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from src.shared.domain.domain_event import DomainEvent
 

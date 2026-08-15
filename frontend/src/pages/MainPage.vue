@@ -4,7 +4,9 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import AccountModal from '@/components/layout/AccountModal.vue'
 import { useMaps, type MapLayerType } from '@/composables/useMaps'
+import { usePermissions } from '@/composables/usePermissions'
 import { usePlatform } from '@/composables/usePlatform'
+import { PermissionCode } from '@/constants/permissions'
 import { useAuthStore } from '@/stores/auth'
 import logoColor from '@/assets/brand/logo-color.png'
 import defaultIcon from '@/assets/icons/default.svg'
@@ -57,6 +59,7 @@ const authStore = useAuthStore()
 const router = useRouter()
 const $q = useQuasar()
 const { isWeb } = usePlatform()
+const { canAny } = usePermissions()
 
 const {
   initMap,
@@ -113,12 +116,34 @@ const filteredAreas = computed(() => {
 
 const hasAnyQuickActionPermission = computed(() => canAccessComponent('main-get-in-touch-btn'))
 
-function canAccessComponent(_code: string): boolean {
-  return true
+/**
+ * The map is the placeholder for the future geo service slice, so its widgets
+ * borrow IAM dashboard codes: a client sees and manages their own areas, while
+ * the cross-tenant management screen stays with admin/manager profiles.
+ * Unknown codes are denied — a new widget must declare its permission here.
+ */
+const COMPONENT_VIEW_PERMISSIONS: Record<string, readonly string[]> = {
+  'main-get-in-touch-btn': [PermissionCode.DASHBOARD_CLIENT],
+  'main-filter-areas-btn': [PermissionCode.DASHBOARD_CLIENT],
+  'main-add-area-btn': [PermissionCode.DASHBOARD_CLIENT, PermissionCode.DASHBOARD_ADMIN],
+  'main-area-manage': [
+    PermissionCode.DASHBOARD_CLIENT,
+    PermissionCode.DASHBOARD_MANAGER,
+    PermissionCode.DASHBOARD_ADMIN,
+  ],
 }
 
-function canEdit(_type: string, _code: string): boolean {
-  return true
+const COMPONENT_EDIT_PERMISSIONS: Record<string, readonly string[]> = {
+  ...COMPONENT_VIEW_PERMISSIONS,
+  'main-area-manage': [PermissionCode.DASHBOARD_MANAGER, PermissionCode.DASHBOARD_ADMIN],
+}
+
+function canAccessComponent(code: string): boolean {
+  return canAny(...(COMPONENT_VIEW_PERMISSIONS[code] ?? []))
+}
+
+function canEdit(_type: string, code: string): boolean {
+  return canAny(...(COMPONENT_EDIT_PERMISSIONS[code] ?? []))
 }
 
 function formatTimeSince(lastUpdate: string): string {

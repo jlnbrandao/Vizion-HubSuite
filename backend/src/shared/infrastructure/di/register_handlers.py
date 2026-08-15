@@ -14,6 +14,9 @@ from src.modules.permissions.commands.permission_commands import (
     DeletePermissionCommand,
     UpdatePermissionCommand,
 )
+from src.modules.permissions.queries.permission_group_queries import (
+    ResolveRoleBundleCodesQuery,
+)
 from src.modules.permissions.queries.permission_queries import (
     CheckPermissionsExistQuery,
     CountPermissionsQuery,
@@ -83,6 +86,9 @@ def register_module_handlers(container: Container) -> None:
     query_bus.register(CheckPermissionsExistQuery, container.check_permissions_exist_handler())
     query_bus.register(GetPermissionsByIdsQuery, container.get_permissions_by_ids_handler())
     query_bus.register(CountPermissionsQuery, container.count_permissions_handler())
+    query_bus.register(
+        ResolveRoleBundleCodesQuery, container.resolve_role_bundle_codes_handler()
+    )
 
     # Roles
     command_bus.register(CreateRoleCommand, container.create_role_handler())

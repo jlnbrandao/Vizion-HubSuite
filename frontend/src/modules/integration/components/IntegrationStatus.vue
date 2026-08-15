@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { IntegrationStatus } from '@/layers/integration'
+import type { IntegrationStatus } from '@/modules/integration/data'
 
 const props = defineProps<{
   status: IntegrationStatus

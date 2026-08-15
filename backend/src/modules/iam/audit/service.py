@@ -5,11 +5,15 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from src.modules.iam.models import AuditEventModel
+from src.shared.infrastructure.request_context import get_request_id
 from src.shared.infrastructure.session_context import get_current_session
-from src.shared.infrastructure.tenant_context import get_current_tenant_id, require_current_tenant_id
+from src.shared.infrastructure.tenant_context import (
+    get_current_tenant_id,
+    require_current_tenant_id,
+)
 
 
 class AuditService:
@@ -25,6 +29,7 @@ class AuditService:
         user_agent: str | None = None,
         payload: dict[str, Any] | None = None,
         tenant_id: UUID | None = None,
+        request_id: str | None = None,
     ) -> UUID:
         tid = tenant_id or get_current_tenant_id()
         if tid is None:
@@ -40,6 +45,7 @@ class AuditService:
             resource_id=resource_id,
             ip_address=ip_address,
             user_agent=user_agent,
+            request_id=request_id or get_request_id(),
             payload=payload or {},
         )
         db = get_current_session()
@@ -51,6 +57,7 @@ class AuditService:
         self,
         *,
         action: str | None = None,
+        request_id: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[AuditEventModel]:
@@ -64,5 +71,20 @@ class AuditService:
         )
         if action:
             stmt = stmt.where(AuditEventModel.action == action)
+        if request_id:
+            stmt = stmt.where(AuditEventModel.request_id == request_id)
         result = await db.execute(stmt)
         return list(result.scalars().all())
+
+    async def prune(self, *, retention_days: int) -> int:
+        """Delete events older than the retention window, across every tenant.
+
+        Runs `prune_audit_events` (migration 0017) so the delete is a single
+        server-side statement; callers must be allowed to bypass RLS.
+        """
+        if retention_days < 1:
+            raise ValueError("retention_days must be >= 1")
+        result = await get_current_session().execute(
+            text("SELECT prune_audit_events(:days)"), {"days": retention_days}
+        )
+        return int(result.scalar_one() or 0)

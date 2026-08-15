@@ -7,14 +7,24 @@ import type {
   CreateUserPayload,
   DashboardResponse,
   IdResponse,
+  MeResponse,
+  NavigationResponse,
+  PermissionBundleResponse,
+  PermissionCatalogEntryResponse,
   PermissionResponse,
   RenameTenantPayload,
   RoleResponse,
+  ServiceResponse,
+  SetTenantServicePayload,
   TenantResponse,
+  TenantServiceResponse,
   TokenResponse,
   UpdatePermissionPayload,
   UpdateRolePayload,
   UpdateUserPayload,
+  UpsertPermissionBundlePayload,
+  UsageQuery,
+  UsageReportResponse,
   UserResponse,
 } from '@/types/api'
 
@@ -109,6 +119,9 @@ export const authApi = {
   logout() {
     return api.post('/auth/logout', {})
   },
+  me() {
+    return api.get<MeResponse>('/auth/me')
+  },
 }
 
 export const dashboardApi = {
@@ -117,6 +130,38 @@ export const dashboardApi = {
   },
   me() {
     return api.get<DashboardResponse>('/dashboard/me')
+  },
+}
+
+export const navigationApi = {
+  get() {
+    return api.get<NavigationResponse>('/navigation')
+  },
+}
+
+export const servicesApi = {
+  /** What the caller's own tenant is entitled to. */
+  mine() {
+    return api.get<TenantServiceResponse[]>('/services/me')
+  },
+  catalog() {
+    return api.get<ServiceResponse[]>('/services')
+  },
+  forTenant(tenantId: string) {
+    return api.get<TenantServiceResponse[]>(`/services/tenants/${tenantId}`)
+  },
+  setForTenant(tenantId: string, slug: string, payload: SetTenantServicePayload) {
+    return api.put<TenantServiceResponse>(`/services/tenants/${tenantId}/${slug}`, payload)
+  },
+}
+
+export const usageApi = {
+  /** Metered consumption of the caller's own tenant. */
+  mine(params: UsageQuery = {}) {
+    return api.get<UsageReportResponse>('/usage', { params })
+  },
+  forTenant(tenantId: string, params: UsageQuery = {}) {
+    return api.get<UsageReportResponse>(`/usage/tenants/${tenantId}`, { params })
   },
 }
 
@@ -210,6 +255,31 @@ export const permissionsApi = {
   },
   remove(permissionId: string) {
     return api.delete(`/permissions/${permissionId}`)
+  },
+  catalog(service?: string) {
+    return api.get<PermissionCatalogEntryResponse[]>('/permissions/catalog', {
+      params: service ? { service } : {},
+    })
+  },
+}
+
+export const permissionBundlesApi = {
+  list(service?: string) {
+    return api.get<PermissionBundleResponse[]>('/permission-bundles', {
+      params: service ? { service } : {},
+    })
+  },
+  upsert(payload: UpsertPermissionBundlePayload) {
+    return api.put<PermissionBundleResponse>('/permission-bundles', payload)
+  },
+  remove(groupId: string) {
+    return api.delete(`/permission-bundles/${groupId}`)
+  },
+  forRole(roleId: string) {
+    return api.get<string[]>(`/permission-bundles/roles/${roleId}`)
+  },
+  replaceForRole(roleId: string, groupIds: string[]) {
+    return api.put(`/permission-bundles/roles/${roleId}`, { group_ids: groupIds })
   },
 }
 

@@ -12,7 +12,7 @@ from collections.abc import Callable, Coroutine
 from typing import Any
 
 from dependency_injector.wiring import Provide, inject
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Request
 
 from src.modules.authentication.queries.access_queries import (
     EffectiveAccessDto,
@@ -28,7 +28,13 @@ from src.shared.infrastructure.exceptions import (
     NotFoundError,
     UnauthorizedError,
 )
+from src.shared.infrastructure.security.authorization import (
+    AuthorizationService,
+    RequestContext,
+)
+from src.shared.infrastructure.security.client_ip import client_ip_from_request
 from src.shared.infrastructure.security.current_user import CurrentUser
+from src.shared.infrastructure.security.session_denylist import SessionDenylist
 from src.shared.infrastructure.tenant_context import (
     get_current_tenant_id,
     get_current_tenant_name,
@@ -36,6 +42,13 @@ from src.shared.infrastructure.tenant_context import (
 )
 
 AuthDependency = Callable[..., Coroutine[Any, Any, CurrentUser]]
+
+
+def _request_context(request: Request) -> RequestContext:
+    return RequestContext(
+        ip=client_ip_from_request(request),
+        user_agent=request.headers.get("user-agent"),
+    )
 
 
 def _extract_bearer(authorization: str | None) -> str:
@@ -52,6 +65,7 @@ async def get_current_user(
     authorization: str | None = Header(default=None),
     token_service: TokenService = Depends(Provide[Container.token_service]),
     query_bus: QueryBus = Depends(Provide[Container.query_bus]),
+    session_denylist: SessionDenylist = Depends(Provide[Container.session_denylist]),
 ) -> CurrentUser:
     token = _extract_bearer(authorization)
     claims = token_service.decode_access_token(token)
@@ -63,6 +77,9 @@ async def get_current_user(
     host_slug = get_current_tenant_slug()
     if host_slug is not None and claims.tenant_slug != host_slug:
         raise UnauthorizedError("Token tenant does not match Host tenant")
+
+    if claims.sid is not None and await session_denylist.is_revoked(claims.sid):
+        raise UnauthorizedError("Session has been revoked")
 
     try:
         user: UserDto = await query_bus.ask(GetUserByIdQuery(user_id=claims.user_id))
@@ -92,18 +109,30 @@ async def get_current_user(
     )
 
 
+@inject
+async def get_authorization_service(
+    authorization: AuthorizationService = Depends(
+        Provide[Container.authorization_service]
+    ),
+) -> AuthorizationService:
+    """Module-level provider so route closures never carry wiring markers."""
+    return authorization
+
+
 def require_permission(*codes: str) -> AuthDependency:
-    """Require ALL listed permission codes."""
+    """Require ALL listed permission codes — decided by the AuthorizationService."""
 
     if not codes:
         raise ValueError("require_permission needs at least one code")
 
     async def _dependency(
+        request: Request,
         user: CurrentUser = Depends(get_current_user),
+        authorization: AuthorizationService = Depends(get_authorization_service),
     ) -> CurrentUser:
-        if not user.has_all_permissions(*codes):
-            missing = ", ".join(c for c in codes if not user.has_permission(c))
-            raise ForbiddenError(f"Missing permission(s): {missing}")
+        await authorization.authorize_all(
+            user=user, actions=codes, context=_request_context(request)
+        )
         return user
 
     return _dependency
@@ -116,12 +145,13 @@ def require_any_permission(*codes: str) -> AuthDependency:
         raise ValueError("require_any_permission needs at least one code")
 
     async def _dependency(
+        request: Request,
         user: CurrentUser = Depends(get_current_user),
+        authorization: AuthorizationService = Depends(get_authorization_service),
     ) -> CurrentUser:
-        if not user.has_any_permission(*codes):
-            raise ForbiddenError(
-                f"Requires one of permissions: {', '.join(codes)}"
-            )
+        await authorization.authorize_any(
+            user=user, actions=codes, context=_request_context(request)
+        )
         return user
 
     return _dependency

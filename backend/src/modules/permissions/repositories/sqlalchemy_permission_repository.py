@@ -4,16 +4,32 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.modules.permissions.entities.permission import Permission
 from src.modules.permissions.repositories.permission_model import PermissionModel
 from src.modules.permissions.repositories.permission_repository import PermissionRepository
 from src.modules.permissions.value_objects.permission_code import PermissionCode
 from src.modules.permissions.value_objects.permission_name import PermissionName
+from src.shared.infrastructure.security.permission_codes import (
+    PermissionCode as PermissionCatalog,
+)
 from src.shared.infrastructure.session_context import get_current_session
 from src.shared.infrastructure.tenant_scope import apply_tenant_scope
+
+
+def _code_matches(code: PermissionCode) -> ColumnElement[bool]:
+    """Match a permission by its canonical code or its legacy alias."""
+    wanted = {code.value, PermissionCatalog.canonical(code.value)}
+    legacy = PermissionCatalog.legacy(code.value)
+    if legacy:
+        wanted.add(legacy)
+    return or_(
+        PermissionModel.code.in_(wanted),
+        PermissionModel.legacy_code.in_(wanted),
+    )
 
 
 def _to_entity(model: PermissionModel) -> Permission:
@@ -31,6 +47,8 @@ def _to_entity(model: PermissionModel) -> Permission:
 
 def _apply_entity(model: PermissionModel, entity: Permission) -> None:
     model.code = entity.code.value
+    model.legacy_code = PermissionCatalog.legacy(entity.code.value)
+    model.service = entity.code.service or PermissionCatalog.service_of(entity.code.value)
     model.resource = entity.code.resource
     model.action = entity.code.action
     model.name = entity.name.value
@@ -54,7 +72,7 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
 
     async def get_by_code(self, code: PermissionCode) -> Permission | None:
         stmt = apply_tenant_scope(
-            select(PermissionModel).where(PermissionModel.code == code.value),
+            select(PermissionModel).where(_code_matches(code)),
             PermissionModel.tenant_id,
         )
         result = await self._session().execute(stmt)
@@ -66,6 +84,8 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
             id=entity.id,
             tenant_id=entity.tenant_id,
             code=entity.code.value,
+            legacy_code=PermissionCatalog.legacy(entity.code.value),
+            service=entity.code.service or PermissionCatalog.service_of(entity.code.value),
             resource=entity.code.resource,
             action=entity.code.action,
             name=entity.name.value,
@@ -102,7 +122,7 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
 
     async def exists_by_code(self, code: PermissionCode) -> bool:
         stmt = apply_tenant_scope(
-            select(PermissionModel.id).where(PermissionModel.code == code.value),
+            select(PermissionModel.id).where(_code_matches(code)),
             PermissionModel.tenant_id,
         )
         result = await self._session().execute(stmt)

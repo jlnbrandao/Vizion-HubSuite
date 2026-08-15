@@ -22,12 +22,16 @@ from src.modules.integrations.schemas import (
     WebhookReceiveResponse,
 )
 from src.modules.integrations.service import IntegrationService
+from src.modules.services.quotas import ServiceQuotaGuard
 from src.shared.application.unit_of_work import UnitOfWork
 from src.shared.infrastructure.di.container import Container
 from src.shared.infrastructure.exceptions import ValidationError
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.security.dependencies import require_permission
-from src.shared.infrastructure.security.permission_codes import PermissionCode
+from src.shared.infrastructure.security.permission_codes import (
+    SERVICE_INTEGRATION,
+    PermissionCode,
+)
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -157,10 +161,18 @@ async def test_integration(
 @inject
 async def sync_integration(
     integration_id: UUID,
-    _: CurrentUser = Depends(require_permission(PermissionCode.INTEGRATION_SYNC)),
+    actor: CurrentUser = Depends(require_permission(PermissionCode.INTEGRATION_SYNC)),
     service: IntegrationService = Depends(Provide[Container.integration_service]),
     uow_factory: UnitOfWork = Depends(Provide[Container.unit_of_work]),
+    quotas: ServiceQuotaGuard = Depends(Provide[Container.service_quota_guard]),
 ) -> IntegrationSyncResponse:
+    # Metered operation: the tenant's plan decides how often it may run.
+    await quotas.enforce(
+        tenant_id=actor.tenant_id,
+        namespace=SERVICE_INTEGRATION,
+        metric="sync_per_hour",
+        window_seconds=3600,
+    )
     async with uow_factory as uow:
         result = await service.sync(integration_id)
         await uow.commit()

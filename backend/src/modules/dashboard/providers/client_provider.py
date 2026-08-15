@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.modules.dashboard.dtos.dashboard_dtos import DashboardMenuItem, DashboardWidget
+from src.modules.dashboard.dtos.dashboard_dtos import DashboardWidget
 from src.modules.dashboard.providers.base import DashboardSectionProvider
 from src.modules.users.dtos.user_dtos import UserDto
 from src.modules.users.queries.user_queries import GetUserByIdQuery
@@ -18,24 +18,6 @@ class ClientDashboardProvider(DashboardSectionProvider):
     @property
     def required_permission(self) -> str:
         return PermissionCode.DASHBOARD_CLIENT
-
-    async def build_menu(self, user: CurrentUser) -> list[DashboardMenuItem]:
-        return [
-            DashboardMenuItem(
-                id="client-map",
-                label="Map",
-                route="/main",
-                icon="map",
-                required_permission=PermissionCode.DASHBOARD_CLIENT,
-            ),
-            DashboardMenuItem(
-                id="client-profile",
-                label="My data",
-                route="/me",
-                icon="person",
-                required_permission=PermissionCode.DASHBOARD_CLIENT,
-            ),
-        ]
 
     async def build_widgets(self, user: CurrentUser) -> list[DashboardWidget]:
         profile: UserDto = await self._query_bus.ask(GetUserByIdQuery(user_id=user.id))

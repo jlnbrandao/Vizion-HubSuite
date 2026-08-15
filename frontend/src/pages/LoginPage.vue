@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useNavigationStore } from '@/stores/navigation'
 import { homePath } from '@/utils/homeRoute'
 import logoBw from '@/assets/brand/logo-bw.png'
 import logoColor from '@/assets/brand/logo-color.png'
@@ -15,6 +16,7 @@ const router = useRouter()
 const $q = useQuasar()
 const auth = useAuthStore()
 const dashboard = useDashboardStore()
+const navigation = useNavigationStore()
 
 const form = reactive({
   login: '',
@@ -70,6 +72,7 @@ async function onSubmit() {
     $q.notify({ type: 'positive', message: 'Welcome to Lanstar', position: 'top' })
     await router.replace(postLoginPath())
     void dashboard.load()
+    void navigation.load()
   } catch (err) {
     if (err instanceof Error && err.message === 'mfa_required') {
       await router.push({ name: 'mfa-challenge' })

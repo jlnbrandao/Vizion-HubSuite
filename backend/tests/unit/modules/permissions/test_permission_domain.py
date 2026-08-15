@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
-
 import pytest
 
 from src.modules.permissions.entities.permission import Permission
@@ -21,18 +19,33 @@ def test_permission_code_validates_format() -> None:
     assert code.value == "users.create"
     assert code.resource == "users"
     assert code.action == "create"
+    assert code.service is None
 
     with pytest.raises(ValueError):
         PermissionCode(value="Invalid")
 
 
+def test_permission_code_accepts_namespaced_form() -> None:
+    code = PermissionCode.from_primitive("IAM.Users.Create")
+    assert code.value == "iam.users.create"
+    assert code.is_namespaced
+    assert code.service == "iam"
+    assert code.resource == "users"
+    assert code.action == "create"
+
+    with pytest.raises(ValueError):
+        PermissionCode(value="iam.users.create.extra")
+
+
 def test_permission_catalog_covers_all_codes() -> None:
     from src.shared.infrastructure.security.permission_codes import (
         PermissionAction,
+    )
+    from src.shared.infrastructure.security.permission_codes import (
         PermissionCode as CatalogCode,
     )
 
-    assert set(CatalogCode.all_codes()) == {item.code for item in CatalogCode.catalog()}
+    assert set(CatalogCode.all_codes()) <= CatalogCode.known_codes()
     assert PermissionAction.CREATE in PermissionAction.all()
     assert CatalogCode.definition_for(CatalogCode.USERS_CREATE) is not None
     assert CatalogCode.definition_for(CatalogCode.USERS_CREATE).name == "Create users"

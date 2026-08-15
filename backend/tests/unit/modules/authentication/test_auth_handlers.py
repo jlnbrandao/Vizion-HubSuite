@@ -38,6 +38,7 @@ from src.modules.users.value_objects.plain_password import PlainPassword
 from src.shared.application.event_bus import EventBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.exceptions import UnauthorizedError
+from src.shared.infrastructure.security.session_denylist import InMemorySessionDenylist
 from tests.unit.conftest import UNIVERSE_TENANT_ID
 from tests.unit.shared.in_memory_unit_of_work import InMemoryUnitOfWork
 
@@ -177,14 +178,19 @@ def login_handler(
 
 
 @pytest.fixture
-def logout_handler(refresh_store, event_bus, uow_factory):
-    from uuid import uuid4
+def session_denylist() -> InMemorySessionDenylist:
+    return InMemorySessionDenylist()
 
+
+@pytest.fixture
+def logout_handler(refresh_store, event_bus, uow_factory, session_denylist):
     class FakeSessions:
         async def revoke(self, *args, **kwargs):
             return True
 
-    return LogoutHandler(refresh_store, event_bus, uow_factory, FakeSessions())
+    return LogoutHandler(
+        refresh_store, event_bus, uow_factory, FakeSessions(), session_denylist
+    )
 
 
 @pytest.fixture
@@ -214,7 +220,8 @@ async def test_login_success_with_email(seeded_user, login_handler, token_servic
     assert pair.email == "admin@lanstar.io"
     assert pair.user_id == seeded_user
     claims = token_service.decode_access_token(pair.access_token)
-    assert claims.email == "admin@lanstar.io"
+    assert claims.user_id == seeded_user
+    assert claims.sid is not None
     assert len(pair.refresh_token) >= 32
 
 
@@ -283,9 +290,11 @@ async def test_logout_invalidates_refresh(
 
 @pytest.mark.asyncio
 async def test_refresh_reloads_role_ids_from_db(
-    seeded_user, login_handler, refresh_handler, token_service, users_repo, uow_factory
+    seeded_user, login_handler, refresh_handler, refresh_store, users_repo, uow_factory
 ) -> None:
     from uuid import uuid4
+
+    from src.modules.authentication.value_objects.refresh_token import RefreshToken
 
     pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123!"))
     new_role_id = uuid4()
@@ -301,8 +310,25 @@ async def test_refresh_reloads_role_ids_from_db(
     new_pair = await refresh_handler.handle(
         RefreshTokenCommand(refresh_token=pair.refresh_token)
     )
-    claims = token_service.decode_access_token(new_pair.access_token)
-    assert claims.role_ids == (new_role_id,)
+    stored = await refresh_store.get(
+        RefreshToken.from_primitive(new_pair.refresh_token)
+    )
+    assert stored is not None
+    assert stored.role_ids == (new_role_id,)
+
+
+@pytest.mark.asyncio
+async def test_logout_denylists_the_session(
+    seeded_user, login_handler, logout_handler, session_denylist, token_service
+) -> None:
+    pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123!"))
+    claims = token_service.decode_access_token(pair.access_token)
+    assert claims.sid is not None
+    assert not await session_denylist.is_revoked(claims.sid)
+
+    await logout_handler.handle(LogoutCommand(refresh_token=pair.refresh_token))
+
+    assert await session_denylist.is_revoked(claims.sid)
 
 
 @pytest.mark.asyncio

@@ -65,7 +65,8 @@ class SessionService:
         result = await db.execute(stmt)
         return bool(result.rowcount)
 
-    async def revoke_all_for_user(self, user_id: UUID) -> int:
+    async def revoke_all_for_user(self, user_id: UUID) -> list[UUID]:
+        """Revoke every live session and return the affected session ids."""
         db = get_current_session()
         result = await db.execute(
             update(AuthSessionModel)
@@ -75,5 +76,6 @@ class SessionService:
                 AuthSessionModel.revoked_at.is_(None),
             )
             .values(revoked_at=datetime.now(UTC))
+            .returning(AuthSessionModel.id)
         )
-        return int(result.rowcount or 0)
+        return [row[0] for row in result.all()]

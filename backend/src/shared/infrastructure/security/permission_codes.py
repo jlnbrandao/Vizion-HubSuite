@@ -1,18 +1,59 @@
-"""Canonical permission codes used by RBAC (resource.action).
+"""Canonical permission catalog — the single source of truth for RBAC codes.
 
-Routes and frontend should reference these constants — never hardcode strings ad hoc.
+Codes are namespaced as `service.resource.action` (e.g. `iam.users.create`). Every
+entry also carries the legacy `resource.action` alias so existing routes, seeds and
+tokens keep working until the aliases are dropped in an explicit later step.
 
-Besides the code string, each catalog entry carries metadata (resource, action, name,
-description) so UIs can list by resource, filter by action, and render labels.
+Routes and the frontend reference these constants — never ad-hoc strings. The
+frontend copy in `frontend/src/constants/permissions.ts` is generated from here by
+`scripts/generate_frontend_permissions.py`; do not edit it by hand.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+SERVICE_IAM = "iam"
+SERVICE_PLATFORM = "platform"
+SERVICE_INTEGRATION = "integration"
+
+#: Stable resource → service map. A resource may only ever move service with a
+#: migration, since it changes the canonical code.
+SERVICE_BY_RESOURCE: dict[str, str] = {
+    "users": SERVICE_IAM,
+    "roles": SERVICE_IAM,
+    "permissions": SERVICE_IAM,
+    "permission_groups": SERVICE_IAM,
+    "dashboard": SERVICE_IAM,
+    "system": SERVICE_IAM,
+    "audit": SERVICE_IAM,
+    "sessions": SERVICE_IAM,
+    "oauth_clients": SERVICE_IAM,
+    "service_accounts": SERVICE_IAM,
+    "api_keys": SERVICE_IAM,
+    "federation": SERVICE_IAM,
+    "policies": SERVICE_IAM,
+    "acl": SERVICE_IAM,
+    "scim": SERVICE_IAM,
+    "tenants": SERVICE_PLATFORM,
+    "services": SERVICE_PLATFORM,
+    "usage": SERVICE_PLATFORM,
+    "integration": SERVICE_INTEGRATION,
+}
+
+
+def service_for_resource(resource: str) -> str:
+    """Service that owns a resource. Unknown resources are a catalog bug."""
+    try:
+        return SERVICE_BY_RESOURCE[resource]
+    except KeyError as exc:
+        raise ValueError(
+            f"Unknown permission resource '{resource}' — add it to SERVICE_BY_RESOURCE"
+        ) from exc
+
 
 class PermissionAction:
-    """Standardized action verbs for `resource.action` codes.
+    """Standardized action verbs for permission codes.
 
     Prefer these bare verbs. The resource already scopes meaning
     (e.g. `users.assign` vs `roles.assign`).
@@ -49,19 +90,44 @@ class PermissionDefinition:
     """Catalog metadata for a permission code."""
 
     code: str
+    legacy_code: str
+    service: str
     name: str
     description: str
 
     @property
     def resource(self) -> str:
-        return self.code.split(".", 1)[0]
+        return self.legacy_code.split(".", 1)[0]
 
     @property
     def action(self) -> str:
-        return self.code.split(".", 1)[1]
+        return self.legacy_code.split(".", 1)[1]
+
+    @property
+    def codes(self) -> tuple[str, ...]:
+        """Canonical code plus its legacy alias."""
+        return (self.code, self.legacy_code)
+
+
+def _definition(legacy_code: str, name: str, description: str) -> PermissionDefinition:
+    resource, action = legacy_code.split(".", 1)
+    service = service_for_resource(resource)
+    return PermissionDefinition(
+        code=f"{service}.{resource}.{action}",
+        legacy_code=legacy_code,
+        service=service,
+        name=name,
+        description=description,
+    )
 
 
 class PermissionCode:
+    """Legacy `resource.action` constants — still the form used by routes.
+
+    Use `canonical()` when the namespaced form is needed, and `expand()` to build a
+    set that satisfies both forms.
+    """
+
     USERS_CREATE = "users.create"
     USERS_READ = "users.read"
     USERS_UPDATE = "users.update"
@@ -79,6 +145,9 @@ class PermissionCode:
     PERMISSIONS_UPDATE = "permissions.update"
     PERMISSIONS_DELETE = "permissions.delete"
 
+    PERMISSION_GROUPS_READ = "permission_groups.read"
+    PERMISSION_GROUPS_MANAGE = "permission_groups.manage"
+
     DASHBOARD_ADMIN = "dashboard.admin"
     DASHBOARD_MANAGER = "dashboard.manager"
     DASHBOARD_OPERATOR = "dashboard.operator"
@@ -93,6 +162,12 @@ class PermissionCode:
     TENANTS_UPDATE = "tenants.update"
     TENANTS_ACTIVATE = "tenants.activate"
     TENANTS_DEACTIVATE = "tenants.deactivate"
+
+    SERVICES_READ = "services.read"
+    SERVICES_MANAGE = "services.manage"
+
+    USAGE_READ = "usage.read"
+    USAGE_READ_ALL = "usage.read_all"
 
     # IAM platform
     AUDIT_READ = "audit.read"
@@ -117,6 +192,9 @@ class PermissionCode:
     POLICIES_UPDATE = "policies.update"
     POLICIES_DELETE = "policies.delete"
     SCIM_PROVISION = "scim.provision"
+    ACL_READ = "acl.read"
+    ACL_GRANT = "acl.grant"
+    ACL_REVOKE = "acl.revoke"
 
     # Integration hub
     INTEGRATION_READ = "integration.read"
@@ -129,25 +207,12 @@ class PermissionCode:
 
     @classmethod
     def platform_only_codes(cls) -> frozenset[str]:
-        """Codes that must not be granted inside ordinary tenant RBAC."""
-        return frozenset(
-            {
-                cls.DASHBOARD_PLATFORM,
-                cls.SYSTEM_SETTINGS,
-                cls.TENANTS_CREATE,
-                cls.TENANTS_READ,
-                cls.TENANTS_UPDATE,
-                cls.TENANTS_ACTIVATE,
-                cls.TENANTS_DEACTIVATE,
-                cls.INTEGRATION_READ,
-                cls.INTEGRATION_CREATE,
-                cls.INTEGRATION_UPDATE,
-                cls.INTEGRATION_DELETE,
-                cls.INTEGRATION_TEST,
-                cls.INTEGRATION_SYNC,
-                cls.INTEGRATION_LOGS_READ,
-            }
-        )
+        """Codes that must not be granted inside ordinary tenant RBAC.
+
+        Returns both the canonical and legacy form of each code so membership tests
+        work no matter which shape the caller holds.
+        """
+        return _PLATFORM_ONLY_CODES
 
     @classmethod
     def admin_role_codes(cls) -> frozenset[str]:
@@ -168,7 +233,10 @@ class PermissionCode:
                 cls.PERMISSIONS_READ,
                 cls.PERMISSIONS_UPDATE,
                 cls.PERMISSIONS_DELETE,
+                cls.PERMISSION_GROUPS_READ,
+                cls.PERMISSION_GROUPS_MANAGE,
                 cls.DASHBOARD_ADMIN,
+                cls.USAGE_READ,
                 cls.AUDIT_READ,
                 cls.SESSIONS_REVOKE,
                 cls.OAUTH_CLIENTS_CREATE,
@@ -191,11 +259,15 @@ class PermissionCode:
                 cls.POLICIES_UPDATE,
                 cls.POLICIES_DELETE,
                 cls.SCIM_PROVISION,
+                cls.ACL_READ,
+                cls.ACL_GRANT,
+                cls.ACL_REVOKE,
             }
         )
 
     @classmethod
     def all_codes(cls) -> tuple[str, ...]:
+        """Legacy constants declared on this class."""
         return tuple(
             value
             for key, value in vars(cls).items()
@@ -208,287 +280,434 @@ class PermissionCode:
 
     @classmethod
     def definition_for(cls, code: str) -> PermissionDefinition | None:
+        """Look a definition up by either the canonical or the legacy code."""
         return _CATALOG_BY_CODE.get(code)
+
+    @classmethod
+    def canonical(cls, code: str) -> str:
+        """Namespaced form of a code; unknown codes are returned unchanged."""
+        definition = _CATALOG_BY_CODE.get(code)
+        return definition.code if definition else code
+
+    @classmethod
+    def legacy(cls, code: str) -> str | None:
+        definition = _CATALOG_BY_CODE.get(code)
+        return definition.legacy_code if definition else None
+
+    @classmethod
+    def service_of(cls, code: str) -> str | None:
+        """Service of a code: from the catalog, the namespace, or the resource map."""
+        definition = _CATALOG_BY_CODE.get(code)
+        if definition is not None:
+            return definition.service
+        parts = code.split(".")
+        if len(parts) >= 3:
+            return parts[0]
+        if len(parts) == 2:
+            return SERVICE_BY_RESOURCE.get(parts[0])
+        return None
+
+    @classmethod
+    def aliases(cls, code: str) -> frozenset[str]:
+        """Every accepted form of a code (canonical + legacy)."""
+        definition = _CATALOG_BY_CODE.get(code)
+        return frozenset(definition.codes) if definition else frozenset({code})
+
+    @classmethod
+    def expand(cls, codes: frozenset[str] | set[str] | tuple[str, ...]) -> frozenset[str]:
+        """Add the missing alias for each code so both forms authorize equally."""
+        expanded: set[str] = set()
+        for code in codes:
+            expanded.add(code)
+            definition = _CATALOG_BY_CODE.get(code)
+            if definition is not None:
+                expanded.update(definition.codes)
+        return frozenset(expanded)
+
+    @classmethod
+    def codes_for_service(cls, service: str) -> frozenset[str]:
+        return frozenset(item.code for item in PERMISSION_CATALOG if item.service == service)
+
+    @classmethod
+    def known_codes(cls) -> frozenset[str]:
+        """Every catalog code in both forms."""
+        return frozenset(_CATALOG_BY_CODE)
+
+    @classmethod
+    def bundles(cls) -> tuple[PermissionBundleDefinition, ...]:
+        return PERMISSION_BUNDLES
+
+    @classmethod
+    def bundle(cls, slug: str) -> PermissionBundleDefinition:
+        try:
+            return _BUNDLES_BY_SLUG[slug]
+        except KeyError as exc:
+            raise ValueError(f"Unknown permission bundle: {slug}") from exc
 
 
 PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
-    PermissionDefinition(
-        code=PermissionCode.USERS_CREATE,
-        name="Create users",
-        description="Allows creating users",
+    _definition("users.create", "Create users", "Allows creating users"),
+    _definition("users.read", "Read users", "Allows viewing users"),
+    _definition("users.update", "Update users", "Allows editing users"),
+    _definition("users.delete", "Delete users", "Allows deleting users"),
+    _definition(
+        "users.assign",
+        "Assign user roles",
+        "Allows assigning and removing user roles",
     ),
-    PermissionDefinition(
-        code=PermissionCode.USERS_READ,
-        name="Read users",
-        description="Allows viewing users",
+    _definition("roles.create", "Create roles", "Allows creating roles"),
+    _definition("roles.read", "Read roles", "Allows viewing roles"),
+    _definition("roles.update", "Update roles", "Allows editing roles"),
+    _definition("roles.delete", "Delete roles", "Allows deleting roles"),
+    _definition(
+        "roles.assign",
+        "Assign role permissions",
+        "Allows assigning and removing role permissions",
     ),
-    PermissionDefinition(
-        code=PermissionCode.USERS_UPDATE,
-        name="Update users",
-        description="Allows editing users",
+    _definition("permissions.create", "Create permissions", "Allows creating permissions"),
+    _definition("permissions.read", "Read permissions", "Allows viewing permissions"),
+    _definition("permissions.update", "Update permissions", "Allows editing permissions"),
+    _definition("permissions.delete", "Delete permissions", "Allows deleting permissions"),
+    _definition(
+        "permission_groups.read",
+        "Read permission bundles",
+        "Allows viewing permission bundles",
     ),
-    PermissionDefinition(
-        code=PermissionCode.USERS_DELETE,
-        name="Delete users",
-        description="Allows deleting users",
+    _definition(
+        "permission_groups.manage",
+        "Manage permission bundles",
+        "Allows creating bundles and composing roles from them",
     ),
-    PermissionDefinition(
-        code=PermissionCode.USERS_ASSIGN,
-        name="Assign user roles",
-        description="Allows assigning and removing user roles",
+    _definition(
+        "dashboard.admin",
+        "Dashboard admin",
+        "Access to the admin dashboard section",
     ),
-    PermissionDefinition(
-        code=PermissionCode.ROLES_CREATE,
-        name="Create roles",
-        description="Allows creating roles",
+    _definition(
+        "dashboard.manager",
+        "Dashboard manager",
+        "Access to the manager dashboard section",
     ),
-    PermissionDefinition(
-        code=PermissionCode.ROLES_READ,
-        name="Read roles",
-        description="Allows viewing roles",
+    _definition(
+        "dashboard.operator",
+        "Dashboard operator",
+        "Access to the operator dashboard section",
     ),
-    PermissionDefinition(
-        code=PermissionCode.ROLES_UPDATE,
-        name="Update roles",
-        description="Allows editing roles",
+    _definition(
+        "dashboard.client",
+        "Dashboard client",
+        "Access to the client dashboard section",
     ),
-    PermissionDefinition(
-        code=PermissionCode.ROLES_DELETE,
-        name="Delete roles",
-        description="Allows deleting roles",
+    _definition(
+        "dashboard.viewer",
+        "Dashboard viewer",
+        "Access to the viewer dashboard section",
     ),
-    PermissionDefinition(
-        code=PermissionCode.ROLES_ASSIGN,
-        name="Assign role permissions",
-        description="Allows assigning and removing role permissions",
+    _definition(
+        "dashboard.platform",
+        "Dashboard platform",
+        "Access to the platform tenant administration section",
     ),
-    PermissionDefinition(
-        code=PermissionCode.PERMISSIONS_CREATE,
-        name="Create permissions",
-        description="Allows creating permissions",
+    _definition("system.settings", "System settings", "Allows managing system settings"),
+    _definition("tenants.create", "Create tenants", "Allows creating tenants (platform)"),
+    _definition("tenants.read", "Read tenants", "Allows listing tenants (platform)"),
+    _definition("tenants.update", "Update tenants", "Allows renaming tenants (platform)"),
+    _definition(
+        "tenants.activate",
+        "Activate tenants",
+        "Allows activating tenants (platform)",
     ),
-    PermissionDefinition(
-        code=PermissionCode.PERMISSIONS_READ,
-        name="Read permissions",
-        description="Allows viewing permissions",
+    _definition(
+        "tenants.deactivate",
+        "Deactivate tenants",
+        "Allows suspending tenants (platform)",
     ),
-    PermissionDefinition(
-        code=PermissionCode.PERMISSIONS_UPDATE,
-        name="Update permissions",
-        description="Allows editing permissions",
+    _definition(
+        "services.read",
+        "Read service catalog",
+        "Allows listing Hub services and tenant entitlements",
     ),
-    PermissionDefinition(
-        code=PermissionCode.PERMISSIONS_DELETE,
-        name="Delete permissions",
-        description="Allows deleting permissions",
+    _definition(
+        "services.manage",
+        "Manage service entitlements",
+        "Allows enabling, suspending and quoting services per tenant",
     ),
-    PermissionDefinition(
-        code=PermissionCode.DASHBOARD_ADMIN,
-        name="Dashboard admin",
-        description="Access to the admin dashboard section",
+    _definition(
+        "usage.read",
+        "Read usage",
+        "Allows viewing the own tenant's metered usage",
     ),
-    PermissionDefinition(
-        code=PermissionCode.DASHBOARD_MANAGER,
-        name="Dashboard manager",
-        description="Access to the manager dashboard section",
+    _definition(
+        "usage.read_all",
+        "Read usage of every tenant",
+        "Allows viewing metered usage across tenants (platform)",
     ),
-    PermissionDefinition(
-        code=PermissionCode.DASHBOARD_OPERATOR,
-        name="Dashboard operator",
-        description="Access to the operator dashboard section",
+    _definition("audit.read", "Read audit events", "Allows viewing the audit trail"),
+    _definition("sessions.revoke", "Revoke sessions", "Allows revoking user sessions"),
+    _definition(
+        "oauth_clients.create",
+        "Create OAuth clients",
+        "Allows registering OAuth/OIDC clients",
     ),
-    PermissionDefinition(
-        code=PermissionCode.DASHBOARD_CLIENT,
-        name="Dashboard client",
-        description="Access to the client dashboard section",
+    _definition(
+        "oauth_clients.read",
+        "Read OAuth clients",
+        "Allows listing OAuth/OIDC clients",
     ),
-    PermissionDefinition(
-        code=PermissionCode.DASHBOARD_VIEWER,
-        name="Dashboard viewer",
-        description="Access to the viewer dashboard section",
+    _definition(
+        "oauth_clients.update",
+        "Update OAuth clients",
+        "Allows updating OAuth/OIDC clients",
     ),
-    PermissionDefinition(
-        code=PermissionCode.DASHBOARD_PLATFORM,
-        name="Dashboard platform",
-        description="Access to the platform tenant administration section",
+    _definition(
+        "oauth_clients.delete",
+        "Delete OAuth clients",
+        "Allows deleting OAuth/OIDC clients",
     ),
-    PermissionDefinition(
-        code=PermissionCode.SYSTEM_SETTINGS,
-        name="System settings",
-        description="Allows managing system settings",
+    _definition(
+        "service_accounts.create",
+        "Create service accounts",
+        "Allows creating non-human identities",
     ),
-    PermissionDefinition(
-        code=PermissionCode.TENANTS_CREATE,
-        name="Create tenants",
-        description="Allows creating tenants (platform)",
+    _definition(
+        "service_accounts.read",
+        "Read service accounts",
+        "Allows listing service accounts",
     ),
-    PermissionDefinition(
-        code=PermissionCode.TENANTS_READ,
-        name="Read tenants",
-        description="Allows listing tenants (platform)",
+    _definition(
+        "service_accounts.update",
+        "Update service accounts",
+        "Allows updating service accounts",
     ),
-    PermissionDefinition(
-        code=PermissionCode.TENANTS_UPDATE,
-        name="Update tenants",
-        description="Allows renaming tenants (platform)",
+    _definition(
+        "service_accounts.delete",
+        "Delete service accounts",
+        "Allows deleting service accounts",
     ),
-    PermissionDefinition(
-        code=PermissionCode.TENANTS_ACTIVATE,
-        name="Activate tenants",
-        description="Allows activating tenants (platform)",
+    _definition("api_keys.create", "Create API keys", "Allows issuing API keys"),
+    _definition("api_keys.read", "Read API keys", "Allows listing API keys"),
+    _definition("api_keys.delete", "Delete API keys", "Allows revoking API keys"),
+    _definition(
+        "federation.create",
+        "Create identity providers",
+        "Allows configuring SSO/federation IdPs",
     ),
-    PermissionDefinition(
-        code=PermissionCode.TENANTS_DEACTIVATE,
-        name="Deactivate tenants",
-        description="Allows suspending tenants (platform)",
+    _definition(
+        "federation.read",
+        "Read identity providers",
+        "Allows listing SSO/federation IdPs",
     ),
-    PermissionDefinition(
-        code=PermissionCode.AUDIT_READ,
-        name="Read audit events",
-        description="Allows viewing the audit trail",
+    _definition(
+        "federation.update",
+        "Update identity providers",
+        "Allows updating SSO/federation IdPs",
     ),
-    PermissionDefinition(
-        code=PermissionCode.SESSIONS_REVOKE,
-        name="Revoke sessions",
-        description="Allows revoking user sessions",
+    _definition(
+        "federation.delete",
+        "Delete identity providers",
+        "Allows removing SSO/federation IdPs",
     ),
-    PermissionDefinition(
-        code=PermissionCode.OAUTH_CLIENTS_CREATE,
-        name="Create OAuth clients",
-        description="Allows registering OAuth/OIDC clients",
+    _definition(
+        "policies.create",
+        "Create access policies",
+        "Allows creating ABAC/auth policies",
     ),
-    PermissionDefinition(
-        code=PermissionCode.OAUTH_CLIENTS_READ,
-        name="Read OAuth clients",
-        description="Allows listing OAuth/OIDC clients",
+    _definition(
+        "policies.read",
+        "Read access policies",
+        "Allows viewing ABAC/auth policies",
     ),
-    PermissionDefinition(
-        code=PermissionCode.OAUTH_CLIENTS_UPDATE,
-        name="Update OAuth clients",
-        description="Allows updating OAuth/OIDC clients",
+    _definition(
+        "policies.update",
+        "Update access policies",
+        "Allows updating ABAC/auth policies",
     ),
-    PermissionDefinition(
-        code=PermissionCode.OAUTH_CLIENTS_DELETE,
-        name="Delete OAuth clients",
-        description="Allows deleting OAuth/OIDC clients",
+    _definition(
+        "policies.delete",
+        "Delete access policies",
+        "Allows deleting ABAC/auth policies",
     ),
-    PermissionDefinition(
-        code=PermissionCode.SERVICE_ACCOUNTS_CREATE,
-        name="Create service accounts",
-        description="Allows creating non-human identities",
+    _definition("scim.provision", "SCIM provision", "Allows SCIM user/group provisioning"),
+    _definition(
+        "acl.read",
+        "Read resource ACLs",
+        "Allows viewing per-resource access control entries",
     ),
-    PermissionDefinition(
-        code=PermissionCode.SERVICE_ACCOUNTS_READ,
-        name="Read service accounts",
-        description="Allows listing service accounts",
+    _definition(
+        "acl.grant",
+        "Grant resource ACLs",
+        "Allows creating per-resource allow/deny entries",
     ),
-    PermissionDefinition(
-        code=PermissionCode.SERVICE_ACCOUNTS_UPDATE,
-        name="Update service accounts",
-        description="Allows updating service accounts",
+    _definition(
+        "acl.revoke",
+        "Revoke resource ACLs",
+        "Allows removing per-resource access control entries",
     ),
-    PermissionDefinition(
-        code=PermissionCode.SERVICE_ACCOUNTS_DELETE,
-        name="Delete service accounts",
-        description="Allows deleting service accounts",
+    _definition("integration.read", "Read integrations", "Allows viewing integrations"),
+    _definition("integration.create", "Create integrations", "Allows creating integrations"),
+    _definition("integration.update", "Update integrations", "Allows updating integrations"),
+    _definition("integration.delete", "Delete integrations", "Allows deleting integrations"),
+    _definition(
+        "integration.test",
+        "Test integrations",
+        "Allows testing integration connections",
     ),
-    PermissionDefinition(
-        code=PermissionCode.API_KEYS_CREATE,
-        name="Create API keys",
-        description="Allows issuing API keys",
+    _definition(
+        "integration.sync",
+        "Sync integrations",
+        "Allows running integration synchronization",
     ),
-    PermissionDefinition(
-        code=PermissionCode.API_KEYS_READ,
-        name="Read API keys",
-        description="Allows listing API keys",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.API_KEYS_DELETE,
-        name="Delete API keys",
-        description="Allows revoking API keys",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.FEDERATION_CREATE,
-        name="Create identity providers",
-        description="Allows configuring SSO/federation IdPs",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.FEDERATION_READ,
-        name="Read identity providers",
-        description="Allows listing SSO/federation IdPs",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.FEDERATION_UPDATE,
-        name="Update identity providers",
-        description="Allows updating SSO/federation IdPs",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.FEDERATION_DELETE,
-        name="Delete identity providers",
-        description="Allows removing SSO/federation IdPs",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.POLICIES_CREATE,
-        name="Create access policies",
-        description="Allows creating ABAC/auth policies",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.POLICIES_READ,
-        name="Read access policies",
-        description="Allows viewing ABAC/auth policies",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.POLICIES_UPDATE,
-        name="Update access policies",
-        description="Allows updating ABAC/auth policies",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.POLICIES_DELETE,
-        name="Delete access policies",
-        description="Allows deleting ABAC/auth policies",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.SCIM_PROVISION,
-        name="SCIM provision",
-        description="Allows SCIM user/group provisioning",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.INTEGRATION_READ,
-        name="Read integrations",
-        description="Allows viewing integrations",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.INTEGRATION_CREATE,
-        name="Create integrations",
-        description="Allows creating integrations",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.INTEGRATION_UPDATE,
-        name="Update integrations",
-        description="Allows updating integrations",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.INTEGRATION_DELETE,
-        name="Delete integrations",
-        description="Allows deleting integrations",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.INTEGRATION_TEST,
-        name="Test integrations",
-        description="Allows testing integration connections",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.INTEGRATION_SYNC,
-        name="Sync integrations",
-        description="Allows running integration synchronization",
-    ),
-    PermissionDefinition(
-        code=PermissionCode.INTEGRATION_LOGS_READ,
-        name="Read integration logs",
-        description="Allows viewing integration sync/test logs",
+    _definition(
+        "integration.read_logs",
+        "Read integration logs",
+        "Allows viewing integration sync/test logs",
     ),
 )
 
-_CATALOG_BY_CODE: dict[str, PermissionDefinition] = {
-    item.code: item for item in PERMISSION_CATALOG
+@dataclass(frozen=True, slots=True)
+class PermissionBundleDefinition:
+    """Seeded bundle: a named set of codes inside one service."""
+
+    slug: str
+    service: str
+    name: str
+    description: str
+    legacy_codes: tuple[str, ...]
+
+    @property
+    def codes(self) -> tuple[str, ...]:
+        """Canonical codes of the bundle members."""
+        return tuple(PermissionCode.canonical(code) for code in self.legacy_codes)
+
+
+def _bundle(
+    slug: str,
+    name: str,
+    description: str,
+    legacy_codes: frozenset[str] | set[str] | tuple[str, ...],
+) -> PermissionBundleDefinition:
+    service = slug.split(".", 1)[0]
+    return PermissionBundleDefinition(
+        slug=slug,
+        service=service,
+        name=name,
+        description=description,
+        legacy_codes=tuple(sorted(legacy_codes)),
+    )
+
+
+_CATALOG_BY_CODE: dict[str, PermissionDefinition] = {}
+for _item in PERMISSION_CATALOG:
+    _CATALOG_BY_CODE[_item.code] = _item
+    _CATALOG_BY_CODE[_item.legacy_code] = _item
+
+_PLATFORM_ONLY_LEGACY: frozenset[str] = frozenset(
+    {
+        PermissionCode.DASHBOARD_PLATFORM,
+        PermissionCode.SYSTEM_SETTINGS,
+        PermissionCode.TENANTS_CREATE,
+        PermissionCode.TENANTS_READ,
+        PermissionCode.TENANTS_UPDATE,
+        PermissionCode.TENANTS_ACTIVATE,
+        PermissionCode.TENANTS_DEACTIVATE,
+        PermissionCode.SERVICES_READ,
+        PermissionCode.SERVICES_MANAGE,
+        PermissionCode.USAGE_READ_ALL,
+        PermissionCode.INTEGRATION_READ,
+        PermissionCode.INTEGRATION_CREATE,
+        PermissionCode.INTEGRATION_UPDATE,
+        PermissionCode.INTEGRATION_DELETE,
+        PermissionCode.INTEGRATION_TEST,
+        PermissionCode.INTEGRATION_SYNC,
+        PermissionCode.INTEGRATION_LOGS_READ,
+    }
+)
+
+_PLATFORM_ONLY_CODES: frozenset[str] = frozenset(
+    code
+    for legacy in _PLATFORM_ONLY_LEGACY
+    for code in (_CATALOG_BY_CODE[legacy].codes if legacy in _CATALOG_BY_CODE else (legacy,))
+)
+
+#: Seeded bundles. Roles compose these instead of enumerating dozens of codes;
+#: `role_permissions` stays available for fine-grained exceptions.
+PERMISSION_BUNDLES: tuple[PermissionBundleDefinition, ...] = (
+    _bundle(
+        "iam.admin",
+        "IAM administration",
+        "Identity, RBAC and IAM platform administration",
+        PermissionCode.admin_role_codes(),
+    ),
+    _bundle(
+        "iam.manager",
+        "IAM manager",
+        "User oversight and read-only RBAC",
+        {
+            PermissionCode.USERS_READ,
+            PermissionCode.USERS_UPDATE,
+            PermissionCode.ROLES_READ,
+            PermissionCode.PERMISSIONS_READ,
+            PermissionCode.DASHBOARD_MANAGER,
+        },
+    ),
+    _bundle(
+        "iam.operator",
+        "IAM operator",
+        "Day-to-day operations",
+        {PermissionCode.USERS_READ, PermissionCode.DASHBOARD_OPERATOR},
+    ),
+    _bundle(
+        "iam.client",
+        "IAM client",
+        "Own profile access only",
+        {PermissionCode.DASHBOARD_CLIENT},
+    ),
+    _bundle(
+        "iam.viewer",
+        "IAM viewer",
+        "Read-only system overview",
+        {
+            PermissionCode.USERS_READ,
+            PermissionCode.ROLES_READ,
+            PermissionCode.PERMISSIONS_READ,
+            PermissionCode.DASHBOARD_VIEWER,
+        },
+    ),
+    _bundle(
+        "platform.admin",
+        "Platform administration",
+        "Cross-tenant administration and system settings",
+        {
+            PermissionCode.DASHBOARD_PLATFORM,
+            PermissionCode.SYSTEM_SETTINGS,
+            PermissionCode.TENANTS_CREATE,
+            PermissionCode.TENANTS_READ,
+            PermissionCode.TENANTS_UPDATE,
+            PermissionCode.TENANTS_ACTIVATE,
+            PermissionCode.TENANTS_DEACTIVATE,
+            PermissionCode.SERVICES_READ,
+            PermissionCode.SERVICES_MANAGE,
+            # Own-tenant `usage.read` is a tenant-admin code; the platform reads
+            # every tenant through `usage.read_all`.
+            PermissionCode.USAGE_READ_ALL,
+        },
+    ),
+    _bundle(
+        "integration.admin",
+        "Integration administration",
+        "Full control over the integration hub",
+        {
+            PermissionCode.INTEGRATION_READ,
+            PermissionCode.INTEGRATION_CREATE,
+            PermissionCode.INTEGRATION_UPDATE,
+            PermissionCode.INTEGRATION_DELETE,
+            PermissionCode.INTEGRATION_TEST,
+            PermissionCode.INTEGRATION_SYNC,
+            PermissionCode.INTEGRATION_LOGS_READ,
+        },
+    ),
+)
+
+_BUNDLES_BY_SLUG: dict[str, PermissionBundleDefinition] = {
+    bundle.slug: bundle for bundle in PERMISSION_BUNDLES
 }

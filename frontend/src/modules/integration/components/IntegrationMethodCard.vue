@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { MethodComparisonRow, RecommendationTier } from '@/layers/integration'
+import type { MethodComparisonRow, RecommendationTier } from '@/modules/integration/data'
 
 const props = defineProps<{
   method: MethodComparisonRow

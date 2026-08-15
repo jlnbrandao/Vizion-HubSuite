@@ -17,8 +17,9 @@ import asyncio
 import logging
 import sys
 from dataclasses import dataclass
-from uuid import UUID
+from uuid import UUID, uuid4
 
+from src.config.settings import get_settings
 from src.modules.permissions.commands.permission_commands import (
     CreatePermissionCommand,
     DeletePermissionCommand,
@@ -32,6 +33,8 @@ from src.modules.roles.commands.role_commands import (
     ReplaceRolePermissionsCommand,
 )
 from src.modules.roles.value_objects.role_name import RoleName
+from src.modules.services.catalog import CORE_SERVICES
+from src.modules.services.models import ServiceModel
 from src.modules.tenants.commands.tenant_commands import UpsertTenantCommand
 from src.modules.users.commands.user_commands import (
     ChangeUserPasswordCommand,
@@ -41,10 +44,10 @@ from src.modules.users.commands.user_commands import (
 )
 from src.modules.users.value_objects.email import Email
 from src.modules.users.value_objects.username import Username
-from src.config.settings import get_settings
 from src.shared.infrastructure.di.container import Container, create_container
 from src.shared.infrastructure.di.register_handlers import register_module_handlers
 from src.shared.infrastructure.security.permission_codes import PermissionCode
+from src.shared.infrastructure.session_context import get_current_session
 from src.shared.infrastructure.tenant_context import (
     bind_rls_bypass,
     bind_tenant,
@@ -124,6 +127,16 @@ FORBIDDEN_FOR_ADMIN: frozenset[str] = frozenset(
 
 PLATFORM_PERMISSIONS: frozenset[str] = frozenset(PermissionCode.platform_only_codes())
 
+# Roles are composed from bundles; `role_permissions` is left for fine exceptions.
+ROLE_BUNDLES: dict[str, tuple[str, ...]] = {
+    "ADMIN": ("iam.admin",),
+    "MANAGER": ("iam.manager",),
+    "OPERATOR": ("iam.operator",),
+    "CLIENT": ("iam.client",),
+    "VIEWER": ("iam.viewer",),
+    "PLATFORM": ("platform.admin", "integration.admin"),
+}
+
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "ADMIN": ADMIN_PERMISSIONS,
     "MANAGER": frozenset(
@@ -167,19 +180,25 @@ def _permission_meta(code: str) -> tuple[str, str]:
 
 
 def validate_role_permissions_map() -> None:
-    """Ensure ROLE_PERMISSIONS references canonical codes; ADMIN is RBAC-only."""
+    """Ensure ROLE_PERMISSIONS references catalog codes; ADMIN is RBAC-only."""
     all_codes = set(PermissionCode.all_codes())
-    catalog_codes = {item.code for item in PermissionCode.catalog()}
-    missing_meta = all_codes - catalog_codes
+    missing_meta = all_codes - PermissionCode.known_codes()
     if missing_meta:
         raise ValueError(
             f"PERMISSION_CATALOG missing metadata for: {sorted(missing_meta)}"
         )
 
     for role, codes in ROLE_PERMISSIONS.items():
-        unknown = codes - all_codes
+        unknown = codes - PermissionCode.known_codes()
         if unknown:
             raise ValueError(f"Role {role} has unknown permission codes: {sorted(unknown)}")
+
+    for bundle in PermissionCode.bundles():
+        unknown_bundle = set(bundle.codes) - PermissionCode.known_codes()
+        if unknown_bundle:
+            raise ValueError(
+                f"Bundle {bundle.slug} has unknown permission codes: {sorted(unknown_bundle)}"
+            )
 
     admin_codes = ROLE_PERMISSIONS["ADMIN"]
     missing = ADMIN_PERMISSIONS - admin_codes
@@ -202,14 +221,19 @@ async def _ensure_permissions(
     command_bus = container.command_bus()
     permissions = container.permission_repository()
     code_to_id: dict[str, UUID] = {}
-    selected = tuple(codes) if codes is not None else PermissionCode.all_codes()
+    requested = tuple(codes) if codes is not None else PermissionCode.all_codes()
+    # One row per permission: the namespaced code, with the legacy alias attached.
+    selected = tuple(dict.fromkeys(PermissionCode.canonical(code) for code in requested))
 
     for code in selected:
         name, description = _permission_meta(code)
+        legacy = PermissionCode.legacy(code)
         async with container.unit_of_work():
             existing = await permissions.get_by_code(PermissionCodeVO.from_primitive(code))
         if existing is not None:
             code_to_id[code] = existing.id
+            if legacy:
+                code_to_id[legacy] = existing.id
             if existing.name.value != name or existing.description != description:
                 await command_bus.execute(
                     UpdatePermissionCommand(
@@ -233,6 +257,8 @@ async def _ensure_permissions(
             )
         )
         code_to_id[code] = permission_id
+        if legacy:
+            code_to_id[legacy] = permission_id
         logger.info("permission created: %s", code)
 
     return code_to_id
@@ -278,6 +304,81 @@ async def _ensure_roles(
         role_to_id[role_name] = role_id
 
     return role_to_id
+
+
+async def _ensure_bundles(
+    container: Container,
+    code_to_id: dict[str, UUID],
+    role_to_id: dict[str, UUID],
+) -> None:
+    """Create the catalog bundles this tenant can hold and compose its roles."""
+    groups = container.permission_group_service()
+    slug_to_id: dict[str, UUID] = {}
+
+    for bundle in PermissionCode.bundles():
+        permission_ids = frozenset(
+            code_to_id[code] for code in bundle.codes if code in code_to_id
+        )
+        if not permission_ids:
+            continue
+        async with container.unit_of_work() as uow:
+            model = await groups.upsert_group(
+                slug=bundle.slug,
+                service=bundle.service,
+                name=bundle.name,
+                description=bundle.description,
+                permission_ids=permission_ids,
+            )
+            slug_to_id[bundle.slug] = model.id
+            await uow.commit()
+        logger.info("bundle synced: %s (%d permissions)", bundle.slug, len(permission_ids))
+
+    for role_name, role_id in role_to_id.items():
+        group_ids = frozenset(
+            slug_to_id[slug] for slug in ROLE_BUNDLES.get(role_name, ()) if slug in slug_to_id
+        )
+        if not group_ids:
+            continue
+        async with container.unit_of_work() as uow:
+            await groups.replace_role_groups(role_id=role_id, group_ids=group_ids)
+            await uow.commit()
+        logger.info("role bundles set: %s (%d)", role_name, len(group_ids))
+
+
+async def _ensure_service_catalog(container: Container) -> None:
+    """Register the shipped services and keep their flags in sync with the catalog."""
+    catalog = container.service_catalog()
+    async with container.unit_of_work() as uow:
+        existing = {service.slug: service for service in await catalog.list_services()}
+        session = get_current_session()
+        for definition in CORE_SERVICES:
+            current = existing.get(definition.slug)
+            if current is not None:
+                # `is_core` decides whether a contract may be suspended, so a
+                # catalog change must reach databases seeded before it.
+                current.is_core = definition.is_core
+                continue
+            session.add(
+                ServiceModel(
+                    id=uuid4(),
+                    slug=definition.slug,
+                    namespace=definition.namespace,
+                    name=definition.name,
+                    description=definition.description,
+                    is_core=definition.is_core,
+                    default_quotas=dict(definition.default_quotas),
+                )
+            )
+            logger.info("service registered: %s", definition.slug)
+        await uow.commit()
+
+
+async def _entitle_services(container: Container, tenant_id: UUID) -> None:
+    catalog = container.service_catalog()
+    async with container.unit_of_work() as uow:
+        await catalog.ensure_default_services(tenant_id)
+        await uow.commit()
+    logger.info("default services entitled for tenant %s", tenant_id)
 
 
 async def _retire_obsolete_permissions(container: Container) -> None:
@@ -429,6 +530,8 @@ async def _seed_tenant(
             role_permissions=role_permissions,
             role_descriptions=role_descriptions,
         )
+        await _ensure_bundles(container, code_to_id, role_to_id)
+        await _entitle_services(container, tenant_id)
         if slug == "universe":
             await _retire_obsolete_permissions(container)
         await _ensure_seed_users(
@@ -458,6 +561,7 @@ async def seed() -> None:
 
     bypass_token = bind_rls_bypass(True)
     try:
+        await _ensure_service_catalog(container)
         # Rename order matters: free slug `bigbang` before assigning it to ops tenant.
         await _seed_tenant(
             container,

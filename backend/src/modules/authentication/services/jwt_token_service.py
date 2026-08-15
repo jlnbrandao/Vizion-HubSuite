@@ -25,23 +25,9 @@ class JwtTokenService(TokenService):
     def create_access_token(self, claims: AccessTokenClaims) -> str:
         now = datetime.now(UTC)
         exp = now + timedelta(minutes=self._expire_minutes)
-        payload: dict[str, object] = {
-            "sub": str(claims.user_id),
-            "email": claims.email,
-            "full_name": claims.full_name,
-            "tenant_id": str(claims.tenant_id),
-            "tenant_slug": claims.tenant_slug,
-            "role_ids": [str(rid) for rid in claims.role_ids],
-            "cv": claims.credentials_version,
-            "amr": list(claims.amr),
-            "token_use": claims.token_use,
-            "iat": int(now.timestamp()),
-            "exp": int(exp.timestamp()),
-        }
-        if claims.acr is not None:
-            payload["acr"] = claims.acr
-        if claims.sid is not None:
-            payload["sid"] = str(claims.sid)
+        payload = claims.to_primitive()
+        payload["iat"] = int(now.timestamp())
+        payload["exp"] = int(exp.timestamp())
         return jwt.encode(payload, self._secret, algorithm=self._algorithm)
 
     def decode_access_token(self, token: str) -> AccessTokenClaims:
@@ -56,6 +42,11 @@ class JwtTokenService(TokenService):
             raise UnauthorizedError("Invalid or expired access token") from exc
 
         try:
-            return AccessTokenClaims.from_primitive(payload)
+            claims = AccessTokenClaims.from_primitive(payload)
         except (KeyError, ValueError, TypeError) as exc:
             raise UnauthorizedError("Invalid access token payload") from exc
+
+        # Refuse tokens minted for another purpose (MFA challenge, OAuth, ...).
+        if claims.token_use != "access":
+            raise UnauthorizedError("Invalid access token payload")
+        return claims

@@ -7,7 +7,8 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PgUUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.shared.infrastructure.database import Base
@@ -47,6 +48,8 @@ class AuditEventModel(Base):
     resource_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    #: Correlation id of the HTTP request that produced the event.
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -320,6 +323,43 @@ class FederatedIdentityModel(Base):
         PgUUID(as_uuid=True), ForeignKey("identity_providers.id", ondelete="CASCADE"), nullable=False
     )
     external_subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ResourceAclModel(Base):
+    """Per-resource exception: one subject, one resource, one action, one effect.
+
+    ACLs never replace RBAC — they grant or revoke access to a single resource.
+    `deny` always wins over `allow`; tenant isolation still applies on top.
+    """
+
+    __tablename__ = "resource_acls"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "subject_type",
+            "subject_id",
+            "resource_type",
+            "resource_id",
+            "action",
+            name="uq_resource_acls_entry",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True)
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    subject_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    subject_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    action: Mapped[str] = mapped_column(String(120), nullable=False)
+    effect: Mapped[str] = mapped_column(String(8), nullable=False, default="allow")
+    granted_by: Mapped[UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

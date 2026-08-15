@@ -9,14 +9,6 @@ export interface TokenResponse {
   mfa_token?: string | null
 }
 
-export interface DashboardMenuItem {
-  id: string
-  label: string
-  route: string
-  icon: string
-  required_permission: string
-}
-
 export interface DashboardWidget {
   id: string
   title: string
@@ -33,8 +25,88 @@ export interface DashboardResponse {
   tenant_name?: string
   role_names: string[]
   permissions: string[]
-  menu: DashboardMenuItem[]
   widgets: DashboardWidget[]
+}
+
+/** GET /navigation — menu already filtered by entitlement + RBAC. */
+export interface NavigationItemResponse {
+  id: string
+  label: string
+  icon: string
+  route: string
+  group: string
+  service?: string | null
+  permission?: string | null
+  quick: boolean
+}
+
+export interface NavigationResponse {
+  home_route: string
+  services: string[]
+  items: NavigationItemResponse[]
+}
+
+/** Service catalog — what the Hub offers and what a tenant has contracted. */
+export interface ServiceResponse {
+  slug: string
+  namespace: string
+  name: string
+  description: string
+  version: string
+  is_core: boolean
+  is_active: boolean
+}
+
+export interface TenantServiceResponse extends ServiceResponse {
+  status: string | null
+  plan: string | null
+  entitled: boolean
+  quotas: Record<string, unknown>
+  expires_at?: string | null
+}
+
+export interface SetTenantServicePayload {
+  status: string
+  plan?: string | null
+  quotas?: Record<string, unknown> | null
+  expires_at?: string | null
+}
+
+/** Metering — what a tenant consumed per service, metric and period. */
+export interface UsageRecordResponse {
+  service: string
+  metric: string
+  granularity: 'day' | 'month'
+  period_start: string
+  quantity: number
+}
+
+export interface UsageReportResponse {
+  tenant_id: string
+  since: string
+  until: string
+  totals_by_service: Record<string, number>
+  records: UsageRecordResponse[]
+}
+
+export interface UsageQuery {
+  since?: string
+  until?: string
+  service?: string
+  granularity?: 'day' | 'month'
+}
+
+/** GET /auth/me — identity and effective access (no longer carried in the JWT). */
+export interface MeResponse {
+  id: string
+  email: string
+  full_name: string
+  tenant_id: string
+  tenant_slug: string
+  tenant_name?: string
+  role_names: string[]
+  permissions: string[]
+  services: string[]
 }
 
 export interface AuthUser {
@@ -46,6 +118,8 @@ export interface AuthUser {
   tenantName?: string
   roleNames: string[]
   permissions: string[]
+  /** Services the tenant is entitled to; gates whole frontend modules. */
+  services: string[]
 }
 
 export interface UserResponse {
@@ -100,6 +174,8 @@ export interface UpdateRolePayload {
 export interface PermissionResponse {
   id: string
   code: string
+  legacy_code: string | null
+  service: string | null
   resource: string
   action: string
   name: string
@@ -107,6 +183,35 @@ export interface PermissionResponse {
   is_active: boolean
   created_at: string
   updated_at: string
+}
+
+export interface PermissionCatalogEntryResponse {
+  code: string
+  legacy_code: string
+  service: string
+  resource: string
+  action: string
+  name: string
+  description: string
+}
+
+export interface PermissionBundleResponse {
+  id: string
+  slug: string
+  service: string
+  name: string
+  description: string
+  is_active: boolean
+  permission_ids: string[]
+  permission_codes: string[]
+}
+
+export interface UpsertPermissionBundlePayload {
+  slug: string
+  service: string
+  name: string
+  description: string
+  permission_ids: string[]
 }
 
 export interface CreatePermissionPayload {

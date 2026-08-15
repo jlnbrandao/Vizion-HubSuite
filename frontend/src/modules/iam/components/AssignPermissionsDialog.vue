@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { permissionService } from '@/constants/permissions'
 import type { PermissionResponse, RoleResponse } from '@/types/api'
-
-const APP_NAME = 'LANSTAR'
 
 type ViewFilter = 'all' | 'assigned' | 'unassigned' | 'differences'
 
@@ -224,8 +223,10 @@ const footerStatus = computed(() => {
   return `${pendingCount.value} pending changes`
 })
 
-function permissionApp(_permission: PermissionResponse): string {
-  return APP_NAME
+/** Permissions are grouped by the service that owns them (iam, platform, …). */
+function permissionApp(permission: PermissionResponse): string {
+  const service = permission.service || permissionService(permission.code)
+  return (service || 'other').toUpperCase()
 }
 
 function formatRoleLabel(name: string): string {
@@ -543,7 +544,7 @@ function printMatrix() {
               emit-value
               map-options
               dropdown-icon="expand_more"
-              :display-value="appFilter ?? 'All apps'"
+              :display-value="appFilter ?? 'All services'"
               class="assign-perms__app-filter"
             />
           </div>

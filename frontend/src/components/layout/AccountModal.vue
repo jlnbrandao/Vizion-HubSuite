@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useNavigationStore } from '@/stores/navigation'
 
 const props = defineProps<{
   modelValue: boolean
@@ -15,6 +16,7 @@ const emit = defineEmits<{
 
 const auth = useAuthStore()
 const dashboard = useDashboardStore()
+const navigation = useNavigationStore()
 const router = useRouter()
 const $q = useQuasar()
 
@@ -46,6 +48,7 @@ async function confirmLogout() {
     showModal.value = false
     await auth.logout()
     dashboard.clear()
+    navigation.clear()
     await router.push({ name: 'login' })
     $q.notify({ type: 'positive', message: 'Signed out' })
   } catch {

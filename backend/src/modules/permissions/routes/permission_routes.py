@@ -19,6 +19,7 @@ from src.modules.permissions.queries.permission_queries import (
 )
 from src.modules.permissions.routes.schemas import (
     CreatePermissionRequest,
+    PermissionCatalogEntry,
     PermissionIdResponse,
     PermissionResponse,
     UpdatePermissionRequest,
@@ -27,7 +28,10 @@ from src.shared.application.command_bus import CommandBus
 from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.di.container import Container
 from src.shared.infrastructure.security.current_user import CurrentUser
-from src.shared.infrastructure.security.dependencies import require_permission
+from src.shared.infrastructure.security.dependencies import (
+    get_current_user,
+    require_permission,
+)
 from src.shared.infrastructure.security.permission_codes import PermissionCode
 from src.shared.infrastructure.tenant_context import require_current_tenant_id
 
@@ -38,6 +42,8 @@ def _to_response(dto: PermissionDto) -> PermissionResponse:
     return PermissionResponse(
         id=dto.id,
         code=dto.code,
+        legacy_code=dto.legacy_code,
+        service=dto.service,
         resource=dto.resource,
         action=dto.action,
         name=dto.name,
@@ -83,6 +89,28 @@ async def list_permissions(
         )
     )
     return [_to_response(item) for item in items]
+
+
+@router.get("/catalog", response_model=list[PermissionCatalogEntry])
+async def permission_catalog(
+    service: str | None = None,
+    _: CurrentUser = Depends(get_current_user),
+) -> list[PermissionCatalogEntry]:
+    """Canonical catalog from the backend constants — the codegen source of truth."""
+    wanted = service.strip().lower() if service else None
+    return [
+        PermissionCatalogEntry(
+            code=item.code,
+            legacy_code=item.legacy_code,
+            service=item.service,
+            resource=item.resource,
+            action=item.action,
+            name=item.name,
+            description=item.description,
+        )
+        for item in PermissionCode.catalog()
+        if wanted is None or item.service == wanted
+    ]
 
 
 @router.get("/{permission_id}", response_model=PermissionResponse)

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from src.shared.infrastructure.security.permission_codes import PermissionCode
+
 
 @dataclass(frozen=True, kw_only=True)
 class CurrentUser:
@@ -19,13 +21,16 @@ class CurrentUser:
     permissions: frozenset[str] = field(default_factory=frozenset)
 
     def has_permission(self, code: str) -> bool:
-        return code in self.permissions
+        """Namespaced and legacy forms of a code are equivalent."""
+        if code in self.permissions:
+            return True
+        return bool(self.permissions & PermissionCode.aliases(code))
 
     def has_any_permission(self, *codes: str) -> bool:
-        return any(code in self.permissions for code in codes)
+        return any(self.has_permission(code) for code in codes)
 
     def has_all_permissions(self, *codes: str) -> bool:
-        return all(code in self.permissions for code in codes)
+        return all(self.has_permission(code) for code in codes)
 
     def has_role(self, name: str) -> bool:
         return name.upper() in self.role_names

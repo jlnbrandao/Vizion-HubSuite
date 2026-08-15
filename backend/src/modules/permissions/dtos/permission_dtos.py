@@ -11,6 +11,8 @@ from uuid import UUID
 class PermissionDto:
     id: UUID
     code: str
+    legacy_code: str | None
+    service: str | None
     resource: str
     action: str
     name: str

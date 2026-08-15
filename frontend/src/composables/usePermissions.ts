@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import type { PermissionCodeValue } from '@/constants/permissions'
+import { hasPermissionCode, type PermissionCodeValue } from '@/constants/permissions'
 
 /**
  * Clean permission API for the UI — no role-name branching.
@@ -12,16 +12,17 @@ export function usePermissions() {
   const permissions = computed(() => new Set(auth.user?.permissions ?? []))
   const roles = computed(() => new Set(auth.user?.roleNames ?? []))
 
+  // Namespaced and legacy forms are equivalent while the aliases exist.
   function can(code: PermissionCodeValue | string): boolean {
-    return permissions.value.has(code)
+    return hasPermissionCode(permissions.value, code)
   }
 
   function canAny(...codes: Array<PermissionCodeValue | string>): boolean {
-    return codes.some((code) => permissions.value.has(code))
+    return codes.some((code) => hasPermissionCode(permissions.value, code))
   }
 
   function canAll(...codes: Array<PermissionCodeValue | string>): boolean {
-    return codes.every((code) => permissions.value.has(code))
+    return codes.every((code) => hasPermissionCode(permissions.value, code))
   }
 
   function hasRole(name: string): boolean {

@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends
 from src.modules.dashboard.dtos.dashboard_dtos import DashboardDto
 from src.modules.dashboard.queries.dashboard_queries import GetDashboardQuery
 from src.modules.dashboard.routes.schemas import (
-    DashboardMenuItemResponse,
     DashboardResponse,
     DashboardWidgetResponse,
 )
@@ -43,16 +42,6 @@ def _to_response(dto: DashboardDto) -> DashboardResponse:
         tenant_name=dto.tenant_name,
         role_names=list(dto.role_names),
         permissions=list(dto.permissions),
-        menu=[
-            DashboardMenuItemResponse(
-                id=item.id,
-                label=item.label,
-                route=item.route,
-                icon=item.icon,
-                required_permission=item.required_permission,
-            )
-            for item in dto.menu
-        ],
         widgets=[
             DashboardWidgetResponse(
                 id=widget.id,

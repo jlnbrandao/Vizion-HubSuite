@@ -25,15 +25,21 @@ dependencies = [
     "httpx>=0.28.0",
     "casbin>=1.36.0",
     "paramiko>=3.5.0",
+    # Hardened XML parsing for the SOAP provider (no DTD, no entity expansion).
+    "defusedxml>=0.7.1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
     "httpx>=0.28.0",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
+    # Static analysis and dependency auditing (see README, "Security checks").
+    "bandit>=1.8.0",
+    "pip-audit>=2.7.3",
 ]
 
 [build-system]
@@ -51,6 +57,23 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "integration: needs Postgres, Redis and a seeded database",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["src/main.py", "*/__init__.py"]
+
+[tool.coverage.report]
+skip_empty = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@abstractmethod",
+    "\\.\\.\\.",
+]
 
 [tool.ruff]
 line-length = 100
@@ -58,6 +81,11 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "alembic"]
+# B101 (assert) is only used in tests; B104 is the container bind address.
+skips = ["B101", "B104"]
 
 [tool.mypy]
 python_version = "3.13"

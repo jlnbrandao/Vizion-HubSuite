@@ -45,6 +45,7 @@ from src.shared.application.handler import CommandHandler
 from src.shared.application.query_bus import QueryBus
 from src.shared.application.unit_of_work import UnitOfWork
 from src.shared.infrastructure.exceptions import NotFoundError, UnauthorizedError, ValidationError
+from src.shared.infrastructure.security.session_denylist import SessionDenylist
 from src.shared.infrastructure.tenant_context import (
     get_current_tenant_slug,
     require_current_tenant_id,
@@ -172,11 +173,8 @@ class LoginHandler(CommandHandler[LoginCommand, TokenPairDto]):
         )
         claims = AccessTokenClaims(
             user_id=user.id,
-            email=user.email,
-            full_name=user.full_name,
             tenant_id=tenant_id,
             tenant_slug=tenant_slug,
-            role_ids=user.role_ids,
             credentials_version=user.credentials_version,
             amr=amr,
             acr="pwd",
@@ -213,11 +211,13 @@ class LogoutHandler(CommandHandler[LogoutCommand, None]):
         event_bus: EventBus,
         uow_factory: UowFactory,
         session_service: SessionService,
+        session_denylist: SessionDenylist,
     ) -> None:
         self._refresh_store = refresh_store
         self._event_bus = event_bus
         self._uow_factory = uow_factory
         self._sessions = session_service
+        self._denylist = session_denylist
 
     async def handle(self, command: LogoutCommand) -> None:
         try:
@@ -233,6 +233,8 @@ class LogoutHandler(CommandHandler[LogoutCommand, None]):
                 async with self._uow_factory() as uow:
                     await self._sessions.revoke(session.session_id, session.user_id)
                     await uow.commit()
+                # Access token must die with the session, not at its natural expiry.
+                await self._denylist.revoke(session.session_id)
             await self._event_bus.publish(
                 UserLoggedOutEvent(
                     aggregate_id=session.user_id,
@@ -301,11 +303,8 @@ class RefreshTokenHandler(CommandHandler[RefreshTokenCommand, TokenPairDto]):
             )
             claims = AccessTokenClaims(
                 user_id=user.id,
-                email=user.email,
-                full_name=user.full_name,
                 tenant_id=session.tenant_id,
                 tenant_slug=session.tenant_slug,
-                role_ids=user.role_ids,
                 credentials_version=user.credentials_version,
                 amr=session.amr,
                 sid=session_id,
