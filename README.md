@@ -235,8 +235,15 @@ Para adicionar páginas, módulos, widgets ou ações protegidas pelo RBAC, siga
 
 | Documento | Conteúdo |
 |-----------|----------|
-| [document/AUTHORIZATION.md](document/AUTHORIZATION.md) | Precedência do engine, códigos, bundles, regras para quem escreve rota |
-| [document/ACL.md](document/ACL.md) | ACL por recurso: modelo, avaliação, API, boas práticas |
-| [document/SERVICE_HUB.md](document/SERVICE_HUB.md) | Contrato de Service Slice, entitlements, quotas, medição |
-| [document/SECURITY.md](document/SECURITY.md) | Tokens, denylist, headers, isolamento, segredos, auditoria, supply chain |
-| [document/0002-sistema-iam.md](document/0002-sistema-iam.md) | Panorama do IAM e histórico do roadmap |
+| [document/IAM.md](document/IAM.md) | Identidade, superfície HTTP, seed, mapa dos docs |
+| [document/AAA.md](document/AAA.md) | Authentication, Authorization, Accounting |
+| [document/RBAC.md](document/RBAC.md) | Roles, códigos, bundles, hierarquia |
+| [document/ABAC.md](document/ABAC.md) | Políticas contextuais (`access_policies`) |
+| [document/ACL.md](document/ACL.md) | ACL por recurso: modelo, avaliação, API |
+| [document/AUTHORIZATION.md](document/AUTHORIZATION.md) | Precedência única do engine |
+| [document/MULTI_TENANT.md](document/MULTI_TENANT.md) | Host → slug, tenants `universe` / `ows` |
+| [document/RLS.md](document/RLS.md) | FORCE RLS, GUCs, roles de banco |
+| [document/AUDIT.md](document/AUDIT.md) | `audit_events`, `request_id`, retenção |
+| [document/SECURITY.md](document/SECURITY.md) | Tokens, cookies, headers, segredos, SAST |
+| [document/SERVICE_HUB.md](document/SERVICE_HUB.md) | Service Slice, entitlements, quotas |
+| [document/0001-sistema-iam.md](document/0001-sistema-iam.md) | Roadmap histórico do IAM |

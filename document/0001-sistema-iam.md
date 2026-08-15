@@ -1,6 +1,8 @@
 # Vizion — Sistema IAM (Identity and Access Management)
 
-Documento de referência do modelo de identidade e acesso do **enterprise-template** (produto Vizion): o que já existe hoje, como funciona, o que falta para um IAM completo e o roadmap para torná-lo um **Identity Provider** multi-tenant.
+Documento de **roadmap e histórico**. O estado atual do código está em [IAM.md](IAM.md) e nos recortes AAA / RBAC / ABAC / ACL / AUTHORIZATION / MULTI_TENANT / RLS / AUDIT / SECURITY.
+
+Documento de referência do modelo de identidade e acesso do **enterprise-template** (produto HubSuite / runtime Vizion): o que já existe hoje, como funciona, o que falta para um IAM completo e o roadmap para torná-lo um **Identity Provider** multi-tenant.
 
 | | |
 |---|---|

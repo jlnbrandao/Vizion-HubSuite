@@ -1,6 +1,6 @@
-# Vizion — ACL por recurso
+# HubSuite — ACL por recurso
 
-RBAC responde "esse papel pode editar usuários?". ACL responde "esse usuário pode editar **este** usuário?". É a exceção pontual: um deny cirúrgico ou um allow sobre um recurso específico, sem mexer em role nenhuma.
+RBAC responde "esse papel pode editar usuários?" ([RBAC.md](RBAC.md)). ACL responde "esse usuário pode editar **este** usuário?". É a exceção pontual: um deny cirúrgico ou um allow sobre um recurso específico, sem mexer em role nenhuma. Precedência no [AUTHORIZATION.md](AUTHORIZATION.md).
 
 | | |
 |---|---|

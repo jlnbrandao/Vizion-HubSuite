@@ -1,6 +1,6 @@
-# Vizion — Segurança (estado do código)
+# HubSuite — Segurança (estado do código)
 
-O que o Hub garante hoje, onde está configurado e o que é decisão consciente de operação. Autorização tem documento próprio ([AUTHORIZATION.md](AUTHORIZATION.md), [ACL.md](ACL.md)); aqui está o resto: tokens, sessões, cabeçalhos, isolamento, segredos, auditoria e supply chain.
+O que o Hub garante hoje, onde está configurado e o que é decisão consciente de operação. Autorização: [AUTHORIZATION.md](AUTHORIZATION.md). Isolamento: [MULTI_TENANT.md](MULTI_TENANT.md), [RLS.md](RLS.md). Auditoria: [AUDIT.md](AUDIT.md). Mapa: [IAM.md](IAM.md).
 
 ---
 
@@ -12,7 +12,8 @@ O que o Hub garante hoje, onde está configurado e o que é decisão consciente 
 | Claims | `sub`, `tenant_id`, `tenant_slug`, `cv`, `sid`, `amr`, `acr`, `iat`, `exp` — **sem** e-mail, nome ou roles | [access_token_claims.py](../backend/src/modules/authentication/value_objects/access_token_claims.py) |
 | Identidade / permissões | `GET /api/v1/auth/me` (roles, permissões, serviços contratados) | [auth_routes.py](../backend/src/modules/authentication/routes/auth_routes.py) |
 | Refresh token | Opaco, guardado no Redis apenas como SHA-256, TTL 7 dias, rotação a cada uso | [redis_refresh_token_store.py](../backend/src/modules/authentication/services/redis_refresh_token_store.py) |
-| Cookie de refresh | `httpOnly`, `SameSite=lax`, `Secure` fora de development, prefixo **`__Host-`** em produção (sem `Domain`, `Path=/`) | [auth_cookies.py](../backend/src/modules/authentication/routes/auth_cookies.py) |
+| Cookie de refresh | `httpOnly`, `SameSite=lax`, `Secure` fora de development, prefixo **`__Host-`** em produção (sem `Domain`, `Path=/`). Em HTTP o nome é `vizion_refresh_token` — o logout **não** emite `__Host-` (o browser rejeitaria o prefixo). | [auth_cookies.py](../backend/src/modules/authentication/routes/auth_cookies.py) |
+| Sinal de sessão | Cookie `vizion_has_session=1` (não `httpOnly`) — a SPA só chama `/auth/refresh` se ele existir. Não é credencial. | [auth.ts](../frontend/src/stores/auth.ts) |
 | Access no frontend | Só em memória — nunca `localStorage`/`sessionStorage` | [stores/auth.ts](../frontend/src/stores/auth.ts) |
 
 O JWT enxuto não é estética: cada claim de perfil é dado que vaza em log, proxy e histórico do browser, e que fica **velho** dentro de um token válido por 15 minutos.
@@ -88,10 +89,7 @@ O IP vem de `X-Real-IP`/`X-Forwarded-For` — **confie nisso somente atrás de u
 
 ## 6. Auditoria
 
-- `audit_events` (tenant-scoped, RLS) com ator, ação, recurso, IP, user-agent, payload JSONB e **`request_id`**.
-- `request_id` vem do header `X-Request-ID` (ou é gerado) por [RequestIdMiddleware](../backend/src/shared/infrastructure/request_id_middleware.py), fica em `ContextVar` e é devolvido na resposta — um incidente se reconstrói ligando log ↔ audit pelo mesmo id.
-- Negativas de autorização entram como `AUTHZ_DENIED` com estágio e motivo, sem secrets.
-- Retenção: `AUDIT_RETENTION_DAYS` (default 365) aplicado por `python -m scripts.prune_audit`, que chama a função SQL `prune_audit_events`. Agende no cron/systemd do ambiente.
+Detalhe operacional em [AUDIT.md](AUDIT.md). Resumo: `audit_events` (RLS) + log `vizion.audit`; `X-Request-ID`; `AUTHZ_DENIED` com estágio; retenção `AUDIT_RETENTION_DAYS` via `python -m scripts.prune_audit`.
 
 ---
 

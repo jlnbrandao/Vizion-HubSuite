@@ -1,6 +1,8 @@
-# Vizion — Autorização (precedência única)
+# HubSuite — Autorização (precedência única)
 
 Toda decisão de acesso do Hub passa por **um** ponto: [`AuthorizationService`](../backend/src/shared/infrastructure/security/authorization.py). Rotas, handlers e serviços de domínio não reimplementam regra de acesso — eles pedem uma decisão.
+
+Recortes: [RBAC.md](RBAC.md), [ACL.md](ACL.md), [ABAC.md](ABAC.md), [MULTI_TENANT.md](MULTI_TENANT.md). Mapa: [IAM.md](IAM.md).
 
 | | |
 |---|---|
