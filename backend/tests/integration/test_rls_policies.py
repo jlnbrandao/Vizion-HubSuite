@@ -1,7 +1,7 @@
 """Row Level Security verified as the application role, not as the table owner.
 
 The owner bypasses RLS unless the table is FORCEd, so these assertions connect as
-`lanstar_app` — the role the API actually uses. A missing policy here means one
+`vizion_app` — the role the API actually uses. A missing policy here means one
 mistake in a WHERE clause is enough to leak another tenant's data.
 """
 
@@ -36,7 +36,7 @@ TENANT_SCOPED_TABLES = (
     "usage_records",
 )
 
-APP_ROLE = "lanstar_app"
+APP_ROLE = "vizion_app"
 
 
 def _dsn(user: str, password: str) -> str:

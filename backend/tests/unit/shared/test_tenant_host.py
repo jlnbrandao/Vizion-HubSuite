@@ -14,16 +14,16 @@ from src.shared.infrastructure.tenant_host import (
 @pytest.mark.parametrize(
     ("host", "expected"),
     [
-        ("universe.lanstar.com.br", "universe"),
-        ("universe.lanstar.com.br:443", "universe"),
+        ("universe.openvizion.com", "universe"),
+        ("universe.openvizion.com:443", "universe"),
         ("universe.134.23.23.56", "universe"),
         ("universe.localhost", "universe"),
         ("universe.localhost:9000", "universe"),
-        ("bigbang.localhost", "bigbang"),
-        ("bigbang.134.209.122.250", "bigbang"),
-        ("bigbang.lanstar.com.br", "bigbang"),
-        ("bigbang.lanstar.local", "bigbang"),
-        ("universe.lanstar.local", "universe"),
+        ("ows.localhost", "ows"),
+        ("ows.134.209.122.250", "ows"),
+        ("ows.openvizion.com", "ows"),
+        ("ows.openvizion.local", "ows"),
+        ("universe.openvizion.local", "universe"),
     ],
 )
 def test_extract_tenant_slug_ok(host: str, expected: str) -> None:
@@ -39,8 +39,8 @@ def test_extract_tenant_slug_ok(host: str, expected: str) -> None:
         "localhost:9000",
         "127.0.0.1",
         "192.168.0.1",
-        "www.lanstar.com.br",
-        "api.lanstar.com.br",
+        "www.openvizion.com",
+        "api.openvizion.com",
         "universe",
     ],
 )
@@ -51,24 +51,24 @@ def test_extract_tenant_slug_rejects(host: str | None) -> None:
 
 def test_base_domain_allowlist() -> None:
     assert_host_base_domain_allowed(
-        "acme.lanstar.com.br",
-        ("localhost", "lanstar.com.br", "lanstar.local"),
+        "acme.openvizion.com",
+        ("localhost", "openvizion.com", "openvizion.local"),
         enforce=True,
     )
     assert_host_base_domain_allowed(
-        "bigbang.lanstar.local",
-        ("localhost", "lanstar.com.br", "lanstar.local"),
+        "ows.openvizion.local",
+        ("localhost", "openvizion.com", "openvizion.local"),
         enforce=True,
     )
     assert_host_base_domain_allowed(
         "acme.10.0.0.1",
-        ("localhost", "lanstar.com.br"),
+        ("localhost", "openvizion.com"),
         enforce=True,
     )
     with pytest.raises(ValidationError, match="not allowed"):
         assert_host_base_domain_allowed(
             "acme.evil.example",
-            ("localhost", "lanstar.com.br", "lanstar.local"),
+            ("localhost", "openvizion.com", "openvizion.local"),
             enforce=True,
         )
 

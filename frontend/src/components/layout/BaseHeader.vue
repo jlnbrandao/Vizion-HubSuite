@@ -13,7 +13,7 @@ const props = withDefaults(
     navMenuOptions?: NavMenuOption[]
   }>(),
   {
-    headerTitle: 'Lanstar',
+    headerTitle: 'Vizion',
     userSubtitle: '',
     navMenuOptions: () => [],
   },

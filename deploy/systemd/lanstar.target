@@ -1,8 +1,0 @@
-[Unit]
-Description=Lanstar application stack
-Documentation=file:///opt/lanstar/README.md
-Requires=lanstar-infra.service lanstar-api.service nginx.service
-After=lanstar-infra.service lanstar-api.service nginx.service
-
-[Install]
-WantedBy=multi-user.target

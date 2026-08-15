@@ -1,7 +1,7 @@
 """Idempotent database seed: permissions, roles ADMIN…VIEWER, demo users.
 
 Each app tenant (e.g. universe) gets an Administrator user with role ADMIN
-(exposed by GET /api/v1/tenants as `admin`). The ops tenant `bigbang` uses role
+(exposed by GET /api/v1/tenants as `admin`). The ops tenant `ows` uses role
 PLATFORM instead (no ADMIN association on the catalog).
 
 Demo password is SEED_PASSWORD (meets letter+digit+special). Outside
@@ -59,7 +59,7 @@ logger = logging.getLogger("seed")
 
 # Stable UUIDs (slug renames are applied by UpsertTenant on refresh).
 UNIVERSE_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000001")  # was slug bigbang
-BIGBANG_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000002")  # was slug platform
+OWS_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000002")  # was slug platform, then bigbang, then vws
 SEED_PASSWORD = "123Mudar."
 
 
@@ -72,24 +72,43 @@ class SeedUser:
 
 
 SEED_USERS: tuple[SeedUser, ...] = (
-    SeedUser("admin", "System Administrator", "admin@lanstar.com.br", "ADMIN"),
-    SeedUser("manager", "Default Manager", "manager@lanstar.com.br", "MANAGER"),
-    SeedUser("operator", "Default Operator", "operator@lanstar.com.br", "OPERATOR"),
-    SeedUser("user", "Default User", "user@lanstar.com.br", "CLIENT"),
-    SeedUser("viewer", "Default Viewer", "viewer@lanstar.com.br", "VIEWER"),
+    SeedUser("admin", "System Administrator", "admin@openvizion.com", "ADMIN"),
+    SeedUser("manager", "Default Manager", "manager@openvizion.com", "MANAGER"),
+    SeedUser("operator", "Default Operator", "operator@openvizion.com", "OPERATOR"),
+    SeedUser("user", "Default User", "user@openvizion.com", "CLIENT"),
+    SeedUser("viewer", "Default Viewer", "viewer@openvizion.com", "VIEWER"),
 )
 
 # Former emails remapped on refresh (e.g. teste@ → user@).
+# Includes previous product domains so a seed refresh updates existing rows.
 LEGACY_EMAILS: dict[str, str] = {
-    "teste@lanstar.com.br": "user@lanstar.com.br",
-    "galileu@lanstar.com.br": "admin@lanstar.com.br",
-    "platform@lanstar.com.br": "galileu@lanstar.com.br",
+    "teste@openvizion.com": "user@openvizion.com",
+    "galileu@openvizion.com": "root@openvizion.com",
+    "platform@openvizion.com": "root@openvizion.com",
+    "admin@vizion.com.br": "admin@openvizion.com",
+    "manager@vizion.com.br": "manager@openvizion.com",
+    "operator@vizion.com.br": "operator@openvizion.com",
+    "user@vizion.com.br": "user@openvizion.com",
+    "viewer@vizion.com.br": "viewer@openvizion.com",
+    "root@vizion.com.br": "root@openvizion.com",
+    "galileu@vizion.com.br": "root@openvizion.com",
+    "platform@vizion.com.br": "root@openvizion.com",
+    "teste@vizion.com.br": "user@openvizion.com",
+    "admin@lanstar.com.br": "admin@openvizion.com",
+    "manager@lanstar.com.br": "manager@openvizion.com",
+    "operator@lanstar.com.br": "operator@openvizion.com",
+    "user@lanstar.com.br": "user@openvizion.com",
+    "viewer@lanstar.com.br": "viewer@openvizion.com",
+    "root@lanstar.com.br": "root@openvizion.com",
+    "galileu@lanstar.com.br": "root@openvizion.com",
+    "platform@lanstar.com.br": "root@openvizion.com",
+    "teste@lanstar.com.br": "user@openvizion.com",
 }
 
 # Former usernames remapped on refresh (old → new).
 LEGACY_USERNAMES: dict[str, str] = {
-    "galileu": "admin",
-    "platform": "galileu",
+    "galileu": "root",
+    "platform": "root",
 }
 
 # Old compound action codes retired in favor of bare PermissionAction.ASSIGN.
@@ -562,7 +581,7 @@ async def seed() -> None:
     bypass_token = bind_rls_bypass(True)
     try:
         await _ensure_service_catalog(container)
-        # Rename order matters: free slug `bigbang` before assigning it to ops tenant.
+        # Rename order: product tenant first, then ops (slug `ows`, formerly `vws` / `bigbang`).
         await _seed_tenant(
             container,
             tenant_id=UNIVERSE_TENANT_ID,
@@ -574,16 +593,16 @@ async def seed() -> None:
         )
         await _seed_tenant(
             container,
-            tenant_id=BIGBANG_TENANT_ID,
-            slug="bigbang",
-            name="Bigbang",
+            tenant_id=OWS_TENANT_ID,
+            slug="ows",
+            name="OpenVizion Web Service",
             permission_codes=PLATFORM_PERMISSIONS,
             role_permissions={"PLATFORM": PLATFORM_PERMISSIONS},
             seed_users=(
                 SeedUser(
-                    "galileu",
+                    "root",
                     "Platform Administrator",
-                    "galileu@lanstar.com.br",
+                    "root@openvizion.com",
                     "PLATFORM",
                 ),
             ),

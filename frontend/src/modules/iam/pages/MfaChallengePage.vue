@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
-const mfaToken = ref(sessionStorage.getItem('lanstar_mfa_token') || '')
+const mfaToken = ref(sessionStorage.getItem('vizion_mfa_token') || '')
 const code = ref('')
 const error = ref('')
 
@@ -26,7 +26,7 @@ async function verify() {
       accessToken: data.access_token,
       user: { id: data.user_id, email: data.email, full_name: data.full_name, permissions: [] },
     })
-    sessionStorage.removeItem('lanstar_mfa_token')
+    sessionStorage.removeItem('vizion_mfa_token')
     await auth.hydrateIdentity()
     await router.push('/')
   } catch {

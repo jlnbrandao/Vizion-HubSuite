@@ -60,11 +60,11 @@ def upgrade() -> None:
             """
             DO $$
             BEGIN
-              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'lanstar_app') THEN
-                CREATE ROLE lanstar_app LOGIN PASSWORD 'lanstar_app' NOSUPERUSER NOBYPASSRLS;
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'vizion_app') THEN
+                CREATE ROLE vizion_app LOGIN PASSWORD 'vizion_app' NOSUPERUSER NOBYPASSRLS;
               END IF;
-              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'lanstar_migrate') THEN
-                CREATE ROLE lanstar_migrate LOGIN PASSWORD 'lanstar_migrate'
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'vizion_migrate') THEN
+                CREATE ROLE vizion_migrate LOGIN PASSWORD 'vizion_migrate'
                   NOSUPERUSER BYPASSRLS;
               END IF;
             END
@@ -72,24 +72,24 @@ def upgrade() -> None:
             """
         )
     )
-    op.execute(sa.text("GRANT CONNECT ON DATABASE lanstar TO lanstar_app, lanstar_migrate"))
-    op.execute(sa.text("GRANT USAGE ON SCHEMA public TO lanstar_app, lanstar_migrate"))
+    op.execute(sa.text("GRANT CONNECT ON DATABASE vizion TO vizion_app, vizion_migrate"))
+    op.execute(sa.text("GRANT USAGE ON SCHEMA public TO vizion_app, vizion_migrate"))
     op.execute(
         sa.text(
             "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public "
-            "TO lanstar_app, lanstar_migrate"
+            "TO vizion_app, vizion_migrate"
         )
     )
     op.execute(
         sa.text(
             "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public "
-            "TO lanstar_app, lanstar_migrate"
+            "TO vizion_app, vizion_migrate"
         )
     )
     op.execute(
         sa.text(
             "GRANT EXECUTE ON FUNCTION resolve_tenant_by_slug(text) "
-            "TO lanstar_app, lanstar_migrate"
+            "TO vizion_app, vizion_migrate"
         )
     )
     op.execute(
@@ -97,7 +97,7 @@ def upgrade() -> None:
             """
             ALTER DEFAULT PRIVILEGES IN SCHEMA public
               GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES
-              TO lanstar_app, lanstar_migrate
+              TO vizion_app, vizion_migrate
             """
         )
     )

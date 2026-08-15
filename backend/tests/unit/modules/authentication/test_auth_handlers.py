@@ -115,7 +115,7 @@ async def seeded_user(users_repo, uow_factory, password_hasher, query_bus):
     create = CreateUserHandler(uow_factory, users_repo, password_hasher, query_bus)
     user_id = await create.handle(
         CreateUserCommand(tenant_id=UNIVERSE_TENANT_ID,
-            email="admin@lanstar.io",
+            email="admin@vizion.io",
             username="admin",
             full_name="Admin User",
             password="Secret123!",
@@ -215,9 +215,9 @@ def refresh_handler(token_service, refresh_store, event_bus, query_bus, uow_fact
 @pytest.mark.asyncio
 async def test_login_success_with_email(seeded_user, login_handler, token_service) -> None:
     pair = await login_handler.handle(
-        LoginCommand(login="admin@lanstar.io", password="Secret123!")
+        LoginCommand(login="admin@vizion.io", password="Secret123!")
     )
-    assert pair.email == "admin@lanstar.io"
+    assert pair.email == "admin@vizion.io"
     assert pair.user_id == seeded_user
     claims = token_service.decode_access_token(pair.access_token)
     assert claims.user_id == seeded_user
@@ -228,7 +228,7 @@ async def test_login_success_with_email(seeded_user, login_handler, token_servic
 @pytest.mark.asyncio
 async def test_login_success_with_username(seeded_user, login_handler) -> None:
     pair = await login_handler.handle(LoginCommand(login="admin", password="Secret123!"))
-    assert pair.email == "admin@lanstar.io"
+    assert pair.email == "admin@vizion.io"
     assert pair.user_id == seeded_user
 
 
@@ -242,7 +242,7 @@ async def test_login_username_is_case_insensitive(seeded_user, login_handler) ->
 async def test_login_wrong_password(seeded_user, login_handler) -> None:
     with pytest.raises(UnauthorizedError, match="Invalid credentials"):
         await login_handler.handle(
-            LoginCommand(login="admin@lanstar.io", password="WrongPass1")
+            LoginCommand(login="admin@vizion.io", password="WrongPass1")
         )
 
 
@@ -250,7 +250,7 @@ async def test_login_wrong_password(seeded_user, login_handler) -> None:
 async def test_login_unknown_user(login_handler) -> None:
     with pytest.raises(UnauthorizedError, match="Invalid credentials"):
         await login_handler.handle(
-            LoginCommand(login="nobody@lanstar.io", password="Secret123!")
+            LoginCommand(login="nobody@vizion.io", password="Secret123!")
         )
 
 
@@ -278,7 +278,7 @@ async def test_logout_invalidates_refresh(
     seeded_user, login_handler, logout_handler, refresh_handler
 ) -> None:
     pair = await login_handler.handle(
-        LoginCommand(login="admin@lanstar.io", password="Secret123!")
+        LoginCommand(login="admin@vizion.io", password="Secret123!")
     )
     await logout_handler.handle(LogoutCommand(refresh_token=pair.refresh_token))
 

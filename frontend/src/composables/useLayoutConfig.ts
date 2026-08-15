@@ -96,7 +96,7 @@ export function useLayoutConfig() {
     const activeMenu = menuItems.find((item) => item.active && !item.divider)
 
     return {
-      headerTitle: activeNav?.label || activeMenu?.label || 'Lanstar',
+      headerTitle: activeNav?.label || activeMenu?.label || 'Vizion',
       userSubtitle: roles,
       menuItems,
       navMenuOptions,

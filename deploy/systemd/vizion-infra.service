@@ -1,6 +1,6 @@
 [Unit]
-Description=Lanstar infrastructure (PostgreSQL + Redis via Docker Compose)
-Documentation=file:///opt/lanstar/README.md
+Description=Vizion infrastructure (PostgreSQL + Redis via Docker Compose)
+Documentation=file:///opt/vizion/README.md
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target
@@ -8,7 +8,7 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/opt/lanstar
+WorkingDirectory=/opt/vizion
 ExecStart=/usr/bin/docker compose up -d --remove-orphans postgres redis
 ExecStop=/usr/bin/docker compose stop postgres redis
 TimeoutStartSec=120

@@ -1,4 +1,4 @@
-# Lanstar Backend
+# Vizion Backend
 
 Enterprise API — FastAPI + Clean Architecture + CQRS.
 

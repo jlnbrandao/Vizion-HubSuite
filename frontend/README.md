@@ -1,4 +1,4 @@
-# Lanstar Frontend
+# Vizion Frontend
 
 Vue 3 + Quasar + Pinia + Vue Router + Axios.
 

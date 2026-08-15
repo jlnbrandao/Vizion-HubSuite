@@ -38,7 +38,7 @@ async def test_rbac_denies_what_the_role_lacks(
         "/api/v1/users",
         headers=auth(viewer_token),
         json={
-            "email": "nope@lanstar.test",
+            "email": "nope@vizion.test",
             "username": "nope",
             "full_name": "Nope",
             "password": "Str0ng-Pass!",

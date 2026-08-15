@@ -1,6 +1,6 @@
 # HOWTODO — Estender o RBAC em novas implementações
 
-Playbook operacional para autorizar páginas, módulos API (vertical slices), widgets de dashboard e ações de UI no Lanstar.
+Playbook operacional para autorizar páginas, módulos API (vertical slices), widgets de dashboard e ações de UI no Vizion.
 
 Autorização é **baseada em códigos de permissão** (`resource.action`). Roles são apenas bolsas de permissões. Nunca proteja feature com `if role == "ADMIN"` ou `if role == "PLATFORM"`.
 
@@ -49,7 +49,7 @@ O seed cria dois tenants:
 | Tenant | Host local | Roles | Escopo de permissões |
 |--------|------------|-------|----------------------|
 | `universe` | `universe.localhost` | `ADMIN`…`VIEWER` | Catálogo **sem** `platform_only_codes()` |
-| `bigbang` | `bigbang.localhost` | `PLATFORM` | Só `platform_only_codes()` |
+| `ows` | `ows.localhost` | `PLATFORM` | Só `platform_only_codes()` |
 
 `PermissionCode.platform_only_codes()` hoje:
 
@@ -193,7 +193,7 @@ Arquivo: [`backend/scripts/seed.py`](backend/scripts/seed.py).
 
 **ADMIN é especial:** só CRUD de identity/RBAC + `dashboard.admin` (`PermissionCode.admin_role_codes()`). Não receba `dashboard.manager|operator|client|viewer` nem nada de `platform_only_codes()`. O seed valida isso (`FORBIDDEN_FOR_ADMIN`). Se a feature não for administração RBAC, **não** coloque no ADMIN por padrão.
 
-**Platform** (`bigbang`) — `PLATFORM_PERMISSIONS` / role `PLATFORM`. Não misture códigos de produto nesse mapa.
+**Platform** (`ows`) — `PLATFORM_PERMISSIONS` / role `PLATFORM`. Não misture códigos de produto nesse mapa.
 
 ### 4. Aplicar seed
 
@@ -212,7 +212,7 @@ Idempotente: cria permissões faltantes **por tenant**, sincroniza name/descript
 | Atribuir a role | `PUT /api/v1/roles/{id}/permissions` | `roles.assign` |
 | Atribuir role a usuário | `PUT /api/v1/users/{id}/roles` | `users.assign` |
 
-Features de produto ainda devem entrar no **catálogo + seed**, para o ambiente ser reproduzível. Permissões platform-only tipicamente só existem no tenant `bigbang`.
+Features de produto ainda devem entrar no **catálogo + seed**, para o ambiente ser reproduzível. Permissões platform-only tipicamente só existem no tenant `ows`.
 
 ---
 
@@ -282,7 +282,7 @@ if (auth.user?.roleNames.includes('PLATFORM')) { ... }
 
 ## Cenário B — Novo módulo API (vertical slice)
 
-O Lanstar é um **monólito modular**. Um “microsserviço” interno = novo slice em `backend/src/modules/<nome>/`, não um processo separado. AuthZ é o mesmo gateway FastAPI.
+O Vizion é um **monólito modular**. Um “microsserviço” interno = novo slice em `backend/src/modules/<nome>/`, não um processo separado. AuthZ é o mesmo gateway FastAPI.
 
 ### Checklist
 
@@ -523,17 +523,17 @@ Demo users (password `123Mudar.`):
 
 | username | email | role |
 |---|---|---|
-| `admin` | `admin@lanstar.com.br` | `ADMIN` |
-| `manager` | `manager@lanstar.com.br` | `MANAGER` |
-| `operator` | `operator@lanstar.com.br` | `OPERATOR` |
-| `user` | `user@lanstar.com.br` | `CLIENT` |
-| `viewer` | `viewer@lanstar.com.br` | `VIEWER` |
+| `admin` | `admin@openvizion.com` | `ADMIN` |
+| `manager` | `manager@openvizion.com` | `MANAGER` |
+| `operator` | `operator@openvizion.com` | `OPERATOR` |
+| `user` | `user@openvizion.com` | `CLIENT` |
+| `viewer` | `viewer@openvizion.com` | `VIEWER` |
 
-### Tenant `bigbang` (ops / platform)
+### Tenant `ows` (OpenVizion Web Service / ops / platform)
 
 | username | email | role |
 |---|---|---|
-| `galileu` | `galileu@lanstar.com.br` | `PLATFORM` |
+| `root` | `root@openvizion.com` | `PLATFORM` |
 
 **PLATFORM:** `tenants.create|read|update|activate|deactivate`, `system.settings`, `dashboard.platform`. Sem role `ADMIN` neste tenant.
 
@@ -556,7 +556,7 @@ Demo users (password `123Mudar.`):
 - [ ] Teste manual:
   - usuário **com** permissão → 200 / página / botão visível;
   - usuário **sem** permissão → 403 na API, redirect no router, botão oculto;
-  - se platform-only: validar em `bigbang.*` e ausência no RBAC de `universe`.
+  - se platform-only: validar em `ows.*` e ausência no RBAC de `universe`.
 
 ---
 

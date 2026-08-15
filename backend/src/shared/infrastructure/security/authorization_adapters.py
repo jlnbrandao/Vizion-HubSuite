@@ -28,7 +28,7 @@ from src.shared.infrastructure.security.authorization import (
 from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.session_context import get_current_session
 
-logger = logging.getLogger("lanstar.authz")
+logger = logging.getLogger("vizion.authz")
 
 UowFactory = Callable[[], AbstractAsyncContextManager[UnitOfWork]]
 

@@ -56,13 +56,13 @@ def assert_host_base_domain_allowed(
     host = normalize_host(host_header)
     if _IPV4_RE.match(host) or host == "localhost":
         raise ValidationError(
-            "Tenant subdomain required (e.g. universe.localhost or universe.lanstar.com.br)"
+            "Tenant subdomain required (e.g. universe.localhost or universe.openvizion.com)"
         )
 
     base = _base_domain(host)
     if not base:
         raise ValidationError(
-            "Tenant subdomain required (e.g. universe.localhost or universe.lanstar.com.br)"
+            "Tenant subdomain required (e.g. universe.localhost or universe.openvizion.com)"
         )
 
     # Allow exact base match or IP second-label form (universe.10.0.0.1 → base 10.0.0.1).
@@ -77,22 +77,22 @@ def extract_tenant_slug_from_host(host_header: str | None) -> str:
     """Return tenant slug from Host first label.
 
     Examples:
-      universe.lanstar.com.br → universe
+      universe.openvizion.com → universe
       universe.134.23.23.56 → universe
       universe.localhost → universe
-      bigbang.localhost → bigbang
+      ows.localhost → ows
     """
     host = normalize_host(host_header)
 
     if _IPV4_RE.match(host) or host == "localhost":
         raise ValidationError(
-            "Tenant subdomain required (e.g. universe.localhost or universe.lanstar.com.br)"
+            "Tenant subdomain required (e.g. universe.localhost or universe.openvizion.com)"
         )
 
     labels = [part for part in host.split(".") if part]
     if len(labels) < 2:
         raise ValidationError(
-            "Tenant subdomain required (e.g. universe.localhost or universe.lanstar.com.br)"
+            "Tenant subdomain required (e.g. universe.localhost or universe.openvizion.com)"
         )
 
     slug = labels[0]

@@ -7,9 +7,9 @@ from typing import Any
 from httpx import ASGITransport, AsyncClient
 
 from tests.integration.conftest import (
-    BIGBANG_HOST,
     TEST_USER_PASSWORD,
     UNIVERSE_HOST,
+    OWS_HOST,
     auth,
     login,
     provisioned_user,
@@ -26,8 +26,8 @@ async def test_token_from_one_tenant_is_rejected_on_another_host(
 
         async with AsyncClient(
             transport=ASGITransport(app=app),
-            base_url=f"http://{BIGBANG_HOST}",
-            headers={"Host": BIGBANG_HOST},
+            base_url=f"http://{OWS_HOST}",
+            headers={"Host": OWS_HOST},
         ) as other_tenant:
             response = await other_tenant.get("/api/v1/auth/me", headers=auth(token))
 
@@ -61,15 +61,15 @@ async def test_users_are_scoped_to_the_calling_tenant(
     listed = await client.get("/api/v1/users", headers=auth(admin_token))
     assert listed.status_code == 200, listed.text
     emails = {user["email"] for user in listed.json()}
-    assert any(email.endswith("@lanstar.test") for email in emails)
+    assert any(email.endswith("@vizion.test") for email in emails)
 
     async with provisioned_user(
-        app, tenant_slug="bigbang", role_name="PLATFORM", username="itest_ops_reader"
+        app, tenant_slug="ows", role_name="PLATFORM", username="itest_ops_reader"
     ) as ops_email:
         async with AsyncClient(
             transport=ASGITransport(app=app),
-            base_url=f"http://{BIGBANG_HOST}",
-            headers={"Host": BIGBANG_HOST},
+            base_url=f"http://{OWS_HOST}",
+            headers={"Host": OWS_HOST},
         ) as ops:
             ops_token = await login(ops, ops_email, TEST_USER_PASSWORD)
             ops_users = await ops.get("/api/v1/users", headers=auth(ops_token))
@@ -104,16 +104,16 @@ async def test_hosts_are_bound_per_request(app: Any) -> None:
         ) as universe,
         AsyncClient(
             transport=ASGITransport(app=app),
-            base_url=f"http://{BIGBANG_HOST}",
-            headers={"Host": BIGBANG_HOST},
-        ) as bigbang,
+            base_url=f"http://{OWS_HOST}",
+            headers={"Host": OWS_HOST},
+        ) as ops,
     ):
         async with provisioned_user(
             app, tenant_slug="universe", role_name="VIEWER", username="itest_ctx"
         ) as email:
             token = await login(universe, email, TEST_USER_PASSWORD)
             mine = await universe.get("/api/v1/auth/me", headers=auth(token))
-            theirs = await bigbang.get("/api/v1/auth/me", headers=auth(token))
+            theirs = await ops.get("/api/v1/auth/me", headers=auth(token))
 
     assert mine.json()["tenant_slug"] == "universe"
     assert theirs.status_code == 401

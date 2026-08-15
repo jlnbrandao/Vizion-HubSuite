@@ -8,7 +8,7 @@ import { usePermissions } from '@/composables/usePermissions'
 import { usePlatform } from '@/composables/usePlatform'
 import { PermissionCode } from '@/constants/permissions'
 import { useAuthStore } from '@/stores/auth'
-import logoColor from '@/assets/brand/logo-color.png'
+import logoColor from '@/assets/brand/hub-color.png'
 import defaultIcon from '@/assets/icons/default.svg'
 
 interface Area {

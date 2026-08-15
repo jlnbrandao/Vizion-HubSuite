@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Instala NGINX + systemd para manter o Lanstar sempre online.
-# Uso: sudo bash /opt/lanstar/deploy/scripts/install.sh
+# Instala NGINX + systemd para manter o Vizion sempre online.
+# Uso: sudo bash /opt/vizion/deploy/scripts/install.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -38,25 +38,25 @@ fi
 echo "==> Configurando nginx"
 # Remover default que conflita com listen 80
 rm -f /etc/nginx/sites-enabled/default
-install -m 644 "${DEPLOY}/nginx/lanstar.conf" /etc/nginx/sites-available/lanstar.conf
-ln -sfn /etc/nginx/sites-available/lanstar.conf /etc/nginx/sites-enabled/lanstar.conf
+install -m 644 "${DEPLOY}/nginx/vizion.conf" /etc/nginx/sites-available/vizion.conf
+ln -sfn /etc/nginx/sites-available/vizion.conf /etc/nginx/sites-enabled/vizion.conf
 nginx -t
 systemctl reload nginx 2>/dev/null || systemctl restart nginx
 
 echo "==> Instalando units systemd"
-install -m 644 "${DEPLOY}/systemd/lanstar-infra.service" /etc/systemd/system/lanstar-infra.service
-install -m 644 "${DEPLOY}/systemd/lanstar-api.service" /etc/systemd/system/lanstar-api.service
-install -m 644 "${DEPLOY}/systemd/lanstar.target" /etc/systemd/system/lanstar.target
+install -m 644 "${DEPLOY}/systemd/vizion-infra.service" /etc/systemd/system/vizion-infra.service
+install -m 644 "${DEPLOY}/systemd/vizion-api.service" /etc/systemd/system/vizion-api.service
+install -m 644 "${DEPLOY}/systemd/vizion.target" /etc/systemd/system/vizion.target
 systemctl daemon-reload
 
 echo "==> Parando containers Docker da API/frontend (evita conflito de porta)"
 (cd "${ROOT}" && docker compose stop api frontend 2>/dev/null || true)
 
 echo "==> Habilitando e iniciando serviços"
-systemctl enable --now lanstar-infra.service
-systemctl enable --now lanstar-api.service
+systemctl enable --now vizion-infra.service
+systemctl enable --now vizion-api.service
 systemctl enable --now nginx.service
-systemctl enable lanstar.target
+systemctl enable vizion.target
 
 echo "==> Aguardando health da API"
 for i in $(seq 1 30); do
@@ -65,18 +65,18 @@ for i in $(seq 1 30); do
     break
   fi
   if [[ "$i" -eq 30 ]]; then
-    echo "AVISO: API ainda não respondeu em /health — verifique: journalctl -u lanstar-api -n 50" >&2
+    echo "AVISO: API ainda não respondeu em /health — verifique: journalctl -u vizion-api -n 50" >&2
   fi
   sleep 1
 done
 
 echo
 echo "Status:"
-systemctl --no-pager --full status lanstar-infra.service lanstar-api.service nginx.service | sed -n '1,80p' || true
+systemctl --no-pager --full status vizion-infra.service vizion-api.service nginx.service | sed -n '1,80p' || true
 echo
 echo "Pronto. App: http://$(hostname -I | awk '{print $1}')/"
 echo "Comandos úteis:"
-echo "  systemctl status lanstar-api"
-echo "  systemctl restart lanstar-api"
-echo "  journalctl -u lanstar-api -f"
-echo "  systemctl start lanstar.target"
+echo "  systemctl status vizion-api"
+echo "  systemctl restart vizion-api"
+echo "  journalctl -u vizion-api -f"
+echo "  systemctl start vizion.target"

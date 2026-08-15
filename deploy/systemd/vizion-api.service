@@ -1,17 +1,17 @@
 [Unit]
-Description=Lanstar API (uvicorn FastAPI)
-Documentation=file:///opt/lanstar/README.md
-After=network-online.target lanstar-infra.service
+Description=Vizion API (uvicorn FastAPI)
+Documentation=file:///opt/vizion/README.md
+After=network-online.target vizion-infra.service
 Wants=network-online.target
-Requires=lanstar-infra.service
+Requires=vizion-infra.service
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/lanstar/backend
-EnvironmentFile=-/opt/lanstar/backend/.env
+WorkingDirectory=/opt/vizion/backend
+EnvironmentFile=-/opt/vizion/backend/.env
 Environment=PYTHONUNBUFFERED=1
 ExecStartPre=/bin/sleep 3
-ExecStart=/opt/lanstar/backend/.venv/bin/uvicorn src.main:app \
+ExecStart=/opt/vizion/backend/.venv/bin/uvicorn src.main:app \
     --host 127.0.0.1 \
     --port 8000 \
     --workers 2 \

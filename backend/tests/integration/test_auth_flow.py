@@ -27,6 +27,7 @@ async def test_login_returns_access_token_and_sets_refresh_cookie(
     # The refresh token never reaches JavaScript.
     assert not body.get("refresh_token")
     assert any("refresh" in name.lower() for name in response.cookies.keys())
+    assert response.cookies.get("vizion_has_session") == "1"
 
 
 async def test_login_is_rejected_with_a_wrong_password(

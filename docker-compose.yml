@@ -1,25 +1,25 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: lanstar-postgres
+    container_name: vizion-postgres
     environment:
-      POSTGRES_USER: lanstar
-      POSTGRES_PASSWORD: lanstar
-      POSTGRES_DB: lanstar
+      POSTGRES_USER: vizion
+      POSTGRES_PASSWORD: vizion
+      POSTGRES_DB: vizion
     # Host-only publish: never expose DB/cache on the public interface.
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lanstar -d lanstar"]
+      test: ["CMD-SHELL", "pg_isready -U vizion -d vizion"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: lanstar-redis
+    container_name: vizion-redis
     # Host-only publish: never expose Redis on the public interface.
     ports:
       - "127.0.0.1:6379:6379"
@@ -36,16 +36,16 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     image: enterprise-template-api
-    container_name: lanstar-api
+    container_name: vizion-api
     environment:
-      APP_NAME: Lanstar
+      APP_NAME: Vizion
       APP_ENV: development
       APP_DEBUG: "true"
       APP_HOST: 0.0.0.0
       APP_PORT: "8000"
       # App DB role (FORCE RLS). Defaults are for local compose only — rotate in production.
-      DATABASE_URL: postgresql+asyncpg://lanstar_app:lanstar_app@postgres:5432/lanstar
-      DATABASE_MIGRATE_URL: postgresql+asyncpg://lanstar:lanstar@postgres:5432/lanstar
+      DATABASE_URL: postgresql+asyncpg://vizion_app:vizion_app@postgres:5432/vizion
+      DATABASE_MIGRATE_URL: postgresql+asyncpg://vizion:vizion@postgres:5432/vizion
       REDIS_URL: redis://redis:6379/0
       # PyJWT HS256 — use a ≥32 char secret outside development
       JWT_SECRET_KEY: change-me-in-production-use-long-random-string
@@ -56,7 +56,7 @@ services:
       RATE_LIMIT_WINDOW_SECONDS: "60"
       AUTH_RATE_LIMIT_REQUESTS: "20"
       AUTH_RATE_LIMIT_WINDOW_SECONDS: "60"
-      ALLOWED_TENANT_BASE_DOMAINS: localhost,lanstar.com.br,lanstar.local
+      ALLOWED_TENANT_BASE_DOMAINS: localhost,openvizion.com,openvizion.local
     ports:
       - "8000:8000"
     depends_on:
@@ -75,7 +75,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: lanstar-frontend
+    container_name: vizion-frontend
     ports:
       - "9000:80"
     depends_on:
@@ -89,14 +89,14 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: lanstar-seed
+    container_name: vizion-seed
     environment:
       # Seed only runs with demo password when APP_ENV=development (or SEED_ALLOW_INSECURE=true)
       APP_ENV: development
-      DATABASE_URL: postgresql+asyncpg://lanstar:lanstar@postgres:5432/lanstar
+      DATABASE_URL: postgresql+asyncpg://vizion:vizion@postgres:5432/vizion
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: change-me-in-production-use-long-random-string
-      ALLOWED_TENANT_BASE_DOMAINS: localhost,lanstar.com.br,lanstar.local
+      ALLOWED_TENANT_BASE_DOMAINS: localhost,openvizion.com,openvizion.local
     entrypoint: ["python", "-m", "scripts.seed"]
     depends_on:
       api:

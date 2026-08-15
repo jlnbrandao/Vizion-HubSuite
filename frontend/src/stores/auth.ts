@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { authApi, tokenStorage } from '@/services/api'
+import axios from 'axios'
+import { apiErrorMessage, authApi, clearSessionHint, hasSessionHint, tokenStorage } from '@/services/api'
 import type { AuthUser } from '@/types/api'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -26,6 +27,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function clearSession() {
     tokenStorage.clear()
+    clearSessionHint()
     accessToken.value = null
     user.value = null
   }
@@ -36,7 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const { data } = await authApi.login(loginId, password)
       if (data.mfa_required && data.mfa_token) {
-        sessionStorage.setItem('lanstar_mfa_token', data.mfa_token)
+        sessionStorage.setItem('vizion_mfa_token', data.mfa_token)
         throw new Error('mfa_required')
       }
       persistAccess(data.access_token)
@@ -65,7 +67,11 @@ export const useAuthStore = defineStore('auth', () => {
       if (err instanceof Error && err.message === 'mfa_required') {
         throw err
       }
-      error.value = 'Invalid credentials'
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined
+      error.value =
+        status === 401 || status === 403
+          ? 'Invalid credentials'
+          : apiErrorMessage(err, 'Invalid credentials')
       clearSession()
       throw new Error('login_failed')
     } finally {
@@ -114,6 +120,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function bootstrap() {
     tokenStorage.clear()
+    if (!hasSessionHint()) {
+      bootstrapped.value = true
+      return
+    }
     try {
       const { data } = await authApi.refresh()
       persistAccess(data.access_token)

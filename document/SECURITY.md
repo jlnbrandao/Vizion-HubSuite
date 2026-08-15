@@ -1,4 +1,4 @@
-# Lanstar — Segurança (estado do código)
+# Vizion — Segurança (estado do código)
 
 O que o Hub garante hoje, onde está configurado e o que é decisão consciente de operação. Autorização tem documento próprio ([AUTHORIZATION.md](AUTHORIZATION.md), [ACL.md](ACL.md)); aqui está o resto: tokens, sessões, cabeçalhos, isolamento, segredos, auditoria e supply chain.
 
@@ -57,11 +57,11 @@ Quatro camadas independentes, na ordem em que atuam:
 1. **Host** → tenant. O primeiro label do Host resolve o slug; `ALLOWED_TENANT_BASE_DOMAINS` restringe os sufixos aceitos (obrigatório fora de development).
 2. **Token vs Host.** JWT de outro tenant é rejeitado mesmo com assinatura válida.
 3. **Engine.** Estágio `TENANT` é hard-fail e não é sobreponível por ACL/ABAC.
-4. **RLS.** `FORCE ROW LEVEL SECURITY` em toda tabela tenant-scoped; a API conecta como `lanstar_app`, que **não** tem `BYPASSRLS`. Migrations/seed usam `lanstar` / `lanstar_migrate`.
+4. **RLS.** `FORCE ROW LEVEL SECURITY` em toda tabela tenant-scoped; a API conecta como `vizion_app`, que **não** tem `BYPASSRLS`. Migrations/seed usam `vizion` / `vizion_migrate`.
 
 O bypass explícito (`bind_rls_bypass`) existe para leitura cross-tenant da plataforma (`usage.read_all`, catálogo de serviços) e para scripts operacionais. É pontual, sempre em `try/finally`, e cada uso passa por permissão platform-only.
 
-Verificação: [test_rls_policies.py](../backend/tests/integration/test_rls_policies.py) conecta como `lanstar_app` e prova que tenant A não lê nem escreve dados de B; [test_tenant_isolation.py](../backend/tests/integration/test_tenant_isolation.py) cobre o caminho HTTP.
+Verificação: [test_rls_policies.py](../backend/tests/integration/test_rls_policies.py) conecta como `vizion_app` e prova que tenant A não lê nem escreve dados de B; [test_tenant_isolation.py](../backend/tests/integration/test_tenant_isolation.py) cobre o caminho HTTP.
 
 ---
 

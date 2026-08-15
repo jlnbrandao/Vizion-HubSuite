@@ -16,6 +16,7 @@ class GetPermissionByIdQuery(Query):
 @dataclass(frozen=True, kw_only=True)
 class ListPermissionsQuery(Query):
     only_active: bool = False
+    service: str | None = None
     resource: str | None = None
     action: str | None = None
 

@@ -62,8 +62,8 @@ CREATE POLICY {table}_tenant_isolation ON {table}
 _GRANT_SQL = """
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'lanstar_app') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO lanstar_app;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'vizion_app') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO vizion_app;
   END IF;
 END $$;
 """

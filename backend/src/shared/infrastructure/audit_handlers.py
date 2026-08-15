@@ -40,7 +40,7 @@ from src.shared.infrastructure.tenant_context import get_current_tenant_id
 if TYPE_CHECKING:
     from src.shared.infrastructure.di.container import Container
 
-logger = logging.getLogger("lanstar.audit")
+logger = logging.getLogger("vizion.audit")
 
 _container: Container | None = None
 

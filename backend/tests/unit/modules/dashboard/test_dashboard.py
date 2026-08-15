@@ -79,7 +79,7 @@ async def test_admin_dashboard_includes_rbac_sections(composer: DashboardCompose
     result = await handler.handle(
         GetDashboardQuery(
             user_id=uuid4(),
-            email="admin@lanstar.io",
+            email="admin@vizion.io",
             tenant_id=UNIVERSE_TENANT_ID,
             tenant_slug="universe",
             full_name="Admin",
@@ -111,7 +111,7 @@ async def test_manager_and_viewer_compose_independently(composer: DashboardCompo
     manager = await handler.handle(
         GetDashboardQuery(
             user_id=uuid4(),
-            email="mgr@lanstar.io",
+            email="mgr@vizion.io",
             tenant_id=UNIVERSE_TENANT_ID,
             tenant_slug="universe",
             full_name="Manager",
@@ -124,7 +124,7 @@ async def test_manager_and_viewer_compose_independently(composer: DashboardCompo
     viewer = await handler.handle(
         GetDashboardQuery(
             user_id=uuid4(),
-            email="view@lanstar.io",
+            email="view@vizion.io",
             tenant_id=UNIVERSE_TENANT_ID,
             tenant_slug="universe",
             full_name="Viewer",
@@ -142,7 +142,7 @@ async def test_operator_dashboard(composer: DashboardComposer) -> None:
     result = await handler.handle(
         GetDashboardQuery(
             user_id=uuid4(),
-            email="op@lanstar.io",
+            email="op@vizion.io",
             tenant_id=UNIVERSE_TENANT_ID,
             tenant_slug="universe",
             full_name="Operator",
@@ -158,7 +158,7 @@ async def test_client_dashboard_loads_own_profile(uow_factory, query_bus) -> Non
     users: InMemoryUserRepository = query_bus._handlers[GetUserByIdQuery]._users  # type: ignore[attr-defined]
     user = User.create(
         tenant_id=UNIVERSE_TENANT_ID,
-        email=Email(value="client@lanstar.io"),
+        email=Email(value="client@vizion.io"),
         username=Username(value="client"),
         full_name=FullName(value="Client User"),
         hashed_password=HashedPassword(value="x" * 60),
@@ -189,7 +189,7 @@ async def test_client_dashboard_loads_own_profile(uow_factory, query_bus) -> Non
 
     assert len(result.widgets) == 1
     assert result.widgets[0].id == "client-own-data"
-    assert result.widgets[0].data["email"] == "client@lanstar.io"
+    assert result.widgets[0].data["email"] == "client@vizion.io"
 
 
 @pytest.mark.asyncio

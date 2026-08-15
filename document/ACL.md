@@ -1,4 +1,4 @@
-# Lanstar — ACL por recurso
+# Vizion — ACL por recurso
 
 RBAC responde "esse papel pode editar usuários?". ACL responde "esse usuário pode editar **este** usuário?". É a exceção pontual: um deny cirúrgico ou um allow sobre um recurso específico, sem mexer em role nenhuma.
 

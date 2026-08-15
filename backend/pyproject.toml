@@ -1,5 +1,5 @@
 [project]
-name = "lanstar"
+name = "vizion"
 version = "0.1.0"
 description = "Enterprise authentication and authorization template (RBAC)"
 readme = "README.md"

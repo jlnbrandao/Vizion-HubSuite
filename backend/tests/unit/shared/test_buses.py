@@ -45,8 +45,8 @@ async def test_command_bus_dispatches_to_handler() -> None:
     bus = CommandBus()
     bus.register(GreetCommand, GreetHandler())
 
-    result = await bus.execute(GreetCommand(name="Lanstar"))
-    assert result == "Hello, Lanstar"
+    result = await bus.execute(GreetCommand(name="Vizion"))
+    assert result == "Hello, Vizion"
     assert bus.is_registered(GreetCommand)
 
 

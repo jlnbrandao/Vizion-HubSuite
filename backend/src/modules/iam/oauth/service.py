@@ -50,7 +50,7 @@ class OidcKeyStore:
         self._settings = settings
         self._private_pem: bytes
         self._public_pem: bytes
-        self._kid = "lanstar-1"
+        self._kid = "vizion-1"
         if settings.oidc_jwt_private_key_pem.strip() and settings.oidc_jwt_public_key_pem.strip():
             self._private_pem = settings.oidc_jwt_private_key_pem.encode()
             self._public_pem = settings.oidc_jwt_public_key_pem.encode()

@@ -12,7 +12,7 @@ from src.shared.infrastructure.security.permission_codes import PermissionCode
 def _user(*permissions: str) -> CurrentUser:
     return CurrentUser(
         id=uuid4(),
-        email="user@lanstar.io",
+        email="user@vizion.io",
         full_name="User",
         tenant_id=uuid4(),
         tenant_slug="acme",

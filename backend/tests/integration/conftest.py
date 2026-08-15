@@ -31,7 +31,7 @@ from src.shared.infrastructure.tenant_context import (
 )
 
 UNIVERSE_HOST = "universe.localhost"
-BIGBANG_HOST = "bigbang.localhost"
+OWS_HOST = "ows.localhost"
 SEED_PASSWORD = "123Mudar."
 
 
@@ -142,8 +142,8 @@ async def client(app: Any) -> AsyncIterator[AsyncClient]:
 
 @pytest_asyncio.fixture
 async def platform_client(app: Any) -> AsyncIterator[AsyncClient]:
-    """Client bound to the ops tenant `bigbang` (PLATFORM role lives there)."""
-    async with _client(app, BIGBANG_HOST) as http:
+    """Client bound to the ops tenant `ows` (PLATFORM role lives there)."""
+    async with _client(app, OWS_HOST) as http:
         yield http
 
 
@@ -187,7 +187,7 @@ async def provisioned_user(
     query_bus = container.query_bus()
     tenant = await query_bus.ask(GetTenantBySlugQuery(slug=tenant_slug))
 
-    email = f"{username}@lanstar.test"
+    email = f"{username}@vizion.test"
     id_token, slug_token, name_token = bind_tenant(
         tenant.id, slug=tenant.slug, name=tenant.name
     )
@@ -236,7 +236,7 @@ async def viewer_token(app: Any, client: AsyncClient) -> AsyncIterator[str]:
 @pytest_asyncio.fixture
 async def platform_token(app: Any, platform_client: AsyncClient) -> AsyncIterator[str]:
     async with provisioned_user(
-        app, tenant_slug="bigbang", role_name="PLATFORM", username="itest_platform"
+        app, tenant_slug="ows", role_name="PLATFORM", username="itest_platform"
     ) as email:
         yield await login(platform_client, email, TEST_USER_PASSWORD)
 

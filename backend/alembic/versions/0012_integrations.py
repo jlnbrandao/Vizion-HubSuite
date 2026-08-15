@@ -108,10 +108,10 @@ def upgrade() -> None:
             """
             DO $$
             BEGIN
-              IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'lanstar_app') THEN
+              IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'vizion_app') THEN
                 GRANT SELECT, INSERT, UPDATE, DELETE ON
                   integrations, integration_logs
-                TO lanstar_app;
+                TO vizion_app;
               END IF;
             END $$;
             """

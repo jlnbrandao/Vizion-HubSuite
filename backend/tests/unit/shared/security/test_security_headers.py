@@ -25,7 +25,7 @@ def _app(settings: Settings) -> FastAPI:
 
 async def _get(settings: Settings, path: str = "/api/v1/ping", **kwargs: object):
     transport = ASGITransport(app=_app(settings))
-    async with AsyncClient(transport=transport, base_url="https://universe.lanstar.test") as client:
+    async with AsyncClient(transport=transport, base_url="https://universe.vizion.test") as client:
         return await client.get(path, **kwargs)  # type: ignore[arg-type]
 
 

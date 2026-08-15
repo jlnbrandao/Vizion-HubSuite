@@ -20,6 +20,7 @@ class PermissionRepository(Repository[Permission], ABC):
         self,
         *,
         only_active: bool = False,
+        service: str | None = None,
         resource: str | None = None,
         action: str | None = None,
     ) -> list[Permission]:

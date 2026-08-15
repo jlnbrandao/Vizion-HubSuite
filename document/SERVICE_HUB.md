@@ -1,6 +1,6 @@
-# Lanstar — Hub de Serviços (contrato de Service Slice)
+# Vizion — Hub de Serviços (contrato de Service Slice)
 
-Como um serviço novo (GPS, SNMP, DDNS, ERP, Imobiliária, Geoprocessamento…) entra no Lanstar sem alterar o núcleo. O Hub fornece identidade, autorização, isolamento por tenant, auditoria, entitlements e quotas; o serviço fornece apenas o próprio domínio.
+Como um serviço novo (GPS, SNMP, DDNS, ERP, Imobiliária, Geoprocessamento…) entra no Vizion sem alterar o núcleo. O Hub fornece identidade, autorização, isolamento por tenant, auditoria, entitlements e quotas; o serviço fornece apenas o próprio domínio.
 
 | | |
 |---|---|
@@ -30,7 +30,7 @@ O engine de autorização checa o entitlement **antes** do RBAC (ver [AUTHORIZAT
 1. **Pacote vertical** em `backend/src/modules/<slug>/`: `models.py`, `service.py`, `routes.py` (+ `handlers/`, `queries/` quando houver CQRS). Nada de espalhar o serviço pelas camadas do núcleo.
 2. **Namespace próprio** de permissões, declarado em [permission_codes.py](../backend/src/shared/infrastructure/security/permission_codes.py) no formato `service.resource.action`. O recurso precisa existir em `SERVICE_BY_RESOURCE`. Nunca declarar código de outro serviço.
 3. **Registro no catálogo**: entrada em `CORE_SERVICES` (serviços do Hub) ou linha em `services` via migration/seed. `namespace` = prefixo das permissões.
-4. **Toda tabela é tenant-scoped**: coluna `tenant_id`, `ENABLE`/`FORCE ROW LEVEL SECURITY` e a policy padrão de isolamento (copiar de [0016_service_catalog.py](../backend/alembic/versions/0016_service_catalog.py)); `GRANT` para `lanstar_app`.
+4. **Toda tabela é tenant-scoped**: coluna `tenant_id`, `ENABLE`/`FORCE ROW LEVEL SECURITY` e a policy padrão de isolamento (copiar de [0016_service_catalog.py](../backend/alembic/versions/0016_service_catalog.py)); `GRANT` para `vizion_app`.
 5. **Autorização só via engine**: `Depends(require_permission("<slug>.<recurso>.<ação>"))` nas rotas e `AuthorizationService.authorize(...)` para decisões por recurso. O slice não reimplementa hierarquia, ACL nem ABAC.
 6. **Medição do que é vendido**: `ServiceQuotaGuard.enforce(tenant_id=..., namespace=..., metric=...)` na entrada da operação tarifada.
 7. **Auditoria** de mudanças de estado via `AuditService` (o engine já registra `AUTHZ_DENIED`).

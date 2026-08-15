@@ -538,14 +538,14 @@ def upgrade() -> None:
             """
             DO $$
             BEGIN
-              IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'lanstar_app') THEN
+              IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'vizion_app') THEN
                 GRANT SELECT, INSERT, UPDATE, DELETE ON
                   auth_sessions, audit_events, user_invitations, password_reset_tokens,
                   password_history, tenant_auth_policies, user_mfa_methods, mfa_recovery_codes,
                   oauth_clients, oauth_scopes, oauth_authorization_codes, oauth_consents,
                   service_accounts, api_keys, identity_providers, federated_identities,
                   access_policies
-                TO lanstar_app;
+                TO vizion_app;
               END IF;
             END $$;
             """

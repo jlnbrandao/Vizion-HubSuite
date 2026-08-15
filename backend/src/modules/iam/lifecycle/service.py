@@ -71,7 +71,7 @@ class LifecycleService:
         await db.flush()
         self._mail.send(
             to=email,
-            subject="You are invited to Lanstar",
+            subject="You are invited to Vizion",
             body=(
                 f"Accept your invitation with token: {raw}\n"
                 "Use POST /api/v1/auth/accept-invitation"
@@ -131,7 +131,7 @@ class LifecycleService:
         await db.flush()
         self._mail.send(
             to=email,
-            subject="Reset your Lanstar password",
+            subject="Reset your Vizion password",
             body=f"Reset token: {raw}\nUse POST /api/v1/auth/reset-password",
         )
 

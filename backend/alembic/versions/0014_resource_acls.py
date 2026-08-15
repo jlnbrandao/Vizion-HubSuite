@@ -84,8 +84,8 @@ def upgrade() -> None:
             f"""
             DO $$
             BEGIN
-              IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'lanstar_app') THEN
-                GRANT SELECT, INSERT, UPDATE, DELETE ON {TABLE} TO lanstar_app;
+              IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'vizion_app') THEN
+                GRANT SELECT, INSERT, UPDATE, DELETE ON {TABLE} TO vizion_app;
               END IF;
             END $$;
             """

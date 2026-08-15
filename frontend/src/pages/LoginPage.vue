@@ -6,10 +6,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useNavigationStore } from '@/stores/navigation'
 import { homePath } from '@/utils/homeRoute'
-import logoBw from '@/assets/brand/logo-bw.png'
-import logoColor from '@/assets/brand/logo-color.png'
+import logoBw from '@/assets/brand/hub-white.png'
+import logoColor from '@/assets/brand/hub-color.png'
 
-const REMEMBER_KEY = 'lanstar.remember_login'
+const REMEMBER_KEY = 'vizion.remember_login'
 
 const route = useRoute()
 const router = useRouter()
@@ -69,7 +69,7 @@ async function onSubmit() {
   try {
     await auth.login(loginId, form.password)
     persistRememberMe(loginId)
-    $q.notify({ type: 'positive', message: 'Welcome to Lanstar', position: 'top' })
+    $q.notify({ type: 'positive', message: 'Welcome to Vizion', position: 'top' })
     await router.replace(postLoginPath())
     void dashboard.load()
     void navigation.load()
@@ -103,7 +103,7 @@ onMounted(() => {
           <div class="logo-container">
             <img
               :src="logoBw"
-              alt="Lanstar"
+              alt="Vizion"
               class="logo-desktop"
             >
           </div>
@@ -119,7 +119,7 @@ onMounted(() => {
             <div class="mobile-logo-container">
               <img
                 :src="logoColor"
-                alt="Lanstar"
+                alt="Vizion"
                 class="mobile-logo-icon"
               >
             </div>

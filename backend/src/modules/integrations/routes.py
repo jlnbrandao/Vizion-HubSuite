@@ -119,7 +119,7 @@ async def receive_webhook_event(
 ) -> WebhookReceiveResponse:
     """Inbound webhook from third parties — HMAC auth, no JWT.
 
-    The third party must call the tenant Host (e.g. bigbang.localhost) so RLS
+    The third party must call the tenant Host (e.g. ows.localhost) so RLS
     resolves the correct tenant. Sign the raw body with HMAC-SHA256.
     """
     raw_body = await request.body()

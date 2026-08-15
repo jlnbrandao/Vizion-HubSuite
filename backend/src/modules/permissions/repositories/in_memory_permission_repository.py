@@ -7,6 +7,9 @@ from uuid import UUID
 from src.modules.permissions.entities.permission import Permission
 from src.modules.permissions.repositories.permission_repository import PermissionRepository
 from src.modules.permissions.value_objects.permission_code import PermissionCode
+from src.shared.infrastructure.security.permission_codes import (
+    PermissionCode as PermissionCatalog,
+)
 from src.shared.infrastructure.tenant_scope import matches_tenant_scope
 
 
@@ -51,6 +54,7 @@ class InMemoryPermissionRepository(PermissionRepository):
         self,
         *,
         only_active: bool = False,
+        service: str | None = None,
         resource: str | None = None,
         action: str | None = None,
     ) -> list[Permission]:
@@ -58,6 +62,12 @@ class InMemoryPermissionRepository(PermissionRepository):
         items = [p for p in items if matches_tenant_scope(p.tenant_id)]
         if only_active:
             items = [p for p in items if p.is_active]
+        if service:
+            items = [
+                p
+                for p in items
+                if (p.code.service or PermissionCatalog.service_of(p.code.value)) == service
+            ]
         if resource:
             items = [p for p in items if p.code.resource == resource]
         if action:

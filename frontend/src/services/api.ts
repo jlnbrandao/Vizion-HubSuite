@@ -28,8 +28,8 @@ import type {
   UserResponse,
 } from '@/types/api'
 
-const LEGACY_ACCESS_KEY = 'lanstar.access_token'
-const LEGACY_REFRESH_KEY = 'lanstar.refresh_token'
+const LEGACY_ACCESS_KEY = 'vizion.access_token'
+const LEGACY_REFRESH_KEY = 'vizion.refresh_token'
 
 /** In-memory access token — never persisted (refresh lives in httpOnly cookie). */
 let memoryAccessToken: string | null = null
@@ -50,6 +50,23 @@ export const tokenStorage = {
       // ignore storage access errors
     }
   },
+}
+
+const SESSION_HINT_COOKIE = 'vizion_has_session'
+
+/** True when login/refresh set the readable session flag (the refresh token itself is httpOnly). */
+export function hasSessionHint(): boolean {
+  if (typeof document === 'undefined') return false
+  return document.cookie.split(';').some((part) => {
+    const [name] = part.trim().split('=')
+    return name === SESSION_HINT_COOKIE
+  })
+}
+
+export function clearSessionHint(): void {
+  if (typeof document === 'undefined') return
+  const secure = location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `${SESSION_HINT_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secure}`
 }
 
 export const api = axios.create({
@@ -88,6 +105,9 @@ api.interceptors.response.use(
     if (original.url?.includes('/auth/login') || original.url?.includes('/auth/refresh')) {
       return Promise.reject(error)
     }
+    if (!hasSessionHint()) {
+      return Promise.reject(error)
+    }
 
     try {
       refreshPromise ??= refreshAccessToken().finally(() => {
@@ -98,6 +118,7 @@ api.interceptors.response.use(
       return api(original)
     } catch {
       tokenStorage.clear()
+      clearSessionHint()
       try {
         const { useAuthStore } = await import('@/stores/auth')
         useAuthStore().clearSession()
@@ -234,11 +255,12 @@ export const rolesApi = {
 }
 
 export const permissionsApi = {
-  list(options: { onlyActive?: boolean; resource?: string; action?: string } = {}) {
-    const { onlyActive = false, resource, action } = options
+  list(options: { onlyActive?: boolean; service?: string; resource?: string; action?: string } = {}) {
+    const { onlyActive = false, service, resource, action } = options
     return api.get<PermissionResponse[]>('/permissions', {
       params: {
         only_active: onlyActive,
+        ...(service ? { service } : {}),
         ...(resource ? { resource } : {}),
         ...(action ? { action } : {}),
       },

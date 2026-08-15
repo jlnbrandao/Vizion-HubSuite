@@ -26,13 +26,13 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "Lanstar"
+    app_name: str = "Vizion"
     app_env: str = "development"
     app_debug: bool = True
     app_host: str = "0.0.0.0"
     app_port: int = 8000
 
-    database_url: str = "postgresql+asyncpg://lanstar:lanstar@localhost:5432/lanstar"
+    database_url: str = "postgresql+asyncpg://vizion:vizion@localhost:5432/vizion"
     # Alembic / seed (BYPASSRLS). Falls back to database_url when empty.
     database_migrate_url: str = ""
     redis_url: str = "redis://localhost:6379/0"
@@ -65,9 +65,9 @@ class Settings(BaseSettings):
     seed_allow_insecure: bool = False
 
     # Comma-separated base domains for Host validation (empty = any suffix in development).
-    # Examples: "localhost,lanstar.com.br,lanstar.local"
+    # Examples: "localhost,openvizion.com,openvizion.local"
     # IP form universe.134.x.x.x is always allowed (base is an IPv4).
-    allowed_tenant_base_domains: str = "localhost,lanstar.com.br,lanstar.local"
+    allowed_tenant_base_domains: str = "localhost,openvizion.com,openvizion.local"
 
     # IAM platform feature flags
     iam_oidc_enabled: bool = True
@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
-    smtp_from: str = "noreply@lanstar.local"
+    smtp_from: str = "noreply@openvizion.local"
     smtp_use_tls: bool = True
 
     # OIDC Authorization Server (RS256). Empty private key → ephemeral key in development.
@@ -160,15 +160,15 @@ class Settings(BaseSettings):
                 "ALLOWED_TENANT_BASE_DOMAINS must be set when APP_ENV is not development"
             )
         weak_db_markers = (
-            "://lanstar:lanstar@",
-            "://lanstar_app:lanstar_app@",
-            "://lanstar_migrate:lanstar_migrate@",
+            "://vizion:vizion@",
+            "://vizion_app:vizion_app@",
+            "://vizion_migrate:vizion_migrate@",
         )
         urls = (self.database_url, self.migrate_database_url)
         if any(marker in url for url in urls for marker in weak_db_markers):
             raise ValueError(
                 "Default database credentials are not allowed when APP_ENV is not "
-                "development — rotate lanstar / lanstar_app / lanstar_migrate passwords"
+                "development — rotate vizion / vizion_app / vizion_migrate passwords"
             )
         return self
 

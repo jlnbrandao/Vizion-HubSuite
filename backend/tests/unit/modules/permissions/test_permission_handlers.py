@@ -88,6 +88,20 @@ async def test_list_permissions_filters_by_resource_and_action(
     by_both = await list_all.handle(ListPermissionsQuery(resource="users", action="create"))
     assert [item.code for item in by_both] == ["iam.users.create"]
 
+    await create.handle(
+        CreatePermissionCommand(
+            tenant_id=UNIVERSE_TENANT_ID, code="gps.vehicles.read", name="Read vehicles"
+        )
+    )
+    by_iam = await list_all.handle(ListPermissionsQuery(service="iam"))
+    assert [item.code for item in by_iam] == [
+        "iam.roles.read",
+        "iam.users.create",
+        "iam.users.read",
+    ]
+    by_gps = await list_all.handle(ListPermissionsQuery(service="gps"))
+    assert [item.code for item in by_gps] == ["gps.vehicles.read"]
+
 
 @pytest.mark.asyncio
 async def test_create_permission_conflict(permissions_repo, uow_factory) -> None:

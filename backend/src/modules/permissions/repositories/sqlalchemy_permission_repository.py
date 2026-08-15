@@ -132,6 +132,7 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
         self,
         *,
         only_active: bool = False,
+        service: str | None = None,
         resource: str | None = None,
         action: str | None = None,
     ) -> list[Permission]:
@@ -141,6 +142,8 @@ class SqlAlchemyPermissionRepository(PermissionRepository):
         )
         if only_active:
             stmt = stmt.where(PermissionModel.is_active.is_(True))
+        if service:
+            stmt = stmt.where(PermissionModel.service == service)
         if resource:
             stmt = stmt.where(PermissionModel.resource == resource)
         if action:

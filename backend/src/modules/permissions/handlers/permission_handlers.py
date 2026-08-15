@@ -165,6 +165,7 @@ class ListPermissionsHandler(QueryHandler[ListPermissionsQuery, list[PermissionD
         async with self._uow_factory():
             items = await self._permissions.list_all(
                 only_active=query.only_active,
+                service=query.service,
                 resource=query.resource,
                 action=query.action,
             )

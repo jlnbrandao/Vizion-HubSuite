@@ -46,7 +46,7 @@ def _provider(catalog: _FakeCatalog, ttl: int = 30) -> CatalogEntitlementProvide
 def _user(*permissions: str) -> CurrentUser:
     return CurrentUser(
         id=uuid4(),
-        email="user@lanstar.io",
+        email="user@vizion.io",
         full_name="User",
         tenant_id=TENANT_ID,
         tenant_slug="acme",

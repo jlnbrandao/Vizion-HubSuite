@@ -13,6 +13,7 @@ const loading = ref(false)
 const saving = ref(false)
 const permissions = ref<PermissionResponse[]>([])
 
+const filterService = ref<string | null>(null)
 const filterResource = ref<string | null>(null)
 const filterAction = ref<string | null>(null)
 
@@ -35,6 +36,7 @@ const editForm = reactive({
 
 const columns: QTableColumn[] = [
   { name: 'code', label: 'Code', field: 'code', align: 'left', sortable: true },
+  { name: 'service', label: 'Service', field: 'service', align: 'left', sortable: true },
   { name: 'resource', label: 'Resource', field: 'resource', align: 'left', sortable: true },
   { name: 'action', label: 'Action', field: 'action', align: 'left', sortable: true },
   { name: 'name', label: 'Name', field: 'name', align: 'left', sortable: true },
@@ -45,8 +47,18 @@ const columns: QTableColumn[] = [
 
 const predefinedActions = Object.values(PermissionAction).slice().sort()
 
+const serviceOptions = computed(() => {
+  const values = new Set(
+    permissions.value.map((p) => p.service).filter((value): value is string => Boolean(value)),
+  )
+  return [...values].sort()
+})
+
 const resourceOptions = computed(() => {
-  const values = new Set(permissions.value.map((p) => p.resource))
+  const source = filterService.value
+    ? permissions.value.filter((p) => p.service === filterService.value)
+    : permissions.value
+  const values = new Set(source.map((p) => p.resource))
   return [...values].sort()
 })
 
@@ -67,6 +79,9 @@ const generatedCode = computed(() => {
 
 const filteredPermissions = computed(() => {
   return permissions.value.filter((permission) => {
+    if (filterService.value && permission.service !== filterService.value) {
+      return false
+    }
     if (filterResource.value && permission.resource !== filterResource.value) {
       return false
     }
@@ -182,6 +197,7 @@ async function deletePermission(permission: PermissionResponse) {
 }
 
 function clearFilters() {
+  filterService.value = null
   filterResource.value = null
   filterAction.value = null
 }
@@ -202,7 +218,7 @@ onMounted(() => {
           <div>
             <h1 class="app-page__title">Permissions</h1>
             <p class="app-page__lead">
-              Register canonical codes in resource.action format, with metadata for filtering and UI.
+              Register canonical codes in service.resource.action format, with metadata for filtering and UI.
             </p>
           </div>
           <q-btn
@@ -217,6 +233,16 @@ onMounted(() => {
         </header>
 
         <div class="app-page__filters">
+          <q-select
+            v-model="filterService"
+            :options="serviceOptions"
+            label="Service"
+            outlined
+            dense
+            clearable
+            class="app-page__filters-field"
+            @update:model-value="filterResource = null"
+          />
           <q-select
             v-model="filterResource"
             :options="resourceOptions"
@@ -244,7 +270,7 @@ onMounted(() => {
             no-caps
             color="primary"
             label="Clear"
-            :disable="!filterResource && !filterAction"
+            :disable="!filterService && !filterResource && !filterAction"
             @click="clearFilters"
           />
         </div>
@@ -262,6 +288,12 @@ onMounted(() => {
           <template #body-cell-code="props">
             <q-td :props="props">
               <code class="app-page__code">{{ props.row.code }}</code>
+            </q-td>
+          </template>
+
+          <template #body-cell-service="props">
+            <q-td :props="props">
+              <span class="app-page__chip">{{ props.row.service || '—' }}</span>
             </q-td>
           </template>
 

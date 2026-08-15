@@ -1,10 +1,10 @@
-# Lanstar — Integration Layer (Integration Hub)
+# Vizion — Integration Layer (Integration Hub)
 
-Documento de referência da área de **Integrações** do **enterprise-template** (produto Lanstar): arquitetura desacoplada (Page → Components → Service → Layer → Provider), estado atual da **ETAPA 1**, regras de segurança/RBAC/multi-tenancy e roadmap até o Integration Hub completo.
+Documento de referência da área de **Integrações** do **enterprise-template** (produto Vizion): arquitetura desacoplada (Page → Components → Service → Layer → Provider), estado atual da **ETAPA 1**, regras de segurança/RBAC/multi-tenancy e roadmap até o Integration Hub completo.
 
 | | |
 |---|---|
-| **Produto** | Lanstar — Enterprise Template |
+| **Produto** | Vizion — Enterprise Template |
 | **Escopo** | Hub de integração com sistemas terceiros (REST, OAuth2, mTLS, Webhook, SFTP, SOAP, sync incremental, DB, …) |
 | **Stack (alvo)** | Vue 3 / Quasar (UI) · FastAPI (orquestração) · Secret Manager · Providers por protocolo |
 | **Status atual** | **ETAPA 4** — API + REST + OAuth2 + mTLS; demais providers ainda stub |
@@ -14,7 +14,7 @@ Documento de referência da área de **Integrações** do **enterprise-template*
 
 ## 1. Objetivo
 
-Permitir que um tenant (hoje: operações **PLATFORM** / `bigbang`) configure, teste e sincronize integrações com sistemas externos **sem** acoplar a UI aos protocolos e **sem** o browser falar diretamente com o terceiro.
+Permitir que um tenant (hoje: operações **PLATFORM** / `ows`) configure, teste e sincronize integrações com sistemas externos **sem** acoplar a UI aos protocolos e **sem** o browser falar diretamente com o terceiro.
 
 Princípios:
 
@@ -249,8 +249,8 @@ Não duplicar o mesmo item em `useLayoutConfig` (evita dois entries na sidebar).
 
 Esses códigos são **platform-only** (`PermissionCode.platform_only_codes()`):
 
-- Existem no tenant de ops **`bigbang`**
-- Entram no role **PLATFORM** (seed: usuário `galileu`)
+- Existem no tenant de ops **`ows`**
+- Entram no role **PLATFORM** (seed: usuário `root`)
 - **Não** entram no RBAC de produto (`universe` / ADMIN)
 
 Frontend: `PermissionCode.INTEGRATION_*` em `frontend/src/constants/permissions.ts`.  
@@ -278,7 +278,7 @@ Tenant
 - O backend (ETAPA 2+) determina o tenant pelo **contexto autenticado / Host**, não pelo payload do frontend.
 - Usuário de um tenant não acessa integrações de outro.
 
-Acesso UI demo: `http://bigbang.localhost:9000/integrations` como `galileu`.
+Acesso UI demo: `http://ows.localhost:9000/integrations` como `root`.
 
 ---
 
@@ -387,7 +387,7 @@ docker compose --profile seed run --rm seed
 ```
 
 - Seed idempotente sincroniza `PLATFORM` com `platform_only_codes()` (inclui `integration.*`).
-- JWT/sessão antiga: fazer **logout/login** como `galileu` em `bigbang.*`.
+- JWT/sessão antiga: fazer **logout/login** como `root` em `ows.*`.
 - `docker-compose.yml`: serviços `api` e `seed` usam a mesma `image: enterprise-template-api` para não haver drift de catálogo de permissões.
 
 ---

@@ -79,7 +79,7 @@ export function createMockIntegrations(): Integration[] {
       configuration: {
         host: 'sftp.example.com',
         port: 22,
-        username: 'lanstar_ingest',
+        username: 'vizion_ingest',
         authType: 'private_key',
         remotePath: '/outbound/addresses',
         filenamePattern: 'addresses_*.csv',

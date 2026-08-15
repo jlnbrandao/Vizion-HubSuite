@@ -107,7 +107,7 @@ async def test_create_user_with_roles(
     role_id = await create_role.handle(CreateRoleCommand(tenant_id=UNIVERSE_TENANT_ID,name="ADMIN"))
     user_id = await create_user.handle(
         CreateUserCommand(tenant_id=UNIVERSE_TENANT_ID,
-            email="admin@lanstar.io",
+            email="admin@vizion.io",
             username="admin",
             full_name="System Admin",
             password="Secret123!",
@@ -116,7 +116,7 @@ async def test_create_user_with_roles(
     )
 
     dto = await get_user.handle(GetUserByIdQuery(user_id=user_id))
-    assert dto.email == "admin@lanstar.io"
+    assert dto.email == "admin@vizion.io"
     assert dto.username == "admin"
     assert role_id in dto.role_ids
 

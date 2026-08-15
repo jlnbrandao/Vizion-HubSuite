@@ -43,7 +43,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
         host = request.headers.get("host")
         try:
-            # Always enforce allowlist when configured (default includes localhost + lanstar.com.br).
+            # Always enforce allowlist when configured (default includes localhost + openvizion.com).
             assert_host_base_domain_allowed(
                 host,
                 self._settings.tenant_base_domains,

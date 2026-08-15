@@ -10,7 +10,7 @@ import FakeStuffPage from '@/components/stuff/FakeStuffPage.vue'
     :stats="[
       { label: 'Scope', value: 'SaaS' },
       { label: 'Focus', value: 'Tenants' },
-      { label: 'Host', value: 'bigbang.*' },
+      { label: 'Host', value: 'ows.*' },
     ]"
     :rows="[
       { id: 'tenants', title: 'Tenants', meta: 'Catalog CRUD + activate/deactivate', status: '/tenants' },

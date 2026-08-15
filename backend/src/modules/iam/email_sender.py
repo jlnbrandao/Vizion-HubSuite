@@ -8,7 +8,7 @@ from email.message import EmailMessage
 
 from src.config.settings import Settings
 
-logger = logging.getLogger("lanstar.mail")
+logger = logging.getLogger("vizion.mail")
 
 
 class EmailSender:

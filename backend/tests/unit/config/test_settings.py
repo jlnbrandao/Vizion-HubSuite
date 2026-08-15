@@ -29,8 +29,8 @@ def test_production_rejects_empty_base_domains() -> None:
             app_env="production",
             jwt_secret_key="a" * 32,
             allowed_tenant_base_domains="",
-            database_url="postgresql+asyncpg://app:s3cret@localhost:5432/lanstar",
-            database_migrate_url="postgresql+asyncpg://mig:s3cret@localhost:5432/lanstar",
+            database_url="postgresql+asyncpg://app:s3cret@localhost:5432/vizion",
+            database_migrate_url="postgresql+asyncpg://mig:s3cret@localhost:5432/vizion",
         )
 
 
@@ -39,8 +39,8 @@ def test_production_rejects_default_db_passwords() -> None:
         Settings(
             app_env="production",
             jwt_secret_key="a" * 32,
-            allowed_tenant_base_domains="lanstar.com.br",
-            database_url="postgresql+asyncpg://lanstar_app:lanstar_app@localhost:5432/lanstar",
+            allowed_tenant_base_domains="openvizion.com",
+            database_url="postgresql+asyncpg://vizion_app:vizion_app@localhost:5432/vizion",
         )
 
 
@@ -49,9 +49,9 @@ def test_production_accepts_strong_jwt_secret() -> None:
     settings = Settings(
         app_env="production",
         jwt_secret_key=secret,
-        allowed_tenant_base_domains="lanstar.com.br",
-        database_url="postgresql+asyncpg://app:s3cret@localhost:5432/lanstar",
-        database_migrate_url="postgresql+asyncpg://mig:s3cret@localhost:5432/lanstar",
+        allowed_tenant_base_domains="openvizion.com",
+        database_url="postgresql+asyncpg://app:s3cret@localhost:5432/vizion",
+        database_migrate_url="postgresql+asyncpg://mig:s3cret@localhost:5432/vizion",
     )
     assert settings.jwt_secret_key == secret
-    assert settings.tenant_base_domains == ("lanstar.com.br",)
+    assert settings.tenant_base_domains == ("openvizion.com",)

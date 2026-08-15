@@ -21,7 +21,7 @@ from src.modules.integrations.providers.mtls_provider import (
 def _pem_bundle() -> tuple[str, str, str]:
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject = issuer = x509.Name(
-        [x509.NameAttribute(NameOID.COMMON_NAME, "lanstar-mtls-test")]
+        [x509.NameAttribute(NameOID.COMMON_NAME, "vizion-mtls-test")]
     )
     now = datetime.now(UTC)
     cert = (

@@ -76,6 +76,7 @@ async def create_permission(
 @inject
 async def list_permissions(
     only_active: bool = False,
+    service: str | None = None,
     resource: str | None = None,
     action: str | None = None,
     query_bus: QueryBus = Depends(Provide[Container.query_bus]),
@@ -84,6 +85,7 @@ async def list_permissions(
     items: list[PermissionDto] = await query_bus.ask(
         ListPermissionsQuery(
             only_active=only_active,
+            service=service.strip().lower() if service else None,
             resource=resource.strip().lower() if resource else None,
             action=action.strip().lower() if action else None,
         )

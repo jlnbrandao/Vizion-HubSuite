@@ -1,0 +1,8 @@
+[Unit]
+Description=Vizion application stack
+Documentation=file:///opt/vizion/README.md
+Requires=vizion-infra.service vizion-api.service nginx.service
+After=vizion-infra.service vizion-api.service nginx.service
+
+[Install]
+WantedBy=multi-user.target

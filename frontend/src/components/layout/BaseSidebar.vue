@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import logoColor from '@/assets/brand/logo-color.png'
+import logoColor from '@/assets/brand/hub-color.png'
 
 export interface MenuItem {
   id: string
@@ -57,7 +57,7 @@ function handleLogout() {
       <div class="base-sidebar__logo">
         <img
           :src="logoColor"
-          alt="Lanstar"
+          alt="Vizion"
         >
       </div>
 

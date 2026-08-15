@@ -1,10 +1,10 @@
-# Lanstar — Sistema IAM (Identity and Access Management)
+# Vizion — Sistema IAM (Identity and Access Management)
 
-Documento de referência do modelo de identidade e acesso do **enterprise-template** (produto Lanstar): o que já existe hoje, como funciona, o que falta para um IAM completo e o roadmap para torná-lo um **Identity Provider** multi-tenant.
+Documento de referência do modelo de identidade e acesso do **enterprise-template** (produto Vizion): o que já existe hoje, como funciona, o que falta para um IAM completo e o roadmap para torná-lo um **Identity Provider** multi-tenant.
 
 | | |
 |---|---|
-| **Produto** | Lanstar — Enterprise Template |
+| **Produto** | Vizion — Enterprise Template |
 | **Escopo** | Autenticação, autorização, multi-tenancy, evolução para IdP |
 | **Stack** | FastAPI, PostgreSQL (RLS), Redis, Vue 3 / Quasar, PyJWT |
 | **Status atual** | IAM de **aplicação** + plataforma (fases 0–8 implementadas no código) |
@@ -24,10 +24,10 @@ Há dois níveis de maturidade:
 
 | Nível | Significado | Exemplo |
 |-------|-------------|---------|
-| **IAM de aplicação** | Login, usuários, papéis e permissões **dentro** de um produto | O que o Lanstar é **hoje** |
+| **IAM de aplicação** | Login, usuários, papéis e permissões **dentro** de um produto | O que o Vizion é **hoje** |
 | **IAM plataforma (IdP)** | Outros sistemas autenticam **nele**; federação, SCIM, consent, M2M | Keycloak, Auth0, Cognito — **alvo** deste roadmap |
 
-O Lanstar já resolve bem o primeiro nível. O roadmap descrito neste documento eleva o projeto ao segundo.
+O Vizion já resolve bem o primeiro nível. O roadmap descrito neste documento eleva o projeto ao segundo.
 
 ---
 
@@ -69,7 +69,7 @@ O Lanstar já resolve bem o primeiro nível. O roadmap descrito neste documento 
 | Login | Username **ou** e-mail + senha (bcrypt) |
 | Access token | JWT **HS256**, ~15 min, header `Authorization: Bearer` |
 | Refresh token | Opaco (`secrets`), armazenado no Redis só como **SHA-256**, TTL ~7 dias |
-| Cookie | `lanstar_refresh_token`, **httpOnly**, `SameSite=lax`, `Secure` fora de development, prefixo `__Host-` em produção |
+| Cookie | `vizion_refresh_token`, **httpOnly**, `SameSite=lax`, `Secure` fora de development, prefixo `__Host-` em produção |
 | Frontend | Access token **somente em memória** (não vai para `localStorage`) |
 | Logout | Invalida o refresh **e** grava o `sid` na denylist do Redis — o access morre na hora |
 | Invalidação forte | Campo `credentials_version` (`cv` no JWT): sobe em troca de senha, desativação, delete ou mudança de roles — access antigo é rejeitado e refreshes do usuário são apagados |
@@ -99,25 +99,25 @@ Permission (service.resource.action)
 - Backend: `Depends(require_permission(...))` — valida JWT, tenant do Host, usuário ativo, `cv`, `sid` não revogado, e delega ao engine.
 - Frontend: `can()` / `canAny()` / `meta.permissions` / `meta.service` nas rotas (espelho de UX; a barreira real é o backend).
 - **Hierarquia de roles:** `PLATFORM` > `ADMIN` > `MANAGER` > `OPERATOR` > `CLIENT` > `VIEWER`, definida em `HierarchyPolicy` dentro do engine. Quem gerencia usuários/roles **não** pode gerenciar pares ou superiores.
-- Permissões **platform-only** (`tenants.*`, `services.*`, `usage.read_all`, `system.settings`, `dashboard.platform`, `integration.*`) existem só no tenant de operações (`bigbang`), não no RBAC comum de produto.
+- Permissões **platform-only** (`tenants.*`, `services.*`, `usage.read_all`, `system.settings`, `dashboard.platform`, `integration.*`) existem só no tenant de operações (`ows`), não no RBAC comum de produto.
 - Exceções por recurso ficam em `resource_acls` ([ACL.md](ACL.md)); políticas contextuais (Casbin) podem **negar** o que o RBAC concedeu.
 
 ### 3.3 Multi-tenancy e isolamento
 
 | Elemento | Detalhe |
 |----------|---------|
-| Tabela `tenants` | Isolamento lógico; seed cria `universe` (app) e `bigbang` (ops) |
-| Resolução | Primeiro label do Host → slug → tenant (`universe.localhost`, `bigbang.lanstar.com.br`, …) |
+| Tabela `tenants` | Isolamento lógico; seed cria `universe` (app) e `ows` (ops) |
+| Resolução | Primeiro label do Host → slug → tenant (`universe.localhost`, `ows.openvizion.com`, …) |
 | RLS | `FORCE ROW LEVEL SECURITY` em toda tabela tenant-scoped (users, roles, permissions e associações, audit, sessões, ACLs, bundles, `tenant_services`, `usage_records`, integrações) |
 | Defense-in-depth | Repositórios SQLAlchemy também filtram por `tenant_id` |
-| Roles de banco | `lanstar` (migrate/owner), `lanstar_app` (API, sujeita a RLS), `lanstar_migrate` (opcional, `BYPASSRLS`) |
+| Roles de banco | `vizion` (migrate/owner), `vizion_app` (API, sujeita a RLS), `vizion_migrate` (opcional, `BYPASSRLS`) |
 
 ### 3.4 Sessões e rate limiting
 
 - Refresh recarrega `role_ids` / `is_active` do banco a cada renovação.
 - Sessões em `auth_sessions` (`sid` no token), listáveis e revogáveis; revogar grava o `sid` na denylist do Redis.
 - Rate limit Redis por `tenant:IP` (`X-Real-IP`); login/refresh com limite mais baixo que a API geral. Quotas por `tenant+serviço` no `ServiceQuotaGuard`.
-- Eventos de domínio (login, logout, CRUD de users/roles/permissions, `AUTHZ_DENIED`) vão para log estruturado (`lanstar.audit`) **e** para `audit_events`, consultável em `GET /api/v1/audit-events` e correlacionável por `request_id`.
+- Eventos de domínio (login, logout, CRUD de users/roles/permissions, `AUTHZ_DENIED`) vão para log estruturado (`vizion.audit`) **e** para `audit_events`, consultável em `GET /api/v1/audit-events` e correlacionável por `request_id`.
 
 ### 3.5 Ciclo de vida
 
@@ -146,7 +146,7 @@ Bundles semeados: `iam.admin`, `iam.manager`, `iam.operator`, `iam.client`, `iam
 
 **Tenant `universe` (produto):** `ADMIN`, `MANAGER`, `OPERATOR`, `CLIENT`, `VIEWER`.
 
-**Tenant `bigbang` (plataforma):** `PLATFORM` (usuário demo `galileu`).
+**Tenant `ows` (OpenVizion Web Service / plataforma):** `PLATFORM` (usuário demo `root`).
 
 ---
 
@@ -172,7 +172,7 @@ Request + Bearer + Host
   → user ativo + cv bate + sid não revogado?
   → ResolveEffectiveAccess (roles + bundles + permission codes)
   → require_permission("iam.users.read") → AuthorizationService.check(...)
-  → handler (RLS ativa na conexão lanstar_app)
+  → handler (RLS ativa na conexão vizion_app)
 ```
 
 ### 4.3 Invalidação de credenciais
@@ -188,7 +188,7 @@ O access token antigo falha na próxima request mesmo antes de expirar.
 
 ---
 
-## 5. Classificação: o Lanstar é um IAM?
+## 5. Classificação: o Vizion é um IAM?
 
 **Sim, como IAM de aplicação.** Cobre identidade local, autenticação JWT, autorização RBAC/ACL/ABAC, isolamento multi-tenant e administração de usuários/papéis.
 
@@ -209,20 +209,20 @@ O roadmap da seção 7 é o histórico de como cada bloco entrou; a seção 15 d
 
 ---
 
-## 6. Visão-alvo: Lanstar Identity Provider
+## 6. Visão-alvo: Vizion Identity Provider
 
-**Decisão de arquitetura:** o Lanstar passa a ser um **Identity Provider multi-tenant**. Outras aplicações autenticam nele; ele também pode **federar** IdPs externos (Google, Microsoft Entra / Azure AD, SAML corporativo).
+**Decisão de arquitetura:** o Vizion passa a ser um **Identity Provider multi-tenant**. Outras aplicações autenticam nele; ele também pode **federar** IdPs externos (Google, Microsoft Entra / Azure AD, SAML corporativo).
 
 ### 6.1 Diagrama-alvo
 
 ```
                     ┌──────────────┐  ┌──────────────┐  ┌─────────────┐
-                    │ Lanstar SPA  │  │ Apps externas│  │ SCIM (Entra)│
+                    │ Vizion SPA  │  │ Apps externas│  │ SCIM (Entra)│
                     └──────┬───────┘  └──────┬───────┘  └──────┬──────┘
                            │                 │                  │
                            ▼                 ▼                  ▼
                  ┌─────────────────────────────────────────────────────┐
-                 │                 Lanstar IdP                         │
+                 │                 Vizion IdP                         │
                  │  AuthN (senha/MFA/SSO)  │  OIDC/OAuth AS + Consent │
                  │  RBAC + ABAC            │  Service accounts / keys │
                  │  Users / Roles / SCIM   │  Audit store             │
@@ -300,7 +300,7 @@ Hoje o audit só escreve em log. Um IAM sério guarda eventos **consultáveis**.
 
 ### Fase 4 — OIDC/OAuth como provedor + consent/scopes *(pontos 7 e 10)*
 
-Núcleo de “IAM de verdade”: o Lanstar **emite** tokens para outros clients.
+Núcleo de “IAM de verdade”: o Vizion **emite** tokens para outros clients.
 
 - Grants: Authorization Code + PKCE, Refresh, Client Credentials
 - Tabelas: `oauth_clients`, `oauth_scopes`, `oauth_authorization_codes`, `oauth_consents`
@@ -344,7 +344,7 @@ Provisionamento a partir de diretórios (Entra, Okta, etc.).
 
 - `/scim/v2/Users` e `/Groups` (create, replace, patch, delete, filter)
 - Auth via Bearer de service account com `scim.provision`
-- Group SCIM ↔ Role Lanstar; User SCIM ↔ User + roles
+- Group SCIM ↔ Role Vizion; User SCIM ↔ User + roles
 - Sempre escopado ao tenant do Host; documentação de mapeamento de atributos
 
 ---
@@ -359,7 +359,7 @@ Provisionamento a partir de diretórios (Entra, Okta, etc.).
 | 4 | Políticas avançadas (lockout, history, expiração, conditional access) | 2 |
 | 5 | Audit trail persistente | 1 |
 | 6 | Identidades não-humanas (API keys, service accounts, M2M, client credentials) | 5 (+ grant na 4) |
-| 7 | Provedor OIDC/OAuth (Lanstar é o IdP) | 4 |
+| 7 | Provedor OIDC/OAuth (Vizion é o IdP) | 4 |
 | 8 | ABAC / policies finas | 7 |
 | 9 | SCIM / sync | 8 |
 | 10 | Consent / scopes OAuth | 4 |
@@ -462,7 +462,7 @@ Permission codes novos devem ser espelhados em `frontend/src/constants/permissio
 
 ## 14. Conclusão
 
-O Lanstar evoluiu de IAM de aplicação (RBAC multi-tenant) para uma **base de Identity Provider**: audit durável, lifecycle, políticas, MFA, OIDC/OAuth com consent, identidades máquina, federação SSO, ABAC e SCIM estão no código (ver seção 15).
+O Vizion evoluiu de IAM de aplicação (RBAC multi-tenant) para uma **base de Identity Provider**: audit durável, lifecycle, políticas, MFA, OIDC/OAuth com consent, identidades máquina, federação SSO, ABAC e SCIM estão no código (ver seção 15).
 
 Continue endurecendo cada capacidade (SMTP real, WebAuthn com verificação criptográfica completa, exchange OIDC outbound com httpx, Casbin sync, cobertura de contrato SCIM) conforme a necessidade de produção.
 
