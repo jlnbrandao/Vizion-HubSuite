@@ -148,8 +148,8 @@ PLATFORM_PERMISSIONS: frozenset[str] = frozenset(PermissionCode.platform_only_co
 
 # Roles are composed from bundles; `role_permissions` is left for fine exceptions.
 ROLE_BUNDLES: dict[str, tuple[str, ...]] = {
-    "ADMIN": ("iam.admin",),
-    "MANAGER": ("iam.manager",),
+    "ADMIN": ("iam.admin", "billing.admin"),
+    "MANAGER": ("iam.manager", "billing.manager"),
     "OPERATOR": ("iam.operator",),
     "CLIENT": ("iam.client",),
     "VIEWER": ("iam.viewer",),
@@ -373,9 +373,10 @@ async def _ensure_service_catalog(container: Container) -> None:
         for definition in CORE_SERVICES:
             current = existing.get(definition.slug)
             if current is not None:
-                # `is_core` decides whether a contract may be suspended, so a
-                # catalog change must reach databases seeded before it.
+                # `is_core` / `tenant_only` decide whether a contract may be
+                # suspended or attached to the platform tenant.
                 current.is_core = definition.is_core
+                current.tenant_only = definition.tenant_only
                 continue
             session.add(
                 ServiceModel(
@@ -385,6 +386,7 @@ async def _ensure_service_catalog(container: Container) -> None:
                     name=definition.name,
                     description=definition.description,
                     is_core=definition.is_core,
+                    tenant_only=definition.tenant_only,
                     default_quotas=dict(definition.default_quotas),
                 )
             )

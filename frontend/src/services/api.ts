@@ -4,6 +4,13 @@ import type {
   CreatePermissionPayload,
   CreateRolePayload,
   CreateTenantPayload,
+  BillingInvoiceResponse,
+  BillingOverviewResponse,
+  BillingPaymentMethodResponse,
+  BillingSettingsResponse,
+  CreateBillingPaymentMethodPayload,
+  CreateBillingPaymentPayload,
+  CreateBillingPaymentResponse,
   CreateUserPayload,
   DashboardResponse,
   IdResponse,
@@ -19,6 +26,7 @@ import type {
   TenantResponse,
   TenantServiceResponse,
   TokenResponse,
+  UpdateBillingSettingsPayload,
   UpdatePermissionPayload,
   UpdateRolePayload,
   UpdateUserPayload,
@@ -302,6 +310,36 @@ export const permissionBundlesApi = {
   },
   replaceForRole(roleId: string, groupIds: string[]) {
     return api.put(`/permission-bundles/roles/${roleId}`, { group_ids: groupIds })
+  },
+}
+
+export const billingApi = {
+  overview() {
+    return api.get<BillingOverviewResponse>('/billing/overview')
+  },
+  invoices() {
+    return api.get<BillingInvoiceResponse[]>('/billing/invoices')
+  },
+  exportInvoice(invoiceId: string) {
+    return api.get<Blob>(`/billing/invoices/${invoiceId}/export`, { responseType: 'blob' })
+  },
+  createPayment(payload: CreateBillingPaymentPayload) {
+    return api.post<CreateBillingPaymentResponse>('/billing/payments', payload)
+  },
+  paymentMethods() {
+    return api.get<BillingPaymentMethodResponse[]>('/billing/payment-methods')
+  },
+  addPaymentMethod(payload: CreateBillingPaymentMethodPayload) {
+    return api.post<BillingPaymentMethodResponse>('/billing/payment-methods', payload)
+  },
+  settings() {
+    return api.get<BillingSettingsResponse>('/billing/settings')
+  },
+  updateSettings(payload: UpdateBillingSettingsPayload) {
+    return api.put<BillingSettingsResponse>('/billing/settings', payload)
+  },
+  applyPromo(code: string) {
+    return api.post<BillingSettingsResponse>('/billing/promos', { code })
   },
 }
 

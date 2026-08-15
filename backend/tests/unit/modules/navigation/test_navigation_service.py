@@ -90,3 +90,16 @@ def test_self_service_entries_need_no_permission() -> None:
 
     assert {"nav-home", "account-profile", "account-sessions", "account-mfa"} <= ids
     assert "admin-users" not in ids
+    assert "account-billing" not in ids
+
+
+def test_billing_appears_only_when_entitled_and_permitted() -> None:
+    with_perm = NavigationService().resolve(
+        _user(PermissionCode.INVOICES_READ), frozenset({"iam", "billing"})
+    )
+    assert "account-billing" in {item.id for item in with_perm.items}
+
+    platform_only = NavigationService().resolve(
+        _user(PermissionCode.DASHBOARD_PLATFORM), frozenset({"iam", "platform"})
+    )
+    assert "account-billing" not in {item.id for item in platform_only.items}

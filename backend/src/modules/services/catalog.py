@@ -12,10 +12,14 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.shared.infrastructure.security.permission_codes import (
+    SERVICE_BILLING,
     SERVICE_IAM,
     SERVICE_INTEGRATION,
     SERVICE_PLATFORM,
 )
+
+#: Ops tenant (`ows`) never receives tenant-only services such as billing.
+PLATFORM_TENANT_SLUG = "ows"
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +33,8 @@ class ServiceDefinition:
     is_core: bool = False
     #: Enabled for every new tenant. Sellable services leave this off.
     enabled_by_default: bool = False
+    #: Product-tenant service: never entitled on the platform tenant (`ows`).
+    tenant_only: bool = False
     #: Baseline quotas; `tenant_services.quotas` overrides individual keys.
     default_quotas: dict[str, Any] = field(default_factory=dict)
 
@@ -59,6 +65,14 @@ CORE_SERVICES: tuple[ServiceDefinition, ...] = (
         # like any other: the platform may suspend it per tenant.
         enabled_by_default=True,
         default_quotas={"sync_per_hour": 60},
+    ),
+    ServiceDefinition(
+        slug=SERVICE_BILLING,
+        namespace=SERVICE_BILLING,
+        name="Billing",
+        description="Invoices and payments for contracted tenant services",
+        tenant_only=True,
+        enabled_by_default=True,
     ),
 )
 

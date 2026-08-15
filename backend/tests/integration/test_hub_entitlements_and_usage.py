@@ -16,9 +16,10 @@ async def test_my_services_lists_the_core_contract(
 
     assert response.status_code == 200, response.text
     services = {item["slug"]: item for item in response.json()}
-    assert {"iam", "platform", "integration"} <= set(services)
+    assert {"iam", "platform", "integration", "billing"} <= set(services)
     assert services["iam"]["entitled"] is True
     assert services["iam"]["is_core"] is True
+    assert services["billing"]["entitled"] is True
 
 
 async def test_navigation_only_offers_entitled_and_permitted_entries(

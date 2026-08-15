@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.shared.infrastructure.security.permission_codes import (
+    SERVICE_BILLING,
     SERVICE_IAM,
     SERVICE_INTEGRATION,
     SERVICE_PLATFORM,
@@ -233,6 +234,15 @@ NAVIGATION_CATALOG: tuple[NavItem, ...] = (
         icon="manage_accounts",
         route="/account/profile",
         group=GROUP_ACCOUNT,
+    ),
+    NavItem(
+        id="account-billing",
+        label="Billing",
+        icon="receipt_long",
+        route="/account/billing",
+        group=GROUP_ACCOUNT,
+        service=SERVICE_BILLING,
+        permission=PermissionCode.INVOICES_READ,
     ),
     NavItem(
         id="account-sessions",

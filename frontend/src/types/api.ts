@@ -259,3 +259,123 @@ export interface RenameTenantPayload {
   name: string
 }
 
+export interface BillingChargeLine {
+  kind: 'user' | 'service' | 'discount' | string
+  label: string
+  quantity: number
+  unit_amount: string | number
+  amount: string | number
+  ref?: string | null
+  included?: boolean
+  enabled?: boolean
+}
+
+export interface BillingOverviewResponse {
+  generated_at: string
+  period_start: string
+  period_end: string
+  payment_due: string
+  days_elapsed: number
+  prepayments: string | number
+  discount: string | number
+  subtotal: string | number
+  total: string | number
+  users: BillingChargeLine[]
+  services: BillingChargeLine[]
+  promo_code?: string | null
+}
+
+export interface BillingInvoiceLine {
+  kind: string
+  label: string
+  quantity: number
+  unit_amount: string | number
+  amount: string | number
+  ref?: string | null
+}
+
+export interface BillingInvoiceResponse {
+  id: string
+  period_start: string
+  period_end: string
+  status: string
+  subtotal: string | number
+  discount: string | number
+  total: string | number
+  description: string
+  invoice_url?: string | null
+  pix_payload?: string | null
+  created_at: string
+  lines: BillingInvoiceLine[]
+}
+
+export interface BillingPaymentMethodResponse {
+  id: string
+  billing_type: string
+  brand: string
+  last4: string
+  holder_name: string
+  is_primary: boolean
+  credit_card_token?: string | null
+}
+
+export interface CreateBillingPaymentMethodPayload {
+  billing_type?: string
+  credit_card_token?: string
+  brand?: string
+  last4?: string
+  holder_name?: string
+  is_primary?: boolean
+  card_number?: string
+  expiry_month?: string
+  expiry_year?: string
+  ccv?: string
+}
+
+export interface BillingSettingsResponse {
+  legal_name: string
+  email: string
+  cpf_cnpj: string
+  postal_code: string
+  address: string
+  address_number: string
+  complement: string
+  province: string
+  city: string
+  state: string
+  country: string
+  cycle_close_day: number
+  alert_enabled: boolean
+  promo_code?: string | null
+  asaas_linked: boolean
+  contracted_services: BillingChargeLine[]
+}
+
+export interface UpdateBillingSettingsPayload {
+  legal_name?: string
+  email?: string
+  cpf_cnpj?: string
+  postal_code?: string
+  address?: string
+  address_number?: string
+  complement?: string
+  province?: string
+  city?: string
+  state?: string
+  country?: string
+  cycle_close_day?: number
+  alert_enabled?: boolean
+}
+
+export interface CreateBillingPaymentPayload {
+  billing_type?: string
+  payment_method_id?: string
+  amount?: number
+}
+
+export interface CreateBillingPaymentResponse {
+  invoice: BillingInvoiceResponse
+  invoice_url?: string | null
+  pix_payload?: string | null
+}
+

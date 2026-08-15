@@ -18,6 +18,8 @@ from src.modules.authentication.handlers.auth_handlers import (
 )
 from src.modules.authentication.services.jwt_token_service import JwtTokenService
 from src.modules.authentication.services.redis_refresh_token_store import RedisRefreshTokenStore
+from src.modules.billing.asaas import AsaasClient
+from src.modules.billing.service import BillingService
 from src.modules.dashboard.handlers.dashboard_handlers import GetDashboardHandler
 from src.modules.dashboard.providers.admin_provider import AdminDashboardProvider
 from src.modules.dashboard.providers.client_provider import ClientDashboardProvider
@@ -557,6 +559,17 @@ class Container(containers.DeclarativeContainer):
         IntegrationService,
         settings=config,
         layer=integration_layer,
+    )
+    asaas_client: providers.Singleton[AsaasClient] = providers.Singleton(
+        AsaasClient,
+        settings=config,
+    )
+    billing_service: providers.Singleton[BillingService] = providers.Singleton(
+        BillingService,
+        settings=config,
+        asaas=asaas_client,
+        catalog=service_catalog,
+        audit=audit_service,
     )
 
     # --- Authentication handlers ---

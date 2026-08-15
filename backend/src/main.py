@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 
 from src.config.settings import get_settings
 from src.modules.authentication.routes.auth_routes import router as auth_router
+from src.modules.billing.routes import router as billing_router
 from src.modules.dashboard.routes.dashboard_routes import router as dashboard_router
 from src.modules.iam.routes import router as iam_router
 from src.modules.iam.scim.routes import router as scim_router
@@ -36,6 +37,7 @@ from src.shared.infrastructure.exceptions import (
     ConflictError,
     ForbiddenError,
     NotFoundError,
+    ServiceUnavailableError,
     UnauthorizedError,
     ValidationError,
 )
@@ -69,6 +71,7 @@ _WIRE_MODULES = [
     "src.modules.iam.routes",
     "src.modules.iam.scim.routes",
     "src.modules.integrations.routes",
+    "src.modules.billing.routes",
     "src.shared.infrastructure.security.dependencies",
 ]
 
@@ -149,6 +152,10 @@ def create_app(container: Container | None = None) -> FastAPI:
     async def forbidden_handler(_: Request, exc: ForbiddenError) -> JSONResponse:
         return _error_response(403, exc)
 
+    @app.exception_handler(ServiceUnavailableError)
+    async def unavailable_handler(_: Request, exc: ServiceUnavailableError) -> JSONResponse:
+        return _error_response(503, exc)
+
     @app.get("/health", tags=["system"])
     async def health() -> dict[str, str]:
         return {"status": "ok", "app": settings.app_name}
@@ -166,6 +173,7 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.include_router(iam_router, prefix="/api/v1")
     app.include_router(scim_router, prefix="/api/v1")
     app.include_router(integrations_router, prefix="/api/v1")
+    app.include_router(billing_router, prefix="/api/v1")
 
     return app
 

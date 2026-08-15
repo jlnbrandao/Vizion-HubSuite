@@ -34,6 +34,10 @@ TENANT_SCOPED_TABLES = (
     "resource_acls",
     "tenant_services",
     "usage_records",
+    "billing_customers",
+    "billing_payment_methods",
+    "billing_invoices",
+    "billing_invoice_lines",
 )
 
 APP_ROLE = "vizion_app"

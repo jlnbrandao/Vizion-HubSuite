@@ -19,7 +19,13 @@ from src.shared.infrastructure.tenant_host import (
     extract_tenant_slug_from_host,
 )
 
-_SKIP_PREFIXES = ("/health", "/docs", "/redoc", "/openapi.json")
+_SKIP_PREFIXES = (
+    "/health",
+    "/docs",
+    "/redoc",
+    "/openapi.json",
+    "/api/v1/billing/webhooks",
+)
 
 
 class TenantMiddleware(BaseHTTPMiddleware):

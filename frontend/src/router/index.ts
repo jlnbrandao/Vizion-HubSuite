@@ -6,6 +6,7 @@ import {
 } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { hasPermissionCode, PermissionCode } from '@/constants/permissions'
+import { billingRoutes } from '@/modules/billing/routes'
 import { iamPublicRoutes, iamRoutes } from '@/modules/iam/routes'
 import { integrationRoutes } from '@/modules/integration/routes'
 import { platformRoutes } from '@/modules/platform/routes'
@@ -102,7 +103,13 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     meta: { requiresAuth: true },
-    children: [...shellRoutes, ...iamRoutes, ...platformRoutes, ...integrationRoutes],
+    children: [
+      ...shellRoutes,
+      ...iamRoutes,
+      ...platformRoutes,
+      ...integrationRoutes,
+      ...billingRoutes,
+    ],
   },
   ...iamPublicRoutes,
   {

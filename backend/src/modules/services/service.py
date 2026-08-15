@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import or_, select
 
-from src.modules.services.catalog import DEFAULT_SERVICE_SLUGS
+from src.modules.services.catalog import DEFAULT_SERVICE_SLUGS, PLATFORM_TENANT_SLUG
 from src.modules.services.models import (
     ENTITLED_STATUSES,
     STATUS_ACTIVE,
@@ -143,6 +143,17 @@ class ServiceCatalogService:
             raise ValidationError(
                 f"'{service.slug}' is a core service and cannot be disabled"
             )
+        if service.tenant_only:
+            tenant_slug = await self._tenant_slug(tenant_id)
+            if tenant_slug == PLATFORM_TENANT_SLUG:
+                raise ValidationError(
+                    f"'{service.slug}' is a tenant-only service and cannot be "
+                    "entitled on the platform tenant"
+                )
+            if status not in ENTITLED_STATUSES:
+                raise ValidationError(
+                    f"'{service.slug}' is mandatory for product tenants and cannot be disabled"
+                )
 
         db = get_current_session()
         result = await db.execute(
@@ -211,10 +222,21 @@ class ServiceCatalogService:
                 )
             )
         )
+        tenant_slug = await self._tenant_slug(tenant_id)
         for service in result.scalars().all():
+            if service.tenant_only and tenant_slug == PLATFORM_TENANT_SLUG:
+                continue
             await self.set_status(
                 tenant_id=tenant_id, service_slug=service.slug, status=STATUS_ACTIVE
             )
+
+    async def _tenant_slug(self, tenant_id: UUID) -> str | None:
+        from src.modules.tenants.repositories.tenant_model import TenantModel
+
+        result = await get_current_session().execute(
+            select(TenantModel.slug).where(TenantModel.id == tenant_id)
+        )
+        return result.scalar_one_or_none()
 
 
 class PlatformServiceCatalog:

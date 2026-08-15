@@ -4,7 +4,7 @@ Como um serviço novo (GPS, SNMP, DDNS, ERP, Imobiliária, Geoprocessamento…) 
 
 | | |
 |---|---|
-| **Catálogo** | tabela `services` (`slug`, `namespace`, `version`, `is_core`, `default_quotas`) |
+| **Catálogo** | tabela `services` (`slug`, `namespace`, `version`, `is_core`, `tenant_only`, `default_quotas`) |
 | **Contrato por tenant** | tabela `tenant_services` (`plan`, `status`, `quotas`, `expires_at`) — RLS |
 | **Medição** | tabela `usage_records` + `GET /api/v1/usage` (ver seção 5) |
 | **Esqueleto** | [backend/src/modules/_template_service/](../backend/src/modules/_template_service) |
@@ -15,7 +15,8 @@ Como um serviço novo (GPS, SNMP, DDNS, ERP, Imobiliária, Geoprocessamento…) 
 ## 1. Conceitos
 
 - **Serviço** — unidade vendável, dona de um namespace de permissões (`gps.*`).
-- **Core vs. default** — `is_core` marca o que é o próprio Hub (`iam`, `platform`) e **não** pode ser desligado para nenhum tenant. `enabled_by_default` marca o que já vem contratado ao criar o tenant (`iam`, `platform`, `integration`) mas **pode** ser suspenso. `integration` é vendável: entra ligado, sai quando o contrato termina.
+- **Core vs. default** — `is_core` marca o que é o próprio Hub (`iam`, `platform`) e **não** pode ser desligado para nenhum tenant. `enabled_by_default` marca o que já vem contratado ao criar o tenant (`iam`, `platform`, `integration`, `billing`) mas **pode** ser suspenso — salvo `tenant_only` obrigatório. `integration` é vendável: entra ligado, sai quando o contrato termina.
+- **Tenant-only** — `tenant_only` marca um serviço de produto que **nunca** é entitlado no tenant da plataforma (`ows`) e **não** pode ser suspenso nas tenants de produto. `billing` é o caso: faturamento obrigatório para quem contrata, invisível para o administrador PLATFORM.
 - **Entitlement** — o tenant contratou o serviço. Status que autorizam: `active` e `trial`. Status que bloqueiam: `suspended` e `disabled`.
 - **Plano e quotas** — `plan` é rótulo comercial; `quotas` é JSONB com os limites efetivos. `tenant_services.quotas` sobrepõe `services.default_quotas` chave por chave.
 
@@ -98,4 +99,4 @@ Falha ao medir nunca derruba a operação do cliente; a quota, sim, é hard-fail
 
 ## 6. Fora do escopo
 
-GPS, SNMP, DDNS e ERP **não** são implementados aqui: este documento é o encaixe. O que existe hoje são os serviços do Hub (`iam`, `platform`) mais `integration` como serviço vendável, e o esqueleto `_template_service`, que não é registrado em `main.py`.
+GPS, SNMP, DDNS e ERP **não** são implementados aqui: este documento é o encaixe. O que existe hoje são os serviços do Hub (`iam`, `platform`), `integration` como serviço vendável, `billing` como serviço tenant-only obrigatório, e o esqueleto `_template_service`, que não é registrado em `main.py`.

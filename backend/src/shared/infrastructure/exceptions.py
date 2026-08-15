@@ -43,3 +43,8 @@ class ForbiddenError(ApplicationError):
 class RateLimitExceededError(ApplicationError):
     def __init__(self, message: str = "Too many requests") -> None:
         super().__init__(message, code="rate_limit_exceeded")
+
+
+class ServiceUnavailableError(ApplicationError):
+    def __init__(self, message: str = "Service unavailable") -> None:
+        super().__init__(message, code="service_unavailable")

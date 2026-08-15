@@ -16,6 +16,7 @@ from dataclasses import dataclass
 SERVICE_IAM = "iam"
 SERVICE_PLATFORM = "platform"
 SERVICE_INTEGRATION = "integration"
+SERVICE_BILLING = "billing"
 
 #: Stable resource → service map. A resource may only ever move service with a
 #: migration, since it changes the canonical code.
@@ -39,6 +40,10 @@ SERVICE_BY_RESOURCE: dict[str, str] = {
     "services": SERVICE_PLATFORM,
     "usage": SERVICE_PLATFORM,
     "integration": SERVICE_INTEGRATION,
+    "invoices": SERVICE_BILLING,
+    "payments": SERVICE_BILLING,
+    "payment_methods": SERVICE_BILLING,
+    "billing_settings": SERVICE_BILLING,
 }
 
 
@@ -204,6 +209,15 @@ class PermissionCode:
     INTEGRATION_TEST = "integration.test"
     INTEGRATION_SYNC = "integration.sync"
     INTEGRATION_LOGS_READ = "integration.read_logs"
+
+    # Billing (product tenants only)
+    INVOICES_READ = "invoices.read"
+    INVOICES_EXPORT = "invoices.export"
+    PAYMENTS_CREATE = "payments.create"
+    PAYMENT_METHODS_READ = "payment_methods.read"
+    PAYMENT_METHODS_MANAGE = "payment_methods.manage"
+    BILLING_SETTINGS_READ = "billing_settings.read"
+    BILLING_SETTINGS_UPDATE = "billing_settings.update"
 
     @classmethod
     def platform_only_codes(cls) -> frozenset[str]:
@@ -562,6 +576,33 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         "Read integration logs",
         "Allows viewing integration sync/test logs",
     ),
+    _definition(
+        "invoices.read",
+        "Read invoices",
+        "Allows viewing invoices and the billing overview",
+    ),
+    _definition("invoices.export", "Export invoices", "Allows downloading invoice documents"),
+    _definition("payments.create", "Create payments", "Allows paying an invoice"),
+    _definition(
+        "payment_methods.read",
+        "Read payment methods",
+        "Allows listing saved payment methods",
+    ),
+    _definition(
+        "payment_methods.manage",
+        "Manage payment methods",
+        "Allows adding and updating payment methods",
+    ),
+    _definition(
+        "billing_settings.read",
+        "Read billing settings",
+        "Allows viewing the billing profile and cycle",
+    ),
+    _definition(
+        "billing_settings.update",
+        "Update billing settings",
+        "Allows editing the billing profile, cycle and promo codes",
+    ),
 )
 
 @dataclass(frozen=True, slots=True)
@@ -704,6 +745,31 @@ PERMISSION_BUNDLES: tuple[PermissionBundleDefinition, ...] = (
             PermissionCode.INTEGRATION_TEST,
             PermissionCode.INTEGRATION_SYNC,
             PermissionCode.INTEGRATION_LOGS_READ,
+        },
+    ),
+    _bundle(
+        "billing.admin",
+        "Billing administration",
+        "Full control over tenant billing, invoices and payments",
+        {
+            PermissionCode.INVOICES_READ,
+            PermissionCode.INVOICES_EXPORT,
+            PermissionCode.PAYMENTS_CREATE,
+            PermissionCode.PAYMENT_METHODS_READ,
+            PermissionCode.PAYMENT_METHODS_MANAGE,
+            PermissionCode.BILLING_SETTINGS_READ,
+            PermissionCode.BILLING_SETTINGS_UPDATE,
+        },
+    ),
+    _bundle(
+        "billing.manager",
+        "Billing manager",
+        "Read invoices, payment methods and billing settings",
+        {
+            PermissionCode.INVOICES_READ,
+            PermissionCode.INVOICES_EXPORT,
+            PermissionCode.PAYMENT_METHODS_READ,
+            PermissionCode.BILLING_SETTINGS_READ,
         },
     ),
 )

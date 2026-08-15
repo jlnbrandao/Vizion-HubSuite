@@ -31,6 +31,7 @@ export type PermissionActionValue =
   (typeof PermissionAction)[keyof typeof PermissionAction]
 
 export const PermissionService = {
+  BILLING: 'billing',
   IAM: 'iam',
   INTEGRATION: 'integration',
   PLATFORM: 'platform',
@@ -104,6 +105,13 @@ export const PermissionCode = {
   INTEGRATION_TEST: 'integration.integration.test',
   INTEGRATION_SYNC: 'integration.integration.sync',
   INTEGRATION_LOGS_READ: 'integration.integration.read_logs',
+  INVOICES_READ: 'billing.invoices.read',
+  INVOICES_EXPORT: 'billing.invoices.export',
+  PAYMENTS_CREATE: 'billing.payments.create',
+  PAYMENT_METHODS_READ: 'billing.payment_methods.read',
+  PAYMENT_METHODS_MANAGE: 'billing.payment_methods.manage',
+  BILLING_SETTINGS_READ: 'billing.billing_settings.read',
+  BILLING_SETTINGS_UPDATE: 'billing.billing_settings.update',
 } as const
 
 /** Pre-namespace aliases, accepted by the backend until they are dropped. */
@@ -172,6 +180,13 @@ export const PermissionLegacyCode = {
   INTEGRATION_TEST: 'integration.test',
   INTEGRATION_SYNC: 'integration.sync',
   INTEGRATION_LOGS_READ: 'integration.read_logs',
+  INVOICES_READ: 'invoices.read',
+  INVOICES_EXPORT: 'invoices.export',
+  PAYMENTS_CREATE: 'payments.create',
+  PAYMENT_METHODS_READ: 'payment_methods.read',
+  PAYMENT_METHODS_MANAGE: 'payment_methods.manage',
+  BILLING_SETTINGS_READ: 'billing_settings.read',
+  BILLING_SETTINGS_UPDATE: 'billing_settings.update',
 } as const
 
 export type PermissionCodeValue = (typeof PermissionCode)[keyof typeof PermissionCode]
@@ -251,6 +266,13 @@ export const PERMISSION_CATALOG: readonly PermissionCatalogEntry[] = [
   { code: 'integration.integration.test', legacyCode: 'integration.test', service: 'integration', resource: 'integration', action: 'test', name: 'Test integrations', description: 'Allows testing integration connections' },
   { code: 'integration.integration.sync', legacyCode: 'integration.sync', service: 'integration', resource: 'integration', action: 'sync', name: 'Sync integrations', description: 'Allows running integration synchronization' },
   { code: 'integration.integration.read_logs', legacyCode: 'integration.read_logs', service: 'integration', resource: 'integration', action: 'read_logs', name: 'Read integration logs', description: 'Allows viewing integration sync/test logs' },
+  { code: 'billing.invoices.read', legacyCode: 'invoices.read', service: 'billing', resource: 'invoices', action: 'read', name: 'Read invoices', description: 'Allows viewing invoices and the billing overview' },
+  { code: 'billing.invoices.export', legacyCode: 'invoices.export', service: 'billing', resource: 'invoices', action: 'export', name: 'Export invoices', description: 'Allows downloading invoice documents' },
+  { code: 'billing.payments.create', legacyCode: 'payments.create', service: 'billing', resource: 'payments', action: 'create', name: 'Create payments', description: 'Allows paying an invoice' },
+  { code: 'billing.payment_methods.read', legacyCode: 'payment_methods.read', service: 'billing', resource: 'payment_methods', action: 'read', name: 'Read payment methods', description: 'Allows listing saved payment methods' },
+  { code: 'billing.payment_methods.manage', legacyCode: 'payment_methods.manage', service: 'billing', resource: 'payment_methods', action: 'manage', name: 'Manage payment methods', description: 'Allows adding and updating payment methods' },
+  { code: 'billing.billing_settings.read', legacyCode: 'billing_settings.read', service: 'billing', resource: 'billing_settings', action: 'read', name: 'Read billing settings', description: 'Allows viewing the billing profile and cycle' },
+  { code: 'billing.billing_settings.update', legacyCode: 'billing_settings.update', service: 'billing', resource: 'billing_settings', action: 'update', name: 'Update billing settings', description: 'Allows editing the billing profile, cycle and promo codes' },
 ] as const
 
 export interface PermissionBundleEntry {
@@ -269,6 +291,8 @@ export const PERMISSION_BUNDLES: readonly PermissionBundleEntry[] = [
   { slug: 'iam.viewer', service: 'iam', name: 'IAM viewer', description: 'Read-only system overview', codes: ['iam.dashboard.viewer', 'iam.permissions.read', 'iam.roles.read', 'iam.users.read'] },
   { slug: 'platform.admin', service: 'platform', name: 'Platform administration', description: 'Cross-tenant administration and system settings', codes: ['iam.dashboard.platform', 'platform.services.manage', 'platform.services.read', 'iam.system.settings', 'platform.tenants.activate', 'platform.tenants.create', 'platform.tenants.deactivate', 'platform.tenants.read', 'platform.tenants.update', 'platform.usage.read_all'] },
   { slug: 'integration.admin', service: 'integration', name: 'Integration administration', description: 'Full control over the integration hub', codes: ['integration.integration.create', 'integration.integration.delete', 'integration.integration.read', 'integration.integration.read_logs', 'integration.integration.sync', 'integration.integration.test', 'integration.integration.update'] },
+  { slug: 'billing.admin', service: 'billing', name: 'Billing administration', description: 'Full control over tenant billing, invoices and payments', codes: ['billing.billing_settings.read', 'billing.billing_settings.update', 'billing.invoices.export', 'billing.invoices.read', 'billing.payment_methods.manage', 'billing.payment_methods.read', 'billing.payments.create'] },
+  { slug: 'billing.manager', service: 'billing', name: 'Billing manager', description: 'Read invoices, payment methods and billing settings', codes: ['billing.billing_settings.read', 'billing.invoices.export', 'billing.invoices.read', 'billing.payment_methods.read'] },
 ] as const
 
 const ALIASES: Record<string, readonly string[]> = PERMISSION_CATALOG.reduce(

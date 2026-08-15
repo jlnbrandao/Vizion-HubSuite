@@ -96,6 +96,11 @@ class Settings(BaseSettings):
     # Fernet key material for integration secrets (falls back to JWT_SECRET_KEY).
     integration_secrets_key: str = ""
 
+    # Asaas (billing). Empty API key disables live charges; the UI still loads.
+    asaas_api_key: str = ""
+    asaas_base_url: str = "https://sandbox.asaas.com/api/v3"
+    asaas_webhook_token: str = ""
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"

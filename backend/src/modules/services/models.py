@@ -49,6 +49,8 @@ class ServiceModel(Base):
     version: Mapped[str] = mapped_column(String(16), nullable=False, default="1.0")
     #: Core services are part of the Hub itself and cannot be sold or disabled.
     is_core: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Product-tenant only: never entitled on the platform tenant.
+    tenant_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     default_quotas: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict
