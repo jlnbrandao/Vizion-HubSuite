@@ -3,15 +3,6 @@ import { PermissionCode, PermissionService } from '@/constants/permissions'
 
 export const platformRoutes: RouteRecordRaw[] = [
   {
-    path: 'platform',
-    name: 'platform-overview',
-    component: () => import('@/modules/platform/pages/PlatformOverviewPage.vue'),
-    meta: {
-      service: PermissionService.PLATFORM,
-      permissions: [PermissionCode.DASHBOARD_PLATFORM],
-    },
-  },
-  {
     path: 'tenants',
     name: 'tenants',
     component: () => import('@/modules/platform/pages/TenantsPage.vue'),

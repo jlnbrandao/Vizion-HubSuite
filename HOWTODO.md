@@ -242,7 +242,7 @@ Arquivo: [`frontend/src/router/index.ts`](frontend/src/router/index.ts)
 
 O guard exige **todas** as permissões listadas em `meta.permissions`. Sem elas, redireciona para `dashboard`. Rotas filhas do layout já herdam `requiresAuth: true`.
 
-Referências reais platform: `/platform` → `DASHBOARD_PLATFORM`; `/tenants` → `TENANTS_READ`.
+Referências reais platform: `/tenants` → `TENANTS_READ`; `/platform/services` → `SERVICES_READ`.
 
 ### Controle fino na página
 
@@ -463,7 +463,6 @@ Quando a página já existe e você precisa proteger uma ação pontual.
 | Router | `meta.permissions: [TENANTS_READ]` |
 | Criar / rename | `tenants.create` / `tenants.update` |
 | Activate / deactivate | `tenants.activate` / `tenants.deactivate` |
-| Overview | `dashboard.platform` |
 
 Esconder o botão **não** substitui o gate no backend. Sempre os dois.
 

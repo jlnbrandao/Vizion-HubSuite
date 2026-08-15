@@ -136,16 +136,6 @@ NAVIGATION_CATALOG: tuple[NavItem, ...] = (
         permission=PermissionCode.API_KEYS_READ,
     ),
     NavItem(
-        id="platform-overview",
-        label="Platform",
-        icon="apartment",
-        route="/platform",
-        group=GROUP_PLATFORM,
-        service=SERVICE_PLATFORM,
-        permission=PermissionCode.DASHBOARD_PLATFORM,
-        quick=True,
-    ),
-    NavItem(
         id="platform-tenants",
         label="Tenants",
         icon="domain",
@@ -153,6 +143,7 @@ NAVIGATION_CATALOG: tuple[NavItem, ...] = (
         group=GROUP_PLATFORM,
         service=SERVICE_PLATFORM,
         permission=PermissionCode.TENANTS_READ,
+        quick=True,
     ),
     NavItem(
         id="platform-services",

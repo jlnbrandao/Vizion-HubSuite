@@ -36,10 +36,6 @@ function pathMatches(current: string, target: string): boolean {
   if (target.startsWith('/account')) {
     return current.startsWith('/account')
   }
-  // Platform overview represents the platform section in the sidebar.
-  if (target === '/platform') {
-    return current === '/platform' || current.startsWith('/tenants')
-  }
   // Exact match only — avoids /reports activating on /reports/indicators
   return current === target
 }
