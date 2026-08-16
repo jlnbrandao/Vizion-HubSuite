@@ -128,7 +128,7 @@ HUB_ENVIRONMENT=vps
 HUB_PUBLIC_HOST=${SERVER_IP}
 HUB_PUBLIC_API_PORT=8088
 HUB_PUBLIC_UI_PORT=8088
-HUB_NOTES=H-Suite em vizion-g:/opt/vizion-h-suite (API :8010, UI :8088)
+HUB_NOTES="H-Suite em vizion-g:/opt/vizion-h-suite (API :8010, UI :8088)"
 EOF
     chmod 600 "${DIR}/backend/.env"
 
@@ -154,6 +154,18 @@ SQL
     fi
     sudo -u postgres psql -d vizion -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE vizion TO vizion_app;"
   fi
+
+  # 0009 cria vizion_migrate via CREATE ROLE; o owner `vizion` não tem CREATEROLE.
+  echo "==> Garantindo role vizion_migrate (Alembic 0009)"
+  sudo -u postgres psql -v ON_ERROR_STOP=1 <<'SQL'
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'vizion_migrate') THEN
+    CREATE ROLE vizion_migrate LOGIN PASSWORD 'vizion_migrate' NOSUPERUSER BYPASSRLS;
+  END IF;
+END
+$$;
+SQL
 fi
 
 if [[ ! -x "${DIR}/backend/.venv/bin/python" ]]; then
@@ -174,10 +186,6 @@ echo "==> Dependências da API"
 echo "==> Migrações"
 (
   cd "${DIR}/backend"
-  set -a
-  # shellcheck disable=SC1091
-  source .env
-  set +a
   .venv/bin/alembic upgrade head
 )
 
