@@ -229,6 +229,8 @@ Cliente (universe.* | ows.*) → FastAPI Gateway
 Módulos em `src/modules/*` são Vertical Slices independentes.
 Comunicação entre módulos: Commands, Queries, Domain Events e Interfaces — nunca imports internos.
 
+Produtos distribuíveis (Tracking, IoT, SNMP, GIS) **não** entram neste processo: ver [docs/architecture.md](docs/architecture.md). Tracking standalone: `deployment/tracking/standalone`. GIS: registrar a instância em **Deployments**; o wrap dos adapters está no mesmo doc.
+
 Para adicionar páginas, módulos, widgets ou ações protegidas pelo RBAC, siga o playbook em [HOWTODO.md](HOWTODO.md).
 
 ## Documentação
@@ -246,4 +248,5 @@ Para adicionar páginas, módulos, widgets ou ações protegidas pelo RBAC, siga
 | [document/AUDIT.md](document/AUDIT.md) | `audit_events`, `request_id`, retenção |
 | [document/SECURITY.md](document/SECURITY.md) | Tokens, cookies, headers, segredos, SAST |
 | [document/SERVICE_HUB.md](document/SERVICE_HUB.md) | Service Slice, entitlements, quotas |
+| [docs/architecture.md](docs/architecture.md) | Produtos distribuíveis (standalone / Hub) |
 | [document/0001-sistema-iam.md](document/0001-sistema-iam.md) | Roadmap histórico do IAM |

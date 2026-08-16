@@ -1,0 +1,6 @@
+{
+  "mode": "hub",
+  "apiBaseUrl": "/api/v1",
+  "platformCoreUrl": "http://localhost:8000",
+  "productName": "OpenVizion Tracking"
+}

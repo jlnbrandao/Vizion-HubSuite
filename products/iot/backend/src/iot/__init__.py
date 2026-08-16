@@ -1,0 +1,1 @@
+"""OpenVizion IoT product scaffold."""

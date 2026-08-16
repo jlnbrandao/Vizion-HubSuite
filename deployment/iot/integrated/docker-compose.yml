@@ -1,0 +1,14 @@
+services:
+  iot-api:
+    image: openvizion/iot-api:local
+    build:
+      context: ../../..
+      dockerfile: products/iot/backend/Dockerfile
+    environment:
+      DEPLOYMENT_MODE: integrated
+      PLATFORM_ADAPTER: hub
+      PLATFORM_CORE_URL: http://platform-core:8000
+    ports:
+      - "8200:8000"
+    extra_hosts:
+      - "platform-core:host-gateway"

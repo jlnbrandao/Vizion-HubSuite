@@ -1,0 +1,6 @@
+{
+  "mode": "standalone",
+  "apiBaseUrl": "/api/v1",
+  "platformCoreUrl": "",
+  "productName": "OpenVizion Tracking"
+}

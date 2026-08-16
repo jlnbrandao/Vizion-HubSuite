@@ -101,6 +101,13 @@ class Settings(BaseSettings):
     asaas_base_url: str = "https://sandbox.asaas.com/api/v3"
     asaas_webhook_token: str = ""
 
+    # Where this Hub process is advertised on the Deployments screen.
+    hub_environment: str = "local_docker"
+    hub_public_host: str = "localhost"
+    hub_public_api_port: int = 8000
+    hub_public_ui_port: int = 9000
+    hub_notes: str = ""
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"

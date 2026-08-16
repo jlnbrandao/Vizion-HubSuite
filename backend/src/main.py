@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from src.config.settings import get_settings
 from src.modules.authentication.routes.auth_routes import router as auth_router
@@ -24,6 +25,8 @@ from src.modules.permissions.routes.permission_group_routes import (
     router as permission_bundles_router,
 )
 from src.modules.permissions.routes.permission_routes import router as permissions_router
+from src.modules.products.routes import admin_router as products_admin_router
+from src.modules.products.routes import hub_router as products_hub_router
 from src.modules.roles.routes.role_routes import router as roles_router
 from src.modules.services.routes import router as services_router
 from src.modules.services.usage_routes import router as usage_router
@@ -72,6 +75,7 @@ _WIRE_MODULES = [
     "src.modules.iam.scim.routes",
     "src.modules.integrations.routes",
     "src.modules.billing.routes",
+    "src.modules.products.routes",
     "src.shared.infrastructure.security.dependencies",
 ]
 
@@ -158,7 +162,31 @@ def create_app(container: Container | None = None) -> FastAPI:
 
     @app.get("/health", tags=["system"])
     async def health() -> dict[str, str]:
-        return {"status": "ok", "app": settings.app_name}
+        return {"status": "ok", "app": settings.app_name, "version": app.version}
+
+    @app.get("/version", tags=["system"])
+    async def version() -> dict[str, str]:
+        return {"app": settings.app_name, "version": app.version}
+
+    @app.get("/ready", tags=["system"])
+    async def ready() -> JSONResponse:
+        checks: dict[str, str] = {}
+        try:
+            async with container.engine().connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            checks["postgres"] = "ok"
+        except Exception:  # noqa: BLE001
+            checks["postgres"] = "fail"
+        try:
+            pong = await container.redis().ping()
+            checks["redis"] = "ok" if pong else "fail"
+        except Exception:  # noqa: BLE001
+            checks["redis"] = "fail"
+        ok = all(value == "ok" for value in checks.values())
+        return JSONResponse(
+            status_code=200 if ok else 503,
+            content={"status": "ok" if ok else "degraded", "checks": checks},
+        )
 
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(dashboard_router, prefix="/api/v1")
@@ -174,6 +202,8 @@ def create_app(container: Container | None = None) -> FastAPI:
     app.include_router(scim_router, prefix="/api/v1")
     app.include_router(integrations_router, prefix="/api/v1")
     app.include_router(billing_router, prefix="/api/v1")
+    app.include_router(products_admin_router, prefix="/api/v1")
+    app.include_router(products_hub_router, prefix="/api/v1")
 
     return app
 

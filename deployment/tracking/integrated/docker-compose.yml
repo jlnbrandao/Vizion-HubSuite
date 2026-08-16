@@ -1,0 +1,144 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vizion
+      POSTGRES_PASSWORD: vizion
+      POSTGRES_DB: vizion
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - integrated_pg:/var/lib/postgresql/data
+      - ./init-extra-db.sh:/docker-entrypoint-initdb.d/02-tracking.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vizion -d vizion"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - integrated_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  platform-core:
+    image: openvizion/platform-core:local
+    build:
+      context: ../../..
+      dockerfile: backend/Dockerfile
+    environment:
+      APP_NAME: Vizion
+      APP_ENV: development
+      APP_DEBUG: "true"
+      DATABASE_URL: postgresql+asyncpg://vizion:vizion@postgres:5432/vizion
+      DATABASE_MIGRATE_URL: postgresql+asyncpg://vizion:vizion@postgres:5432/vizion
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: change-me-in-production-use-long-random-string
+      ALLOWED_TENANT_BASE_DOMAINS: localhost,openvizion.com,openvizion.local
+      HUB_ENVIRONMENT: local_docker
+      HUB_PUBLIC_HOST: localhost
+      HUB_PUBLIC_API_PORT: "8000"
+      HUB_PUBLIC_UI_PORT: "9000"
+      HUB_NOTES: "Compose integrated — Hub :8000/:9000, Tracking :8100/:9100"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  platform-web:
+    image: openvizion/platform-web:local
+    build:
+      context: ../../..
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "9000:80"
+    depends_on:
+      platform-core:
+        condition: service_healthy
+
+  tracking-api:
+    image: openvizion/tracking-api:local
+    build:
+      context: ../../..
+      dockerfile: products/tracking/backend/Dockerfile
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"
+      DEPLOYMENT_MODE: integrated
+      PLATFORM_ADAPTER: hub
+      PLATFORM_CORE_URL: http://platform-core:8000
+      PLATFORM_CLIENT_ID: tracking-local
+      PLATFORM_CLIENT_SECRET: tracking-client-secret
+      EVENT_BUS_ADAPTER: local
+      DATABASE_URL: postgresql+asyncpg://vizion:vizion@postgres:5432/tracking
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: change-me-in-production-tracking-secret-key
+      RUN_SEED: "true"
+      SEED_ALLOW_INSECURE: "true"
+    ports:
+      - "8100:8000"
+    depends_on:
+      platform-core:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 25s
+
+  tracking-worker:
+    image: openvizion/tracking-worker:local
+    build:
+      context: ../../..
+      dockerfile: products/tracking/backend/Dockerfile
+    entrypoint: ["python", "-m", "tracking.worker"]
+    environment:
+      APP_ENV: development
+      DEPLOYMENT_MODE: integrated
+      PLATFORM_ADAPTER: hub
+      PLATFORM_CORE_URL: http://platform-core:8000
+      PLATFORM_CLIENT_ID: tracking-local
+      PLATFORM_CLIENT_SECRET: tracking-client-secret
+      EVENT_BUS_ADAPTER: local
+      DATABASE_URL: postgresql+asyncpg://vizion:vizion@postgres:5432/tracking
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: change-me-in-production-tracking-secret-key
+    depends_on:
+      tracking-api:
+        condition: service_healthy
+
+  tracking-web:
+    image: openvizion/tracking-web:local
+    build:
+      context: ../../..
+      dockerfile: products/tracking/frontend/Dockerfile
+    ports:
+      - "9100:80"
+    volumes:
+      - ./tracking-web-config.json:/usr/share/nginx/html/config.json:ro
+    depends_on:
+      tracking-api:
+        condition: service_healthy
+
+volumes:
+  integrated_pg:
+  integrated_redis:

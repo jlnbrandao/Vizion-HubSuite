@@ -1,9 +1,8 @@
 """Declarative catalog of services shipped with the Hub.
 
-A new service slice adds an entry here (and a row in `services` via the seed),
-which is what makes its permission namespace sellable per tenant. Products that
-are not part of this repository yet — GPS, SNMP, DDNS, ERP — are intentionally
-absent: they plug in by adding their own entry.
+Hub modules (IAM, platform, integration, billing) live in CORE_SERVICES and are
+mounted in-process. Distributable products (Tracking, IoT, SNMP, GIS) live in
+PRODUCT_SERVICES: they are sellable entitlements, not FastAPI routers of the Hub.
 """
 
 from __future__ import annotations
@@ -80,3 +79,38 @@ CORE_SERVICE_SLUGS: frozenset[str] = frozenset(item.slug for item in CORE_SERVIC
 DEFAULT_SERVICE_SLUGS: frozenset[str] = frozenset(
     item.slug for item in CORE_SERVICES if item.enabled_by_default
 )
+
+PRODUCT_SERVICES: tuple[ServiceDefinition, ...] = (
+    ServiceDefinition(
+        slug="tracking",
+        namespace="tracking",
+        name="Tracking",
+        description="GPS tracking product — devices, positions, geofences",
+        tenant_only=True,
+        default_quotas={"devices": 100},
+    ),
+    ServiceDefinition(
+        slug="iot",
+        namespace="iot",
+        name="IoT",
+        description="IoT product scaffold",
+        tenant_only=True,
+    ),
+    ServiceDefinition(
+        slug="snmp",
+        namespace="snmp",
+        name="SNMP",
+        description="SNMP product scaffold",
+        tenant_only=True,
+    ),
+    ServiceDefinition(
+        slug="gis",
+        namespace="gis",
+        name="GIS",
+        description="GIS product — maps and geospatial workspace",
+        tenant_only=True,
+    ),
+)
+
+ALL_SERVICES: tuple[ServiceDefinition, ...] = CORE_SERVICES + PRODUCT_SERVICES
+

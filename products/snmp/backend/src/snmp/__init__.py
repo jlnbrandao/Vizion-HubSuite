@@ -1,0 +1,1 @@
+"""OpenVizion SNMP product scaffold."""

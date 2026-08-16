@@ -379,3 +379,90 @@ export interface CreateBillingPaymentResponse {
   pix_payload?: string | null
 }
 
+export interface ProductBindingResponse {
+  tenant_id: string
+  tenant_slug?: string
+  tenant_name?: string
+  product_instance_id: string
+  service_slug: string
+  status: string
+}
+
+export interface ProductInstanceResponse {
+  id: string
+  slug: string
+  name: string
+  base_url: string
+  ui_url: string | null
+  status: string
+  version: string
+  client_id: string
+  last_heartbeat_at: string | null
+  environment: string
+  host: string
+  api_port: number | null
+  ui_host: string | null
+  ui_port: number | null
+  scheme: string
+  notes: string
+  bindings: ProductBindingResponse[]
+}
+
+export interface HubLocationResponse {
+  kind: string
+  name: string
+  environment: string
+  host: string
+  api_port: number
+  ui_port: number
+  api_url: string
+  ui_url: string
+  services: string[]
+  notes: string
+  runtime: string
+}
+
+export interface ProductSlugOption {
+  slug: string
+  name: string
+}
+
+export interface ProductTopologyResponse {
+  hub: HubLocationResponse
+  instances: ProductInstanceResponse[]
+  product_options?: ProductSlugOption[]
+}
+
+export type ProductSlug = 'tracking' | 'iot' | 'snmp' | 'gis'
+
+export interface CreateProductInstancePayload {
+  slug: ProductSlug
+  name: string
+  client_id: string
+  client_secret: string
+  environment: string
+  host: string
+  api_port: number | null
+  ui_host?: string | null
+  ui_port?: number | null
+  scheme: string
+  base_url?: string
+  ui_url?: string | null
+  notes?: string
+}
+
+export interface UpdateProductInstancePayload {
+  name?: string
+  environment?: string
+  host?: string
+  api_port?: number | null
+  ui_host?: string | null
+  ui_port?: number | null
+  scheme?: string
+  base_url?: string
+  ui_url?: string | null
+  notes?: string
+  status?: string
+}
+
+

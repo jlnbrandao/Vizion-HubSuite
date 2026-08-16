@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 import src.modules.billing.models  # noqa: F401
 import src.modules.permissions.repositories.permission_model  # noqa: F401
+import src.modules.products.models  # noqa: F401
 import src.modules.roles.repositories.role_model  # noqa: F401
 import src.modules.services.models  # noqa: F401
 

@@ -11,6 +11,11 @@ import type {
   CreateBillingPaymentMethodPayload,
   CreateBillingPaymentPayload,
   CreateBillingPaymentResponse,
+  CreateProductInstancePayload,
+  ProductBindingResponse,
+  ProductInstanceResponse,
+  ProductTopologyResponse,
+  UpdateProductInstancePayload,
   CreateUserPayload,
   DashboardResponse,
   IdResponse,
@@ -361,5 +366,37 @@ export const tenantsApi = {
   },
   deactivate(tenantId: string) {
     return api.post(`/tenants/${tenantId}/deactivate`)
+  },
+}
+
+export const productsApi = {
+  topology() {
+    return api.get<ProductTopologyResponse>('/products/topology')
+  },
+  list() {
+    return api.get<ProductInstanceResponse[]>('/products/instances')
+  },
+  create(payload: CreateProductInstancePayload) {
+    return api.post<ProductInstanceResponse>('/products/instances', payload)
+  },
+  update(instanceId: string, payload: UpdateProductInstancePayload) {
+    return api.patch<ProductInstanceResponse>(`/products/instances/${instanceId}`, payload)
+  },
+  probe(instanceId: string) {
+    return api.post<{ ok: boolean; ready_status?: number; version?: Record<string, string>; error?: string }>(
+      `/products/instances/${instanceId}/probe`,
+    )
+  },
+  bindings(instanceId: string) {
+    return api.get<ProductBindingResponse[]>(`/products/instances/${instanceId}/bindings`)
+  },
+  bind(instanceId: string, tenantId: string) {
+    return api.put<ProductBindingResponse>(`/products/instances/${instanceId}/bindings`, {
+      tenant_id: tenantId,
+      status: 'active',
+    })
+  },
+  deactivate(instanceId: string) {
+    return api.post<{ status: string }>(`/products/instances/${instanceId}/deactivate`)
   },
 }

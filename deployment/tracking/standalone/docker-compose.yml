@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tracking
+      POSTGRES_PASSWORD: tracking
+      POSTGRES_DB: tracking
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - tracking_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracking -d tracking"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  tracking-api:
+    image: openvizion/tracking-api:local
+    build:
+      context: ../../..
+      dockerfile: products/tracking/backend/Dockerfile
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"
+      DEPLOYMENT_MODE: standalone
+      PLATFORM_ADAPTER: local
+      PLATFORM_CORE_URL: ""
+      EVENT_BUS_ADAPTER: local
+      DATABASE_URL: postgresql+asyncpg://tracking:tracking@postgres:5432/tracking
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: change-me-in-production-tracking-secret-key
+      RUN_SEED: "true"
+      SEED_ALLOW_INSECURE: "true"
+    ports:
+      - "8100:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  tracking-worker:
+    image: openvizion/tracking-worker:local
+    build:
+      context: ../../..
+      dockerfile: products/tracking/backend/Dockerfile
+    entrypoint: ["python", "-m", "tracking.worker"]
+    environment:
+      APP_ENV: development
+      DEPLOYMENT_MODE: standalone
+      PLATFORM_ADAPTER: local
+      PLATFORM_CORE_URL: ""
+      EVENT_BUS_ADAPTER: local
+      DATABASE_URL: postgresql+asyncpg://tracking:tracking@postgres:5432/tracking
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: change-me-in-production-tracking-secret-key
+    depends_on:
+      tracking-api:
+        condition: service_healthy
+
+  tracking-web:
+    image: openvizion/tracking-web:local
+    build:
+      context: ../../..
+      dockerfile: products/tracking/frontend/Dockerfile
+    ports:
+      - "9100:80"
+    depends_on:
+      tracking-api:
+        condition: service_healthy
+
+volumes:
+  tracking_pg:

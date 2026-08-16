@@ -33,7 +33,7 @@ from src.modules.roles.commands.role_commands import (
     ReplaceRolePermissionsCommand,
 )
 from src.modules.roles.value_objects.role_name import RoleName
-from src.modules.services.catalog import CORE_SERVICES
+from src.modules.services.catalog import ALL_SERVICES
 from src.modules.services.models import ServiceModel
 from src.modules.tenants.commands.tenant_commands import UpsertTenantCommand
 from src.modules.users.commands.user_commands import (
@@ -370,7 +370,7 @@ async def _ensure_service_catalog(container: Container) -> None:
     async with container.unit_of_work() as uow:
         existing = {service.slug: service for service in await catalog.list_services()}
         session = get_current_session()
-        for definition in CORE_SERVICES:
+        for definition in ALL_SERVICES:
             current = existing.get(definition.slug)
             if current is not None:
                 # `is_core` / `tenant_only` decide whether a contract may be

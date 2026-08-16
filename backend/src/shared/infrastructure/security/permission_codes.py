@@ -39,6 +39,7 @@ SERVICE_BY_RESOURCE: dict[str, str] = {
     "tenants": SERVICE_PLATFORM,
     "services": SERVICE_PLATFORM,
     "usage": SERVICE_PLATFORM,
+    "products": SERVICE_PLATFORM,
     "integration": SERVICE_INTEGRATION,
     "invoices": SERVICE_BILLING,
     "payments": SERVICE_BILLING,
@@ -170,6 +171,9 @@ class PermissionCode:
 
     SERVICES_READ = "services.read"
     SERVICES_MANAGE = "services.manage"
+
+    PRODUCTS_READ = "products.read"
+    PRODUCTS_MANAGE = "products.manage"
 
     USAGE_READ = "usage.read"
     USAGE_READ_ALL = "usage.read_all"
@@ -447,6 +451,16 @@ PERMISSION_CATALOG: tuple[PermissionDefinition, ...] = (
         "Allows enabling, suspending and quoting services per tenant",
     ),
     _definition(
+        "products.read",
+        "Read product instances",
+        "Allows listing registered distributable product instances",
+    ),
+    _definition(
+        "products.manage",
+        "Manage product instances",
+        "Allows registering, probing and binding distributable products",
+    ),
+    _definition(
         "usage.read",
         "Read usage",
         "Allows viewing the own tenant's metered usage",
@@ -653,6 +667,8 @@ _PLATFORM_ONLY_LEGACY: frozenset[str] = frozenset(
         PermissionCode.TENANTS_DEACTIVATE,
         PermissionCode.SERVICES_READ,
         PermissionCode.SERVICES_MANAGE,
+        PermissionCode.PRODUCTS_READ,
+        PermissionCode.PRODUCTS_MANAGE,
         PermissionCode.USAGE_READ_ALL,
         PermissionCode.INTEGRATION_READ,
         PermissionCode.INTEGRATION_CREATE,
@@ -728,6 +744,8 @@ PERMISSION_BUNDLES: tuple[PermissionBundleDefinition, ...] = (
             PermissionCode.TENANTS_DEACTIVATE,
             PermissionCode.SERVICES_READ,
             PermissionCode.SERVICES_MANAGE,
+            PermissionCode.PRODUCTS_READ,
+            PermissionCode.PRODUCTS_MANAGE,
             # Own-tenant `usage.read` is a tenant-admin code; the platform reads
             # every tenant through `usage.read_all`.
             PermissionCode.USAGE_READ_ALL,

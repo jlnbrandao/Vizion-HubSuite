@@ -97,6 +97,19 @@ Falha ao medir nunca derruba a operação do cliente; a quota, sim, é hard-fail
 
 ---
 
-## 6. Fora do escopo
+## 6. Produtos remotos vs. slices in-process
 
-GPS, SNMP, DDNS e ERP **não** são implementados aqui: este documento é o encaixe. O que existe hoje são os serviços do Hub (`iam`, `platform`), `integration` como serviço vendável, `billing` como serviço tenant-only obrigatório, e o esqueleto `_template_service`, que não é registrado em `main.py`.
+Módulos **in-process** do Hub (`iam`, `platform`, `integration`, `billing`) continuam o contrato das seções 1–5: pasta em `backend/src/modules/<slug>/`, router em `main.py`.
+
+Produtos **distribuíveis** (Tracking, IoT, SNMP, GIS) **não** são montados no processo do Hub. Tracking/IoT/SNMP vivem em `products/` neste repo; a GIS é um produto externo que o Hub só cataloga. O Hub:
+
+- registra o slug em `PRODUCT_SERVICES` (catálogo / entitlements) — UI **Service entitlements**;
+- registra **instâncias** em `product_instances` (onde cada processo roda: host, portas, Local/Remote Docker/VPS) — UI **Deployments** (`GET /api/v1/products/topology`);
+- expõe `/api/v1/hub/*` para `HubPlatformAdapter`.
+
+O card do Hub na tela Deployments usa `HUB_ENVIRONMENT`, `HUB_PUBLIC_HOST`, `HUB_PUBLIC_API_PORT`, `HUB_PUBLIC_UI_PORT` e `HUB_NOTES`.
+
+GPS/Tracking de referência: [`products/tracking`](../products/tracking) e [`docs/architecture.md`](../docs/architecture.md). IoT e SNMP são scaffolds sem domínio completo. GIS: slug `gis` no catálogo; o código da aplicação fica fora deste monorepo — wrap com adapters em [`docs/architecture.md`](../docs/architecture.md#wrapping-an-existing-product).
+
+O esqueleto in-process `_template_service` permanece para slices que devem viver *dentro* do Hub.
+

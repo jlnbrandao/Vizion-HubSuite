@@ -1,0 +1,31 @@
+[project]
+name = "openvizion-events"
+version = "0.1.0"
+description = "Event bus ports and adapters (local in-process, Kafka)."
+requires-python = ">=3.13"
+dependencies = [
+    "openvizion-contracts",
+    "openvizion-kernel",
+]
+
+[project.optional-dependencies]
+kafka = [
+    "aiokafka>=0.12.0",
+]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openvizion"]
+only-include = ["src/openvizion/events"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["src", "../kernel/src", "../contracts/src"]
+testpaths = ["tests"]

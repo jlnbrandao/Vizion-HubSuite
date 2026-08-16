@@ -156,6 +156,15 @@ NAVIGATION_CATALOG: tuple[NavItem, ...] = (
         permission=PermissionCode.SERVICES_READ,
     ),
     NavItem(
+        id="platform-products",
+        label="Deployments",
+        icon="dns",
+        route="/platform/products",
+        group=GROUP_PLATFORM,
+        service=SERVICE_PLATFORM,
+        permission=PermissionCode.PRODUCTS_READ,
+    ),
+    NavItem(
         id="platform-usage",
         label="Usage",
         icon="query_stats",

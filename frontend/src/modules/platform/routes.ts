@@ -21,6 +21,15 @@ export const platformRoutes: RouteRecordRaw[] = [
     },
   },
   {
+    path: 'platform/products',
+    name: 'platform-products',
+    component: () => import('@/modules/platform/pages/ProductsPage.vue'),
+    meta: {
+      service: PermissionService.PLATFORM,
+      permissions: [PermissionCode.PRODUCTS_READ],
+    },
+  },
+  {
     path: 'usage',
     name: 'usage',
     component: () => import('@/modules/platform/pages/UsagePage.vue'),

@@ -21,10 +21,13 @@ from src.shared.infrastructure.tenant_host import (
 
 _SKIP_PREFIXES = (
     "/health",
+    "/ready",
+    "/version",
     "/docs",
     "/redoc",
     "/openapi.json",
     "/api/v1/billing/webhooks",
+    "/api/v1/hub",
 )
 
 

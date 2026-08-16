@@ -57,6 +57,11 @@ services:
       AUTH_RATE_LIMIT_REQUESTS: "20"
       AUTH_RATE_LIMIT_WINDOW_SECONDS: "60"
       ALLOWED_TENANT_BASE_DOMAINS: localhost,openvizion.com,openvizion.local
+      HUB_ENVIRONMENT: local_docker
+      HUB_PUBLIC_HOST: localhost
+      HUB_PUBLIC_API_PORT: "8000"
+      HUB_PUBLIC_UI_PORT: "9000"
+      HUB_NOTES: "Compose da raiz — API :8000, web :9000"
     ports:
       - "8000:8000"
     depends_on:

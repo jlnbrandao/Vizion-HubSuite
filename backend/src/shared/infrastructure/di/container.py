@@ -58,6 +58,7 @@ from src.modules.permissions.handlers.permission_handlers import (
 from src.modules.permissions.repositories.sqlalchemy_permission_repository import (
     SqlAlchemyPermissionRepository,
 )
+from src.modules.products.service import HubGatewayService, ProductRegistryService
 from src.modules.roles.handlers.role_handlers import (
     AssignPermissionsToRoleHandler,
     CheckRolesExistHandler,
@@ -134,6 +135,7 @@ class Container(containers.DeclarativeContainer):
             "src.modules.iam.routes",
             "src.modules.iam.scim.routes",
             "src.modules.integrations.routes",
+            "src.modules.products.routes",
             "src.modules.tenants.routes.tenant_routes",
             "src.shared.infrastructure.security.dependencies",
         ],
@@ -568,6 +570,20 @@ class Container(containers.DeclarativeContainer):
         BillingService,
         settings=config,
         asaas=asaas_client,
+        catalog=service_catalog,
+        audit=audit_service,
+    )
+    product_registry: providers.Singleton[ProductRegistryService] = providers.Singleton(
+        ProductRegistryService,
+        settings=config,
+        password_hasher=password_hasher,
+    )
+    hub_gateway: providers.Singleton[HubGatewayService] = providers.Singleton(
+        HubGatewayService,
+        settings=config,
+        password_hasher=password_hasher,
+        query_bus=query_bus,
+        authorization=authorization_service,
         catalog=service_catalog,
         audit=audit_service,
     )

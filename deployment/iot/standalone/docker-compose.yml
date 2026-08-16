@@ -1,0 +1,17 @@
+services:
+  iot-api:
+    image: openvizion/iot-api:local
+    build:
+      context: ../../..
+      dockerfile: products/iot/backend/Dockerfile
+    environment:
+      DEPLOYMENT_MODE: standalone
+      PLATFORM_ADAPTER: local
+      PLATFORM_CORE_URL: ""
+    ports:
+      - "8200:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
