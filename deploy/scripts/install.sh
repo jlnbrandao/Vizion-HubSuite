@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Instala NGINX + systemd para manter o Vizion sempre online.
 # Uso: sudo bash /opt/vizion/deploy/scripts/install.sh
+# Só para VPS dedicado. No host compartilhado vizion-g use:
+#   ./deploy/scripts/remote-deploy.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

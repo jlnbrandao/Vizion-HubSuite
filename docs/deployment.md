@@ -33,3 +33,30 @@ Same contracts, more replicas, optional `EVENT_BUS_ADAPTER=kafka`. No cluster or
 Never put secrets in the frontend. Runtime UI config is `/config.json` (mode, API URL). Service secrets stay in API env vars.
 
 See [standalone.md](standalone.md) and [integrated.md](integrated.md).
+
+## Remote host (`ssh vizion-g`)
+
+The GPS VPS already runs Vizion-G on `/opt/vizion-g-*`, nginx for `openvizion.com`, and the API on port **8000**. Do **not** run `deploy/scripts/install.sh` there (it would take `default_server` and port 8000).
+
+From the laptop:
+
+```bash
+# ~/.ssh/config — already present
+# Host vizion-g
+#     HostName 209.97.149.171
+#     User root
+#     IdentityFile ~/.ssh/id_ed25519
+
+./deploy/scripts/remote-deploy.sh --sync        # copy tree to /opt/vizion-h-suite
+./deploy/scripts/remote-deploy.sh --bootstrap   # first time: Python 3.13, DB, systemd, nginx :8088
+./deploy/scripts/remote-deploy.sh               # later deploys: sync + build + restart
+```
+
+| Item | Value |
+|------|--------|
+| Remote dir | `/opt/vizion-h-suite` |
+| API | `127.0.0.1:8010` (`vizion-h-api.service`) |
+| UI / proxy | `:8088` (does not touch `:80` / `:443`) |
+| Postgres / Redis | host services (no Docker); DB name `vizion`, Redis DB `1` |
+
+Tenant Host on that VPS: `http://universe.<ip>:8088` (IP form is always allowed). Add a TLS `server_name` later if you point a subdomain at this vhost.

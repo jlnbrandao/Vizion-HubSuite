@@ -1,0 +1,27 @@
+[Unit]
+Description=Vizion H-Suite API (uvicorn FastAPI)
+Documentation=file:///opt/vizion-h-suite/README.md
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/vizion-h-suite/backend
+EnvironmentFile=-/opt/vizion-h-suite/backend/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/vizion-h-suite/backend/.venv/bin/uvicorn src.main:app \
+    --host 127.0.0.1 \
+    --port 8010 \
+    --workers 2 \
+    --proxy-headers \
+    --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
