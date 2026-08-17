@@ -56,7 +56,7 @@ From the laptop:
 |------|--------|
 | Remote dir | `/opt/vizion-h-suite` |
 | API | `127.0.0.1:8010` (`vizion-h-api.service`) |
-| UI / proxy | `:8088` (does not touch `:80` / `:443`) |
-| Postgres / Redis | host services (no Docker); DB name `vizion`, Redis DB `1` |
-
+| UI / proxy | `:8088` (IP) and `https://universe.openvizion.com` / `https://ows.openvizion.com` |
+| Postgres / Redis | host services (no Docker); DB name `vizion_hub_prod`, Redis DB `1` |
+    
 Tenant Host on that VPS: `http://universe.<ip>:8088` (IP form is always allowed). Add a TLS `server_name` later if you point a subdomain at this vhost.

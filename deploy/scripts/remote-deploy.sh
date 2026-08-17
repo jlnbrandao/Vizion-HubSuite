@@ -111,15 +111,15 @@ APP_DEBUG=false
 APP_HOST=127.0.0.1
 APP_PORT=8010
 
-DATABASE_URL=postgresql+asyncpg://vizion_app:${DB_APP_PW}@127.0.0.1:5432/vizion
-DATABASE_MIGRATE_URL=postgresql+asyncpg://vizion:${DB_OWNER_PW}@127.0.0.1:5432/vizion
+DATABASE_URL=postgresql+asyncpg://vizion_app:${DB_APP_PW}@127.0.0.1:5432/vizion_hub_prod
+DATABASE_MIGRATE_URL=postgresql+asyncpg://vizion:${DB_OWNER_PW}@127.0.0.1:5432/vizion_hub_prod
 REDIS_URL=redis://127.0.0.1:6379/1
 
 JWT_SECRET_KEY=${JWT}
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
 JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
-COOKIE_SECURE=false
+COOKIE_SECURE=true
 HSTS_ENABLED=false
 
 ALLOWED_TENANT_BASE_DOMAINS=localhost,openvizion.com,openvizion.local
@@ -149,10 +149,10 @@ BEGIN
 END
 \$\$;
 SQL
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='vizion'" | grep -q 1; then
-      sudo -u postgres createdb -O vizion vizion
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='vizion_hub_prod'" | grep -q 1; then
+      sudo -u postgres createdb -O vizion vizion_hub_prod
     fi
-    sudo -u postgres psql -d vizion -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE vizion TO vizion_app;"
+    sudo -u postgres psql -d vizion_hub_prod -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE vizion_hub_prod TO vizion_app;"
   fi
 
   # 0009 cria vizion_migrate via CREATE ROLE; o owner `vizion` não tem CREATEROLE.
@@ -188,6 +188,9 @@ echo "==> Migrações"
   cd "${DIR}/backend"
   .venv/bin/alembic upgrade head
 )
+# SECURITY DEFINER + FORCE RLS: só o superuser consegue SET app.rls_bypass na função.
+sudo -u postgres psql -d vizion_hub_prod -v ON_ERROR_STOP=1 \
+  -c "ALTER FUNCTION resolve_tenant_by_slug(text) SET app.rls_bypass = 'on'"
 
 echo "==> Frontend"
 (
@@ -196,15 +199,17 @@ echo "==> Frontend"
   npm run build
 )
 
+echo "==> nginx (8088 + universe/ows.openvizion.com)"
+install -m 644 "${DIR}/deploy/nginx/vizion-h.conf" /etc/nginx/sites-available/vizion-h.conf
+ln -sfn /etc/nginx/sites-available/vizion-h.conf /etc/nginx/sites-enabled/vizion-h.conf
+nginx -t
+systemctl reload nginx
+
 if [[ "${MODE}" == "bootstrap" ]]; then
-  echo "==> systemd + nginx (porta 8088, sem default_server)"
+  echo "==> systemd vizion-h-api"
   install -m 644 "${DIR}/deploy/systemd/vizion-h-api.service" /etc/systemd/system/vizion-h-api.service
-  install -m 644 "${DIR}/deploy/nginx/vizion-h.conf" /etc/nginx/sites-available/vizion-h.conf
-  ln -sfn /etc/nginx/sites-available/vizion-h.conf /etc/nginx/sites-enabled/vizion-h.conf
-  nginx -t
   systemctl daemon-reload
   systemctl enable vizion-h-api.service
-  systemctl reload nginx
 fi
 
 if systemctl list-unit-files vizion-h-api.service >/dev/null 2>&1 \

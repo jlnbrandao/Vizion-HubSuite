@@ -41,6 +41,7 @@ def upgrade() -> None:
             LANGUAGE sql
             SECURITY DEFINER
             SET search_path = public
+            SET app.rls_bypass = 'on'
             STABLE
             AS $$
               SELECT t.id, t.slug, t.name, t.is_active, t.created_at, t.updated_at
@@ -72,7 +73,20 @@ def upgrade() -> None:
             """
         )
     )
-    op.execute(sa.text("GRANT CONNECT ON DATABASE vizion TO vizion_app, vizion_migrate"))
+    op.execute(
+        sa.text(
+            """
+            DO $$
+            BEGIN
+              EXECUTE format(
+                'GRANT CONNECT ON DATABASE %I TO vizion_app, vizion_migrate',
+                current_database()
+              );
+            END
+            $$
+            """
+        )
+    )
     op.execute(sa.text("GRANT USAGE ON SCHEMA public TO vizion_app, vizion_migrate"))
     op.execute(
         sa.text(
