@@ -8,8 +8,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, HttpUrl
 
-ProductSlug = Literal["tracking", "iot", "snmp", "gis"]
-PRODUCT_SLUGS: tuple[str, ...] = ("tracking", "iot", "snmp", "gis")
+ProductSlug = Literal["tracking", "iot", "snmp", "gis", "lanstar"]
+PRODUCT_SLUGS: tuple[str, ...] = ("tracking", "iot", "snmp", "gis", "lanstar")
 
 
 class ProductInstance(BaseModel):

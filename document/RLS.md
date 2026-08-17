@@ -27,7 +27,9 @@ WITH CHECK ( /* o mesmo */ )
 
 `FORCE` vale inclusive para o **owner** da tabela. Sem isso, o papel `vizion` (superuser/owner no Compose) leria tudo; a API não usa esse papel em runtime.
 
-`tenants` é especial: SELECT só da linha do tenant atual (ou bypass). A resolução por slug usa `resolve_tenant_by_slug(text)` — `SECURITY DEFINER`, `search_path = public` — porque o middleware precisa achar o tenant **antes** de setar o GUC.
+`tenants` é especial: SELECT só da linha do tenant atual (ou bypass). A resolução por slug usa `resolve_tenant_by_slug(text)` — `SECURITY DEFINER`, `search_path = public`, **`SET app.rls_bypass = on`** (Alembic `0009` + `0023`) — porque o middleware precisa achar o tenant **antes** de setar o GUC.
+
+No Compose o owner `vizion` é superuser e o `SECURITY DEFINER` já ignora RLS. Num VPS em que `vizion` é só owner, sem o `SET` na função o `SELECT` devolve zero linhas e o login responde **404 Unknown tenant**. O `ALTER FUNCTION … SET app.rls_bypass` precisa de superuser (`postgres`); o script `deploy/scripts/remote-deploy.sh` aplica isso depois do Alembic.
 
 ---
 

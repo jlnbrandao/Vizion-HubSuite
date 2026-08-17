@@ -47,6 +47,7 @@ const productSlugOptions = ref<{ label: string; value: ProductSlug }[]>([
   { label: 'IoT', value: 'iot' },
   { label: 'SNMP', value: 'snmp' },
   { label: 'GIS', value: 'gis' },
+  { label: 'Lanstar', value: 'lanstar' },
 ])
 
 const form = reactive({

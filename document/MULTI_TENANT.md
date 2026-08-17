@@ -20,7 +20,9 @@ O slug é o **primeiro label**:
 |------|------|
 | `universe.localhost` | `universe` |
 | `ows.localhost:9000` | `ows` |
+| `universe.openvizion.com` | `universe` |
 | `ows.openvizion.com` | `ows` |
+| `lanstar.openvizion.com` | *(Lanstar app, not HubSuite — see [docs/deployment.md](../docs/deployment.md))* |
 | `universe.134.209.122.250` | `universe` |
 
 Rejeitados: `localhost` sem subdomínio, IP nu, `www.openvizion.com`, `api.openvizion.com` (primeiro label reservado / sem tenant).

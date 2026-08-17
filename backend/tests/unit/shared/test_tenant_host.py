@@ -6,6 +6,7 @@ import pytest
 
 from src.shared.infrastructure.exceptions import ValidationError
 from src.shared.infrastructure.tenant_host import (
+    apply_slug_alias,
     assert_host_base_domain_allowed,
     extract_tenant_slug_from_host,
 )
@@ -28,6 +29,13 @@ from src.shared.infrastructure.tenant_host import (
 )
 def test_extract_tenant_slug_ok(host: str, expected: str) -> None:
     assert extract_tenant_slug_from_host(host) == expected
+
+
+def test_apply_slug_alias() -> None:
+    aliases = {"lanstar": "universe"}
+    assert apply_slug_alias("lanstar", aliases) == "universe"
+    assert apply_slug_alias("ows", aliases) == "ows"
+    assert apply_slug_alias("universe", aliases) == "universe"
 
 
 @pytest.mark.parametrize(

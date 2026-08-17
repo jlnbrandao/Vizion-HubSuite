@@ -101,3 +101,9 @@ def extract_tenant_slug_from_host(host_header: str | None) -> str:
     if not _SLUG_RE.match(slug):
         raise ValidationError(f"Invalid tenant slug: {slug}")
     return slug
+
+
+def apply_slug_alias(slug: str, aliases: dict[str, str]) -> str:
+    """Map a Host label to the stored tenant slug (e.g. lanstar → universe)."""
+    mapped = aliases.get(slug, slug)
+    return mapped.strip().lower() or slug

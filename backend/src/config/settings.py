@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     # Examples: "localhost,openvizion.com,openvizion.local"
     # IP form universe.134.x.x.x is always allowed (base is an IPv4).
     allowed_tenant_base_domains: str = "localhost,openvizion.com,openvizion.local"
+    # Host first-label → stored slug (e.g. lanstar:universe). Empty = no aliases.
+    tenant_slug_aliases: str = ""
 
     # IAM platform feature flags
     iam_oidc_enabled: bool = True
@@ -108,6 +110,11 @@ class Settings(BaseSettings):
     hub_public_ui_port: int = 9000
     hub_notes: str = ""
 
+    # Lanstar GPS (external). Empty origin host → seed skips the Deployments row.
+    lanstar_public_host: str = ""
+    lanstar_origin_host: str = ""
+    lanstar_origin_port: int = 80
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"
@@ -139,6 +146,19 @@ class Settings(BaseSettings):
             for part in self.allowed_tenant_base_domains.split(",")
             if part.strip()
         )
+
+    @property
+    def slug_aliases(self) -> dict[str, str]:
+        aliases: dict[str, str] = {}
+        for part in self.tenant_slug_aliases.split(","):
+            item = part.strip()
+            if not item or ":" not in item:
+                continue
+            source, target = item.split(":", 1)
+            src, dst = source.strip().lower(), target.strip().lower()
+            if src and dst:
+                aliases[src] = dst
+        return aliases
 
     @property
     def mfa_required_role_names(self) -> frozenset[str]:

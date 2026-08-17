@@ -38,25 +38,49 @@ See [standalone.md](standalone.md) and [integrated.md](integrated.md).
 
 The GPS VPS already runs Vizion-G on `/opt/vizion-g-*`, nginx for `openvizion.com`, and the API on port **8000**. Do **not** run `deploy/scripts/install.sh` there (it would take `default_server` and port 8000).
 
-From the laptop:
+HubSuite lives beside it: `/opt/vizion-h-suite`, API on **8010**, nginx vhost **exact** names `universe.openvizion.com` and `ows.openvizion.com` (those beat the Vizion-G regex `*.openvizion.com`). Other tenant slugs stay on Vizion-G.
+
+[https://lanstar.openvizion.com](https://lanstar.openvizion.com) is **not** HubSuite: nginx proxies to the Lanstar app on `134.209.122.250` (`deploy/nginx/lanstar.openvizion.com.conf`). Login there uses Lanstar’s tenant field (e.g. the owner tenant). That proxy is registered as a **Lanstar** row on Deployments (`/platform/products`) when `LANSTAR_ORIGIN_HOST` is set and seed runs.
+
+From the laptop (`Host vizion-g` in `~/.ssh/config` → `209.97.149.171`, user `root`):
 
 ```bash
-# ~/.ssh/config — already present
-# Host vizion-g
-#     HostName 209.97.149.171
-#     User root
-#     IdentityFile ~/.ssh/id_ed25519
-
 ./deploy/scripts/remote-deploy.sh --sync        # copy tree to /opt/vizion-h-suite
-./deploy/scripts/remote-deploy.sh --bootstrap   # first time: Python 3.13, DB, systemd, nginx :8088
+./deploy/scripts/remote-deploy.sh --bootstrap   # first time: Python 3.13, DB, systemd, nginx
 ./deploy/scripts/remote-deploy.sh               # later deploys: sync + build + restart
 ```
+
+`rsync` is preferred (supports `--delete`). Without it the script falls back to `tar`+`ssh`.
 
 | Item | Value |
 |------|--------|
 | Remote dir | `/opt/vizion-h-suite` |
 | API | `127.0.0.1:8010` (`vizion-h-api.service`) |
-| UI / proxy | `:8088` (IP) and `https://universe.openvizion.com` / `https://ows.openvizion.com` |
-| Postgres / Redis | host services (no Docker); DB name `vizion_hub_prod`, Redis DB `1` |
-    
-Tenant Host on that VPS: `http://universe.<ip>:8088` (IP form is always allowed). Add a TLS `server_name` later if you point a subdomain at this vhost.
+| UI | [https://universe.openvizion.com](https://universe.openvizion.com) / [https://ows.openvizion.com](https://ows.openvizion.com) |
+| Lanstar | [https://lanstar.openvizion.com](https://lanstar.openvizion.com) → `134.209.122.250` |
+| Fallback | `:8088` by IP (`http://universe.<ip>:8088`) |
+| Postgres | host service, database **`vizion_hub_prod`** (not `vizion_g_prod`) |
+| Redis | host service, DB `1` |
+| Nginx | `deploy/nginx/vizion-h.conf` → `/etc/nginx/sites-enabled/vizion-h.conf` |
+
+### First login (seed)
+
+`--bootstrap` does **not** create users. After migrations:
+
+```bash
+ssh vizion-g 'cd /opt/vizion-h-suite/backend && SEED_ALLOW_INSECURE=true .venv/bin/python -m scripts.seed'
+```
+
+| Host | User | Role |
+|------|------|------|
+| `universe.openvizion.com` | `admin` | `ADMIN` |
+| `ows.openvizion.com` | `root` | `PLATFORM` |
+
+Demo password is `SEED_PASSWORD` in `backend/scripts/seed.py`.
+
+### Postgres on a shared VPS
+
+`vizion` is **not** a superuser here (unlike Docker Compose). Two consequences:
+
+1. Alembic wraps migrations with `SET LOCAL app.rls_bypass = on` (`backend/alembic/env.py`).
+2. `resolve_tenant_by_slug` must run with `SET app.rls_bypass = on` (migration `0023`, applied as `postgres`). Without that, login returns **404 Unknown tenant** even though the row exists. See [document/RLS.md](../document/RLS.md).

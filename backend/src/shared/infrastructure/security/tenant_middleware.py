@@ -15,6 +15,7 @@ from src.shared.application.query_bus import QueryBus
 from src.shared.infrastructure.exceptions import NotFoundError, ValidationError
 from src.shared.infrastructure.tenant_context import bind_tenant, unbind_tenant
 from src.shared.infrastructure.tenant_host import (
+    apply_slug_alias,
     assert_host_base_domain_allowed,
     extract_tenant_slug_from_host,
 )
@@ -58,7 +59,10 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 self._settings.tenant_base_domains,
                 enforce=bool(self._settings.tenant_base_domains),
             )
-            slug = extract_tenant_slug_from_host(host)
+            slug = apply_slug_alias(
+                extract_tenant_slug_from_host(host),
+                self._settings.slug_aliases,
+            )
         except ValidationError as exc:
             return JSONResponse(
                 status_code=422,

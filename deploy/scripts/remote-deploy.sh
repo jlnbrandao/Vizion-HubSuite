@@ -123,12 +123,17 @@ COOKIE_SECURE=true
 HSTS_ENABLED=false
 
 ALLOWED_TENANT_BASE_DOMAINS=localhost,openvizion.com,openvizion.local
+TENANT_SLUG_ALIASES=lanstar:universe
 
 HUB_ENVIRONMENT=vps
-HUB_PUBLIC_HOST=${SERVER_IP}
-HUB_PUBLIC_API_PORT=8088
-HUB_PUBLIC_UI_PORT=8088
-HUB_NOTES="H-Suite em vizion-g:/opt/vizion-h-suite (API :8010, UI :8088)"
+HUB_PUBLIC_HOST=universe.openvizion.com
+HUB_PUBLIC_API_PORT=443
+HUB_PUBLIC_UI_PORT=443
+HUB_NOTES="HubSuite on vizion-g. Lanstar UI proxied at lanstar.openvizion.com"
+
+LANSTAR_PUBLIC_HOST=lanstar.openvizion.com
+LANSTAR_ORIGIN_HOST=134.209.122.250
+LANSTAR_ORIGIN_PORT=80
 EOF
     chmod 600 "${DIR}/backend/.env"
 
@@ -199,9 +204,13 @@ echo "==> Frontend"
   npm run build
 )
 
-echo "==> nginx (8088 + universe/ows.openvizion.com)"
+echo "==> nginx (HubSuite universe/ows + proxy lanstar)"
 install -m 644 "${DIR}/deploy/nginx/vizion-h.conf" /etc/nginx/sites-available/vizion-h.conf
 ln -sfn /etc/nginx/sites-available/vizion-h.conf /etc/nginx/sites-enabled/vizion-h.conf
+install -m 644 "${DIR}/deploy/nginx/lanstar.openvizion.com.conf" \
+  /etc/nginx/sites-available/lanstar.openvizion.com
+ln -sfn /etc/nginx/sites-available/lanstar.openvizion.com \
+  /etc/nginx/sites-enabled/lanstar.openvizion.com
 nginx -t
 systemctl reload nginx
 

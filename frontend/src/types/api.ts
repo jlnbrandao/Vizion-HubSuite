@@ -433,7 +433,7 @@ export interface ProductTopologyResponse {
   product_options?: ProductSlugOption[]
 }
 
-export type ProductSlug = 'tracking' | 'iot' | 'snmp' | 'gis'
+export type ProductSlug = 'tracking' | 'iot' | 'snmp' | 'gis' | 'lanstar'
 
 export interface CreateProductInstancePayload {
   slug: ProductSlug

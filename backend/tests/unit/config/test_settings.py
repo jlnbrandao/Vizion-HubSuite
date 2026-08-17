@@ -55,3 +55,8 @@ def test_production_accepts_strong_jwt_secret() -> None:
     )
     assert settings.jwt_secret_key == secret
     assert settings.tenant_base_domains == ("openvizion.com",)
+
+
+def test_slug_aliases_parse() -> None:
+    settings = Settings(tenant_slug_aliases="lanstar:universe, Foo:BAR")
+    assert settings.slug_aliases == {"lanstar": "universe", "foo": "bar"}

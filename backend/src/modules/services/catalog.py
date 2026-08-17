@@ -110,6 +110,13 @@ PRODUCT_SERVICES: tuple[ServiceDefinition, ...] = (
         description="GIS product — maps and geospatial workspace",
         tenant_only=True,
     ),
+    ServiceDefinition(
+        slug="lanstar",
+        namespace="lanstar",
+        name="Lanstar",
+        description="Lanstar GPS — public UI proxied at lanstar.openvizion.com",
+        tenant_only=True,
+    ),
 )
 
 ALL_SERVICES: tuple[ServiceDefinition, ...] = CORE_SERVICES + PRODUCT_SERVICES

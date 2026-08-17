@@ -18,7 +18,7 @@ def test_event_envelope_json() -> None:
 
 
 def test_product_slugs() -> None:
-    assert PRODUCT_SLUGS == ("tracking", "iot", "snmp", "gis")
+    assert PRODUCT_SLUGS == ("tracking", "iot", "snmp", "gis", "lanstar")
     req = CreateProductInstanceRequest(
         slug="tracking",
         name="Tracking A",

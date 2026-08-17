@@ -39,7 +39,7 @@ from src.shared.infrastructure.security.current_user import CurrentUser
 from src.shared.infrastructure.session_context import get_current_session
 from src.shared.infrastructure.tenant_context import bind_tenant, unbind_tenant
 
-_PRODUCT_SLUGS = frozenset({"tracking", "iot", "snmp", "gis"})
+_PRODUCT_SLUGS = frozenset({"tracking", "iot", "snmp", "gis", "lanstar"})
 _SERVICE_TOKEN_MINUTES = 60
 
 

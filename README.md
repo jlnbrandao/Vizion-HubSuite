@@ -248,5 +248,6 @@ Para adicionar páginas, módulos, widgets ou ações protegidas pelo RBAC, siga
 | [document/AUDIT.md](document/AUDIT.md) | `audit_events`, `request_id`, retenção |
 | [document/SECURITY.md](document/SECURITY.md) | Tokens, cookies, headers, segredos, SAST |
 | [document/SERVICE_HUB.md](document/SERVICE_HUB.md) | Service Slice, entitlements, quotas |
+| [docs/deployment.md](docs/deployment.md) | Compose, layouts, deploy em `vizion-g` |
 | [docs/architecture.md](docs/architecture.md) | Produtos distribuíveis (standalone / Hub) |
 | [document/0001-sistema-iam.md](document/0001-sistema-iam.md) | Roadmap histórico do IAM |

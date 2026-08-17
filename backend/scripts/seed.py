@@ -33,8 +33,10 @@ from src.modules.roles.commands.role_commands import (
     ReplaceRolePermissionsCommand,
 )
 from src.modules.roles.value_objects.role_name import RoleName
+from src.modules.products.models import ProductInstanceModel
 from src.modules.services.catalog import ALL_SERVICES
 from src.modules.services.models import ServiceModel
+from src.modules.users.value_objects.plain_password import PlainPassword
 from src.modules.tenants.commands.tenant_commands import UpsertTenantCommand
 from src.modules.users.commands.user_commands import (
     ChangeUserPasswordCommand,
@@ -60,6 +62,8 @@ logger = logging.getLogger("seed")
 # Stable UUIDs (slug renames are applied by UpsertTenant on refresh).
 UNIVERSE_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000001")  # was slug bigbang
 OWS_TENANT_ID = UUID("a0000000-0000-4000-8000-000000000002")  # was slug platform, then bigbang, then vws
+LANSTAR_INSTANCE_ID = UUID("a0000000-0000-4000-8000-000000000010")
+LANSTAR_CLIENT_ID = "lanstar-vizion-g"
 SEED_PASSWORD = "123Mudar."
 
 
@@ -394,6 +398,61 @@ async def _ensure_service_catalog(container: Container) -> None:
         await uow.commit()
 
 
+async def _ensure_lanstar_instance(container: Container) -> None:
+    """Publish the vizion-g → Lanstar VPS proxy on Deployments when configured."""
+    settings = get_settings()
+    origin = settings.lanstar_origin_host.strip()
+    if not origin:
+        return
+    public = settings.lanstar_public_host.strip() or "lanstar.openvizion.com"
+    origin_port = settings.lanstar_origin_port or 80
+    notes = (
+        f"nginx on vizion-g: https://{public} → http://{origin}:{origin_port} "
+        "(Lanstar login; tenant field is the Lanstar owner tenant)"
+    )
+    hasher = container.password_hasher()
+    async with container.unit_of_work() as uow:
+        session = get_current_session()
+        row = await session.get(ProductInstanceModel, LANSTAR_INSTANCE_ID)
+        if row is None:
+            row = ProductInstanceModel(
+                id=LANSTAR_INSTANCE_ID,
+                slug="lanstar",
+                name="Lanstar",
+                base_url=f"http://{origin}:{origin_port}",
+                ui_url=f"https://{public}",
+                status="registered",
+                version="",
+                client_id=LANSTAR_CLIENT_ID,
+                client_secret_hash=hasher.hash(
+                    PlainPassword.from_login_attempt("lanstar-deploy-secret")
+                ).value,
+                environment="remote_vps",
+                host=origin,
+                api_port=origin_port,
+                ui_host=public,
+                ui_port=443,
+                scheme="http",
+                notes=notes,
+            )
+            session.add(row)
+            logger.info("lanstar deployment registered: %s → %s", public, origin)
+        else:
+            row.name = "Lanstar"
+            row.slug = "lanstar"
+            row.base_url = f"http://{origin}:{origin_port}"
+            row.ui_url = f"https://{public}"
+            row.environment = "remote_vps"
+            row.host = origin
+            row.api_port = origin_port
+            row.ui_host = public
+            row.ui_port = 443
+            row.scheme = "http"
+            row.notes = notes
+            logger.info("lanstar deployment updated: %s → %s", public, origin)
+        await uow.commit()
+
+
 async def _entitle_services(container: Container, tenant_id: UUID) -> None:
     catalog = container.service_catalog()
     async with container.unit_of_work() as uow:
@@ -610,6 +669,7 @@ async def seed() -> None:
             ),
             role_descriptions={"PLATFORM": "Cross-tenant platform administration"},
         )
+        await _ensure_lanstar_instance(container)
         logger.info("seed completed successfully")
     finally:
         unbind_rls_bypass(bypass_token)
